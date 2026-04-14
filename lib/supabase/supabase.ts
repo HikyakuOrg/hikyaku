@@ -660,6 +660,7 @@ export type Database = {
       vehicles: {
         Row: {
           id: string
+          is_deleted: boolean
           vehicle_gross_limits: number
           vehicle_identification_number: string | null
           vehicle_make: string | null
@@ -671,6 +672,7 @@ export type Database = {
         }
         Insert: {
           id?: string
+          is_deleted?: boolean
           vehicle_gross_limits: number
           vehicle_identification_number?: string | null
           vehicle_make?: string | null
@@ -682,6 +684,7 @@ export type Database = {
         }
         Update: {
           id?: string
+          is_deleted?: boolean
           vehicle_gross_limits?: number
           vehicle_identification_number?: string | null
           vehicle_make?: string | null
