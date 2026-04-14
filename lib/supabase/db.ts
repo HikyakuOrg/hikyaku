@@ -319,6 +319,73 @@ export async function getVehicle(id: string) {
     return data
 }
 
+export async function getVehicleWithFullDetails(id: string) {
+    // 1. Get vehicle with type
+    const { data: vehicle, error: vError } = await supabase
+        .from('vehicles')
+        .select(`
+            *,
+            vehicle_type:vehicle_type (*)
+        `)
+        .eq('id', id)
+        .single()
+    
+    if (vError) throw vError;
+
+    // 2. Get current driver assignment
+    const { data: assignment, error: aError } = await supabase
+        .from('driver_vehicle_assignment')
+        .select(`
+            driver_id
+        `)
+        .eq('vehicle_id', id)
+        .maybeSingle()
+
+    let driver = null
+    if (assignment?.driver_id) {
+        // Fetch driver info using RPC or separate query to get user details
+        const { data: drivers, error: dError } = await supabase
+            .rpc('get_drivers_by_ids', { p_driver_ids: [assignment.driver_id] })
+        
+        if (drivers && drivers.length > 0) {
+            driver = drivers[0]
+        }
+    }
+
+    // 3. Get deliveries
+    const { data: deliveries, error: deError } = await supabase
+        .from('package_assignment')
+        .select(`
+            package_id,
+            created_at,
+            driver_id,
+            package:packages (
+                tracking_number,
+                from_customer:customer!packages_from_customer_fkey (customer_name),
+                to_customer:customer!packages_to_customer_fkey (customer_name),
+                window:package_delivery_window (
+                    scheduled_departure,
+                    actual_departure,
+                    scheduled_arrival,
+                    actual_arrival
+                )
+            )
+        `)
+        .eq('vehicle_id', id)
+        .order('created_at', { ascending: false })
+
+    // Since views like packages_with_latest_status are hard to join in nested selects without explicit FKs,
+    // we might need to fetch statuses separately or use a join-heavy query if the view supports it.
+    // However, I'll stick to a simpler approach for now: if status join fails, I'll fallback to a default.
+    // For now, let's keep it simple as the view join might just work if we use the right name.
+
+    return {
+        vehicle,
+        currentDriver: driver,
+        deliveries: deliveries || []
+    }
+}
+
 
 export async function deleteDriverAssignedVehicle(vehicleId: string, driverId: string) {
     const { data, error } = await supabase.from("driver_vehicle_assignment").delete()

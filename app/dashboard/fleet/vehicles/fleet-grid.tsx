@@ -74,7 +74,7 @@ export function FleetGrid({ vehicles }: FleetInventoryProps) {
                 return (
                     <Card
                         key={v.id}
-                        onClick={() => router.push(`/dashboard/fleet/vehicles/${v.id}/edit`)}
+                        onClick={() => router.push(`/dashboard/fleet/vehicles/${v.id}`)}
                         className={cn(
                             "cursor-pointer hover:shadow-lg relative overflow-hidden",
                             v.is_deleted && "opacity-75 grayscale-[0.5]"

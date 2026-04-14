@@ -10,6 +10,7 @@ import { getVehiclesByType, getVehicleTypes, VehiclesWithTypes, deleteVehicle } 
 import { Tables } from '@/lib/supabase/supabase';
 import { RowSelectionState } from '@tanstack/react-table';
 import { toast } from 'sonner';
+import { Separator } from '@/components/ui/separator';
 
 
 export function FleetInventory() {
@@ -82,6 +83,13 @@ export function FleetInventory() {
                     actions={(row) => {
                         return (
                             <>
+                                <span 
+                                    className="cursor-pointer text-sm font-semibold"
+                                    onClick={() => router.push(`/dashboard/fleet/vehicles/${row.id}`)}
+                                >
+                                    View Details
+                                </span>
+                                <Separator className="my-1" />
                                 <span 
                                     className="cursor-pointer text-sm"
                                     onClick={() => router.push(`/dashboard/fleet/vehicles/${row.id}/edit`)}
