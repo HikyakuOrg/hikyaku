@@ -307,6 +307,18 @@ export async function createVehicle(vehicle: Tables<'vehicles'>) {
     return data
 }
 
+export async function updateVehicle(id: string, vehicle: Partial<Tables<'vehicles'>>) {
+    const { data, error } = await supabase.from("vehicles").update(vehicle).eq("id", id).select().single()
+    if (error) throw error
+    return data
+}
+
+export async function getVehicle(id: string) {
+    const { data, error } = await supabase.from("vehicles").select("*").eq("id", id).single()
+    if (error) throw error
+    return data
+}
+
 
 export async function deleteDriverAssignedVehicle(vehicleId: string, driverId: string) {
     const { data, error } = await supabase.from("driver_vehicle_assignment").delete()

@@ -80,7 +80,16 @@ export function FleetInventory() {
                     onPageChange={setCurrentPage}
                     rowSelection={rowSelection}
                     actions={(row) => {
-                        
+                        return (
+                            <>
+                                <span 
+                                    className="cursor-pointer text-sm"
+                                    onClick={() => router.push(`/dashboard/fleet/vehicles/${row.id}/edit`)}
+                                >
+                                    Edit Vehicle
+                                </span>
+                            </>
+                        )
                     }}
                     onRowSelectionChange={setRowSelection}
                     onVehicleTypeFilterChange={(filter) => {
