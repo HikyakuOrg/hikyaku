@@ -6,9 +6,10 @@ import { Grid, LayoutList } from 'lucide-react';
 import { FleetTable } from './fleet-table';
 import { useRouter } from "next/navigation"
 import { FleetGrid } from './fleet-grid';
-import { getVehiclesByType, getVehicleTypes, VehiclesWithTypes } from '@/lib/supabase/db';
+import { getVehiclesByType, getVehicleTypes, VehiclesWithTypes, deleteVehicle } from '@/lib/supabase/db';
 import { Tables } from '@/lib/supabase/supabase';
 import { RowSelectionState } from '@tanstack/react-table';
+import { toast } from 'sonner';
 
 
 export function FleetInventory() {
@@ -86,6 +87,17 @@ export function FleetInventory() {
                         setCurrentPage(1)
                         setVehicleTypeFilter(filter)
                     }}                
+                    handleDelete={async (rows) => {
+                        try {
+                            const promises = rows.map(r => deleteVehicle(r.id))
+                            await Promise.all(promises)
+                            setVehicles(prev => prev.filter(v => !rows.map(r => r.id).includes(v.id)))
+                            setRowSelection({})
+                            toast.success("Vehicles deleted successfully")
+                        } catch (error: any) {
+                            toast.error(error.message)
+                        }
+                    }}
                 />
             )}
 

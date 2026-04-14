@@ -108,6 +108,7 @@ type Vehicle = Database['public']['Tables']['vehicles']['Row']
 type VehicleType = Database['public']['Tables']['vehicle_type']['Row']
 export type VehiclesWithTypes = Omit<Vehicle, 'vehicle_type'> & {
     vehicle_type: VehicleType | null
+    is_deleted?: boolean
 }
 
 export async function getVehiclesByType(selectedTypes: string[], page: number, pageSize: number) {
@@ -126,6 +127,7 @@ export async function getVehiclesByType(selectedTypes: string[], page: number, p
         vehicle_model,
         vehicle_gross_limits,
         warehouse_id,
+        is_deleted,
         vehicle_type:vehicle_type (
           id,
           vehicle_type,
@@ -134,6 +136,7 @@ export async function getVehiclesByType(selectedTypes: string[], page: number, p
       `,
             { count: 'exact' }
         )
+        .eq('is_deleted', false)
 
     // Apply filter only if array has values
     if (selectedTypes.length > 0) {
@@ -188,6 +191,7 @@ export async function getVehiclesNotAssignedInWarehouse(warehouseId: string, pag
         vehicle_model,
         vehicle_gross_limits,
         warehouse_id,
+        is_deleted,
         vehicle_type:vehicle_type (
           id,
           vehicle_type,
@@ -197,6 +201,7 @@ export async function getVehiclesNotAssignedInWarehouse(warehouseId: string, pag
           id
         )
       `).eq("warehouse_id", warehouseId)
+        .eq("is_deleted", false)
         .is('driver_vehicle_assignment.id', null)
         .range(from, to)
     if (error) throw error
@@ -216,12 +221,15 @@ export async function getVehiclesInWarehouse(warehouseId: string, page: number, 
         vehicle_model,
         vehicle_gross_limits,
         warehouse_id,
+        is_deleted,
         vehicle_type:vehicle_type (
           id,
           vehicle_type,
           vehicle_description
         )
-      `).eq("warehouse_id", warehouseId).range(from, to)
+      `).eq("warehouse_id", warehouseId)
+        .eq("is_deleted", false)
+        .range(from, to)
     if (error) throw error
     return { data: data ?? [], total: count ?? 0 }
 }
@@ -239,12 +247,14 @@ export async function getVehiclesNotAssigned(page: number, pageSize: number) {
         vehicle_model,
         vehicle_gross_limits,
         warehouse_id,
+        is_deleted,
         vehicle_type:vehicle_type (
           id,
           vehicle_type,
           vehicle_description
         )
       `, { count: "exact" }).is("warehouse_id", null)
+        .eq("is_deleted", false)
         .range(from, to)
     if (error) throw error
     return { data: data ?? [], total: count ?? 0 }
@@ -273,12 +283,20 @@ export async function getVehiclesById(vehicleIds: string[]) {
         vehicle_model,
         vehicle_gross_limits,
         warehouse_id,
+        is_deleted,
         vehicle_type:vehicle_type (
           id,
           vehicle_type,
           vehicle_description
         )
       `).in("id", vehicleIds)
+    if (error) throw error
+    return data
+}
+
+
+export async function deleteVehicle(vehicleId: string) {
+    const { data, error } = await supabase.from("vehicles").update({ is_deleted: true }).eq("id", vehicleId)
     if (error) throw error
     return data
 }
