@@ -301,6 +301,12 @@ export async function deleteVehicle(vehicleId: string) {
     return data
 }
 
+export async function createVehicle(vehicle: Tables<'vehicles'>) {
+    const { data, error } = await supabase.from("vehicles").insert(vehicle).select().single()
+    if (error) throw error
+    return data
+}
+
 
 export async function deleteDriverAssignedVehicle(vehicleId: string, driverId: string) {
     const { data, error } = await supabase.from("driver_vehicle_assignment").delete()
