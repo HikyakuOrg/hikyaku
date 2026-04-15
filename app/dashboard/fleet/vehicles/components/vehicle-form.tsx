@@ -237,7 +237,9 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
                             value={form.watch('vehicle_type')}
                         >
                             <SelectTrigger>
-                                <SelectValue placeholder="Select type" />
+                                <SelectValue placeholder="Select type">
+                                    {vehicleTypes.find(t => t.id === form.watch('vehicle_type'))?.vehicle_type}
+                                </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                                 {vehicleTypes.map((t) => (
@@ -265,7 +267,9 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
                             value={form.watch('warehouse_id')}
                         >
                             <SelectTrigger>
-                                <SelectValue placeholder="Select warehouse" />
+                                <SelectValue placeholder="Select warehouse">
+                                    {warehouses.find(w => w.id === form.watch('warehouse_id'))?.warehouse_name}
+                                </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                                 {warehouses.map((w) => (
