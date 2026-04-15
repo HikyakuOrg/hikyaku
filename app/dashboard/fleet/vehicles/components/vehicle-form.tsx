@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { getVehicleTypes, getWarehouses } from '@/lib/supabase/db'
 import { toast } from 'sonner'
 import { Loader2, CheckCircle2, AlertCircle, X, Image as ImageIcon } from 'lucide-react'
-import { createDecoder } from '@cardog/corgi/browser'
+import { decodeVin } from '@/lib/actions/vin'
 import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/dropzone'
 import { useSupabaseUpload } from '@/hooks/use-supabase-upload'
 import { createClient } from '@/lib/supabase/client'
@@ -95,14 +95,10 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
 
         setIsDecoding(true)
         try {
-            const decoder = await createDecoder({
-                databasePath: "https://corgi.cardog.io/vpic.lite.db.gz",
-                runtime: "browser",
-            })
-            const result = await decoder.decode(vin)
+            const result = await decodeVin(vin)
             
-            if (result.valid && result.components.vehicle) {
-                const { make, model, year } = result.components.vehicle
+            if (result.success && result.data) {
+                const { make, model, year } = result.data
                 form.setValue('vehicle_make', make || '')
                 form.setValue('vehicle_model', model || '')
                 form.setValue('vehicle_year', year || new Date().getFullYear())
@@ -110,7 +106,7 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
                 toast.success('Vehicle details auto-populated from VIN')
             } else {
                 setIsAutoPopulated(false)
-                toast.error('Could not decode VIN. Please enter details manually.')
+                toast.error(result.error || 'Could not decode VIN. Please enter details manually.')
             }
         } catch (error) {
             console.error('VIN Decode Error:', error)
@@ -238,7 +234,7 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
 
                     <div className="space-y-2">
                         <Label htmlFor="type">Vehicle Type</Label>
-                        <Select 
+                        {/* <Select 
                             onValueChange={(val) => form.setValue('vehicle_type', val)}
                             value={form.watch('vehicle_type')}
                         >
@@ -252,7 +248,7 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
                                     </SelectItem>
                                 ))}
                             </SelectContent>
-                        </Select>
+                        </Select> */}
                     </div>
 
                     <div className="space-y-2">
@@ -266,7 +262,7 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
 
                     <div className="space-y-2">
                         <Label htmlFor="warehouse">Assigned Warehouse</Label>
-                        <Select 
+                        {/* <Select 
                             onValueChange={(val) => form.setValue('warehouse_id', val)}
                             value={form.watch('warehouse_id')}
                         >
@@ -280,7 +276,7 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
                                     </SelectItem>
                                 ))}
                             </SelectContent>
-                        </Select>
+                        </Select> */}
                     </div>
                 </CardContent>
             </Card>
