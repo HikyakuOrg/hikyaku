@@ -152,9 +152,8 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
                             <div className="relative">
                                 <Input
                                     id="vin"
-                                    placeholder="17-character VIN"
+                                    placeholder="17 character VIN"
                                     maxLength={17}
-                                    className="uppercase pr-10"
                                     {...form.register('vehicle_identification_number')}
                                     onChange={(e) => {
                                         form.register('vehicle_identification_number').onChange(e)
@@ -183,8 +182,7 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
                             <Label htmlFor="plate">Registration Plate</Label>
                             <Input
                                 id="plate"
-                                placeholder="e.g. ABC-123"
-                                className="uppercase"
+                                placeholder="ABC-123"
                                 {...form.register('vehicle_plate')}
                             />
                             {form.formState.errors.vehicle_plate && (
@@ -234,8 +232,8 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
 
                     <div className="space-y-2">
                         <Label htmlFor="type">Vehicle Type</Label>
-                        {/* <Select 
-                            onValueChange={(val) => form.setValue('vehicle_type', val)}
+                        <Select 
+                            onValueChange={(val) => form.setValue('vehicle_type', val ?? "")}
                             value={form.watch('vehicle_type')}
                         >
                             <SelectTrigger>
@@ -248,7 +246,7 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
                                     </SelectItem>
                                 ))}
                             </SelectContent>
-                        </Select> */}
+                        </Select>
                     </div>
 
                     <div className="space-y-2">
@@ -262,8 +260,8 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
 
                     <div className="space-y-2">
                         <Label htmlFor="warehouse">Assigned Warehouse</Label>
-                        {/* <Select 
-                            onValueChange={(val) => form.setValue('warehouse_id', val)}
+                        <Select 
+                            onValueChange={(val) => form.setValue('warehouse_id', val ?? "")}
                             value={form.watch('warehouse_id')}
                         >
                             <SelectTrigger>
@@ -276,7 +274,7 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
                                     </SelectItem>
                                 ))}
                             </SelectContent>
-                        </Select> */}
+                        </Select>
                     </div>
                 </CardContent>
             </Card>
