@@ -1,11 +1,11 @@
 "use client"
 
-import { SetStateAction, useEffect, useState } from "react"
-import { DriverDialog } from "./driver-dialog"
+import { useEffect, useState } from "react"
 import { ListDriverDto } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { getDrivers } from "@/lib/supabase/supabase-rpc"
 import { DriverTable } from "@/components/driver/driver-table"
+import { Button } from "@/components/ui/button";
 
 const PAGE_SIZE = 10
 
@@ -33,13 +33,17 @@ export default function DriversPage() {
 
     return (
         <div className="space-y-6 p-6">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight mb-2">Drivers</h1>
-                <p className="text-muted-foreground">
-                    Manage your drivers and their assignments.
-                </p>
+            <div className="flex items-center justify-between mb-2">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">Drivers</h1>
+                    <p className="text-muted-foreground">Manage your drivers and their assignments.</p>
+                </div>
+                <Button
+                    onClick={() => router.push("/dashboard/fleet/drivers/add")}
+                >
+                    Add Driver
+                </Button>
             </div>
-            <DriverDialog />
             <DriverTable
                 data={data}
                 loading={loading}
@@ -52,8 +56,8 @@ export default function DriversPage() {
                 }}
                 handleDelete={(rows) => {
                     console.log(rows);
-                }} 
-                />
+                }}
+            />
         </div>
     );
 }
