@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter, useParams, Link } from 'next/navigation'
-import { getVehicleWithFullDetails, listVehicleFiles, deleteVehicle } from '@/lib/supabase/db'
-import { getSignedUrls } from '@/lib/supabase/storage'
+import { useRouter, useParams } from 'next/navigation'
+import { getVehicleWithFullDetails, deleteVehicle } from '@/lib/supabase/db'
+import { getSignedUrls, listVehicleFiles } from '@/lib/supabase/storage'
 import { toast } from 'sonner'
 import { 
     ChevronLeft, 
