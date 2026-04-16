@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Controller, Control } from "react-hook-form"
+import { Controller, Control, FieldValues } from "react-hook-form"
 import {
     Combobox,
     ComboboxContent,
@@ -11,15 +11,16 @@ import {
 import { Item, ItemContent, ItemTitle, ItemDescription } from "@/components/ui/item"
 import { getCustomerDetails } from "@/lib/supabase/db"
 
-type Props = {
-    name: string
-    control: Control<any>
+
+type Props<T extends FieldValues> = {
+    name: import("react-hook-form").FieldPath<T>
+    control: Control<T>
     label?: string,
     customerSelected: (customer: Customer) => void,
     initialSelectedCustomer?: Customer | null
 }
 
-export function CustomerSelector({ name, control, customerSelected, initialSelectedCustomer }: Props) {
+export function CustomerSelector<T extends FieldValues = any>({ name, control, customerSelected, initialSelectedCustomer }: Props<T>) {
     const [searchTerm, setSearchTerm] = useState("")
     const [results, setResults] = useState<Customer[]>([])
     const [selected, setSelected] = useState<Customer | null>(initialSelectedCustomer ?? null)
