@@ -31,7 +31,7 @@ export default function AddDriverPage() {
         }
     }
 
-    async function handleSubmit(e) {
+    async function handleSubmit(e: { preventDefault: () => void }) {
         e.preventDefault()
         setLoading(true)
         const licenseEx = licenseExpiry ? format(licenseExpiry, "yyyy-MM-dd") : null
