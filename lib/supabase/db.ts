@@ -130,6 +130,7 @@ export async function getVehiclesByType(selectedTypes: string[], page: number, p
         is_deleted,
         vehicle_type:vehicle_type (
           id,
+          ors_vehicle_type,
           vehicle_type,
           vehicle_description
         )
@@ -178,7 +179,7 @@ export async function removeDriversWarehouse(driverIds: string[]) {
     return data
 }
 
-export async function getVehiclesNotAssignedInWarehouse(warehouseId: string, page: number, pageSize: number) {
+export async function getVehiclesNotAssignedInWarehouse(warehouseId: string, page: number, pageSize: number){
     const from = (page - 1) * pageSize
     const to = from + pageSize - 1
 
@@ -194,6 +195,7 @@ export async function getVehiclesNotAssignedInWarehouse(warehouseId: string, pag
         is_deleted,
         vehicle_type:vehicle_type (
           id,
+          ors_vehicle_type,
           vehicle_type,
           vehicle_description
         ),
@@ -208,7 +210,7 @@ export async function getVehiclesNotAssignedInWarehouse(warehouseId: string, pag
     return { data: data ?? [], total: count ?? 0 }
 }
 
-export async function getVehiclesInWarehouse(warehouseId: string, page: number, pageSize: number) {
+export async function getVehiclesInWarehouse(warehouseId: string, page: number, pageSize: number){
     const from = (page - 1) * pageSize
     const to = from + pageSize - 1
 
@@ -224,6 +226,7 @@ export async function getVehiclesInWarehouse(warehouseId: string, page: number, 
         is_deleted,
         vehicle_type:vehicle_type (
           id,
+          ors_vehicle_type,
           vehicle_type,
           vehicle_description
         )
@@ -250,6 +253,7 @@ export async function getVehiclesNotAssigned(page: number, pageSize: number) {
         is_deleted,
         vehicle_type:vehicle_type (
           id,
+          ors_vehicle_type,
           vehicle_type,
           vehicle_description
         )
@@ -273,7 +277,7 @@ export async function removeVehiclesWarehouse(vehicleIds: string[]) {
     return data
 }
 
-export async function getVehiclesById(vehicleIds: string[]) {
+export async function getVehiclesById(vehicleIds: string[]){
     const { data, error } = await supabase.from("vehicles").select(`
         id,
         vehicle_plate,
@@ -286,12 +290,13 @@ export async function getVehiclesById(vehicleIds: string[]) {
         is_deleted,
         vehicle_type:vehicle_type (
           id,
+                    ors_vehicle_type,
           vehicle_type,
           vehicle_description
         )
       `).in("id", vehicleIds)
     if (error) throw error
-    return data
+    return data ?? []
 }
 
 
@@ -329,7 +334,7 @@ export async function getVehicleWithFullDetails(id: string) {
         `)
         .eq('id', id)
         .single()
-    
+
     if (vError) throw vError;
 
     // 2. Get current driver assignment
@@ -346,7 +351,7 @@ export async function getVehicleWithFullDetails(id: string) {
         // Fetch driver info using RPC or separate query to get user details
         const { data: drivers, error: dError } = await supabase
             .rpc('get_drivers_by_ids', { p_driver_ids: [assignment.driver_id] })
-        
+
         if (drivers && drivers.length > 0) {
             driver = drivers[0]
         }
@@ -557,7 +562,7 @@ export async function getDeliveryRoutesByDates(startDate: string, endDate: strin
         `)
         .gt('scheduled_departure', startDate)
         .lt('scheduled_departure', endDate)
-        
+
     if (error) throw error
 
     const routesMap = new Map<string, DeliveryRouteByDate>();
@@ -566,19 +571,19 @@ export async function getDeliveryRoutesByDates(startDate: string, endDate: strin
         const package_id = item.package_id;
         const scheduled_departure = item.scheduled_departure;
         const scheduled_arrival = item.scheduled_arrival;
-        
+
         const pgkg = item.packages;
         if (!pgkg) continue;
 
-        const assignments = Array.isArray(pgkg.package_assignment) 
-            ? pgkg.package_assignment 
+        const assignments = Array.isArray(pgkg.package_assignment)
+            ? pgkg.package_assignment
             : [pgkg.package_assignment];
 
         for (const assignment of assignments) {
             if (!assignment) continue;
             const driver_id = assignment.driver_id;
-            const steps = Array.isArray(assignment.vrp_route_step) 
-                ? assignment.vrp_route_step 
+            const steps = Array.isArray(assignment.vrp_route_step)
+                ? assignment.vrp_route_step
                 : [assignment.vrp_route_step];
 
             for (const step of steps) {
@@ -591,7 +596,7 @@ export async function getDeliveryRoutesByDates(startDate: string, endDate: strin
                         package_assignment: []
                     });
                 }
-                
+
                 routesMap.get(route_id)!.package_assignment.push({
                     package_id,
                     driver_id,
