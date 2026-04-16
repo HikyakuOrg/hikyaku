@@ -268,7 +268,7 @@ export default function VehicleOverviewPage() {
                                             <TableCell className="text-sm">{d.package?.to_customer?.customer_name}</TableCell>
                                             <TableCell>
                                                 <Badge variant={
-                                                    d.package?.status?.current_status === 'DELIVERED' ? 'success' :
+                                                    d.package?.status?.current_status === 'DELIVERED' ? 'default' :
                                                     d.package?.status?.current_status === 'FAILED' ? 'destructive' :
                                                     'secondary'
                                                 } className="text-[10px] uppercase font-bold px-1.5 py-0">
