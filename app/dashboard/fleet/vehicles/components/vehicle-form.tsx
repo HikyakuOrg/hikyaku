@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
@@ -13,19 +13,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { getVehicleTypes, getWarehouses } from '@/lib/supabase/db'
 import { toast } from 'sonner'
 import { Loader2, CheckCircle2, AlertCircle, X, Image as ImageIcon } from 'lucide-react'
-import { decodeVin } from '@/lib/actions/vin'
 import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/dropzone'
 import { useSupabaseUpload } from '@/hooks/use-supabase-upload'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { Tables } from '@/lib/supabase/supabase'
+import { decodeVin } from '@/lib/actions/vin'
 
 const vehicleSchema = z.object({
     vehicle_plate: z.string().min(1, 'Plate number is required'),
     vehicle_identification_number: z.string().length(17, 'VIN must be 17 characters'),
     vehicle_make: z.string().min(1, 'Make is required'),
     vehicle_model: z.string().min(1, 'Model is required'),
-    vehicle_year: z.number().min(1900).max(new Date().getFullYear() + 1),
+    vehicle_year: z.number().min(1900).max(new Date().getFullYear() + 1).optional(),
     vehicle_type: z.string().uuid('Please select a vehicle type'),
     vehicle_gross_limits: z.number().positive('Gross limits must be positive'),
     warehouse_id: z.string().uuid('Please select a warehouse'),
@@ -48,9 +48,9 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
     const [isAutoPopulated, setIsAutoPopulated] = useState(!!initialData)
     const [vehicleTypes, setVehicleTypes] = useState<any[]>([])
     const [warehouses, setWarehouses] = useState<any[]>([])
-    const [existingImages, setExistingImages] = useState<{name: string, url: string}[]>([])
+    const [existingImages, setExistingImages] = useState<{ name: string, url: string }[]>([])
     const [isRemovingImage, setIsRemovingImage] = useState<string | null>(null)
-
+    
     const form = useForm<VehicleFormValues>({
         resolver: zodResolver(vehicleSchema),
         defaultValues: {
@@ -58,12 +58,14 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
             vehicle_identification_number: initialData?.vehicle_identification_number || '',
             vehicle_make: initialData?.vehicle_make || '',
             vehicle_model: initialData?.vehicle_model || '',
-            vehicle_year: initialData?.vehicle_year || new Date().getFullYear(),
+            vehicle_year: initialData?.vehicle_year ?? undefined,
             vehicle_type: initialData?.vehicle_type || undefined,
             vehicle_gross_limits: initialData?.vehicle_gross_limits || 0,
             warehouse_id: initialData?.warehouse_id || undefined,
         },
     })
+
+    const vinField = form.register('vehicle_identification_number')
 
     const upload = useSupabaseUpload({
         bucketName: 'vehicles',
@@ -75,7 +77,6 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
     useEffect(() => {
         getVehicleTypes().then(setVehicleTypes)
         getWarehouses(1, 100).then(res => setWarehouses(res.data))
-        
         if (initialData?.id) {
             const supabase = createClient()
             supabase.storage.from('vehicles').list(initialData.id).then(({ data }) => {
@@ -96,12 +97,11 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
         setIsDecoding(true)
         try {
             const result = await decodeVin(vin)
-            
             if (result.success && result.data) {
                 const { make, model, year } = result.data
-                form.setValue('vehicle_make', make || '')
-                form.setValue('vehicle_model', model || '')
-                form.setValue('vehicle_year', year || new Date().getFullYear())
+                form.setValue('vehicle_make', make || '', { shouldDirty: true })
+                form.setValue('vehicle_model', model || '', { shouldDirty: true })
+                form.setValue('vehicle_year', year, { shouldDirty: true })
                 setIsAutoPopulated(true)
                 toast.success('Vehicle details auto-populated from VIN')
             } else {
@@ -119,16 +119,14 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
 
     const handleRemoveExistingImage = async (imageName: string) => {
         if (!initialData?.id) return
-        
+
         setIsRemovingImage(imageName)
         try {
             const supabase = createClient()
             const { error } = await supabase.storage
                 .from('vehicles')
                 .remove([`${initialData.id}/${imageName}`])
-            
             if (error) throw error
-            
             setExistingImages(prev => prev.filter(img => img.name !== imageName))
             toast.success('Image removed')
         } catch (error: any) {
@@ -137,6 +135,7 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
             setIsRemovingImage(null)
         }
     }
+
 
     return (
         <form onSubmit={form.handleSubmit((values) => onSubmit(values, upload.files))} className="space-y-8">
@@ -156,15 +155,19 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
                                     maxLength={17}
                                     {...form.register('vehicle_identification_number')}
                                     onChange={(e) => {
-                                        form.register('vehicle_identification_number').onChange(e)
+                                        vinField.onChange(e)
                                         if (e.target.value.length === 17) {
                                             handleVinDecode(e.target.value)
                                         }
                                     }}
                                 />
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                <div id="vin-status" data-testid="vin-status" className="absolute right-3 top-1/2 -translate-y-1/2">
                                     {isDecoding ? (
                                         <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                                    ) : form.watch('vehicle_identification_number')?.length == 0 ? (
+                                        <></>
+                                    ) : form.watch('vehicle_identification_number')?.length < 17 ? (
+                                        <X className="w-4 h-4 text-destructive" />
                                     ) : isAutoPopulated ? (
                                         <CheckCircle2 className="w-4 h-4 text-primary" />
                                     ) : null}
@@ -205,7 +208,7 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
                         <Label htmlFor="make">Make</Label>
                         <Input
                             id="make"
-                            disabled={isAutoPopulated}
+                            readOnly={isAutoPopulated}
                             {...form.register('vehicle_make')}
                             className={cn(isAutoPopulated && "bg-muted cursor-not-allowed")}
                         />
@@ -214,7 +217,7 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
                         <Label htmlFor="model">Model</Label>
                         <Input
                             id="model"
-                            disabled={isAutoPopulated}
+                            readOnly={isAutoPopulated}
                             {...form.register('vehicle_model')}
                             className={cn(isAutoPopulated && "bg-muted cursor-not-allowed")}
                         />
@@ -224,7 +227,7 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
                         <Input
                             id="year"
                             type="number"
-                            disabled={isAutoPopulated}
+                            readOnly={isAutoPopulated}
                             {...form.register('vehicle_year', { valueAsNumber: true })}
                             className={cn(isAutoPopulated && "bg-muted cursor-not-allowed")}
                         />
@@ -232,7 +235,7 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
 
                     <div className="space-y-2">
                         <Label htmlFor="type">Vehicle Type</Label>
-                        <Select 
+                        <Select
                             onValueChange={(val) => form.setValue('vehicle_type', val ?? "")}
                             value={form.watch('vehicle_type')}
                         >
@@ -262,7 +265,7 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
 
                     <div className="space-y-2">
                         <Label htmlFor="warehouse">Assigned Warehouse</Label>
-                        <Select 
+                        <Select
                             onValueChange={(val) => form.setValue('warehouse_id', val ?? "")}
                             value={form.watch('warehouse_id')}
                         >
@@ -297,9 +300,9 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
                                     <div key={img.name} className="group relative aspect-square rounded-lg border overflow-hidden bg-muted">
                                         <img src={img.url} alt="Vehicle" className="object-cover w-full h-full transition group-hover:scale-105" />
                                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
-                                            <Button 
-                                                variant="destructive" 
-                                                size="icon" 
+                                            <Button
+                                                variant="destructive"
+                                                size="icon"
                                                 disabled={isRemovingImage === img.name}
                                                 onClick={() => handleRemoveExistingImage(img.name)}
                                             >
@@ -311,7 +314,7 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
                             </div>
                         </div>
                     )}
-                    
+
                     <div className="space-y-4">
                         <Label>Add New Photos</Label>
                         <Dropzone {...upload} className="min-h-[150px] flex items-center justify-center">
