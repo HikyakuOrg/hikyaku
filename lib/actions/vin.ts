@@ -10,11 +10,13 @@ export async function decodeVin(vin: string) {
     try {
         const decoder = await createDecoder();
         const result = await decoder.decode(vin);
-        
-        if (result.valid && result.components.vehicle) {
+        const vehicle = result.components.vehicle;
+        const wmi = result.components.wmi;
+        if (result.valid && vehicle && wmi) {
             return {
                 success: true,
-                data: result.components.vehicle
+                vehicle: vehicle,
+                wmi: wmi
             };
         } else {
             return {

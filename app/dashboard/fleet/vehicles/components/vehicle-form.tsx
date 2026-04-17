@@ -50,7 +50,7 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
     const [warehouses, setWarehouses] = useState<any[]>([])
     const [existingImages, setExistingImages] = useState<{ name: string, url: string }[]>([])
     const [isRemovingImage, setIsRemovingImage] = useState<string | null>(null)
-    
+
     const form = useForm<VehicleFormValues>({
         resolver: zodResolver(vehicleSchema),
         defaultValues: {
@@ -97,11 +97,25 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
         setIsDecoding(true)
         try {
             const result = await decodeVin(vin)
-            if (result.success && result.data) {
-                const { make, model, year } = result.data
+            const vehicle = result.vehicle
+            const wmi = result.wmi
+            if (result.success && vehicle && wmi) {
+                const { make, model, year, gvwr } = vehicle
+                const { vehicleType } = wmi
                 form.setValue('vehicle_make', make || '', { shouldDirty: true })
                 form.setValue('vehicle_model', model || '', { shouldDirty: true })
                 form.setValue('vehicle_year', year, { shouldDirty: true })
+                // Convert to kg
+                form.setValue('vehicle_gross_limits', Number(gvwr ? Math.round(Number(gvwr) / 1000) : 0), { shouldDirty: true })
+                if (vehicleType == 'Motorcycle') {
+                    form.setValue('vehicle_type', vehicleTypes.find(t => t.vehicle_type === 'Motorbike')?.id || '', { shouldDirty: true })
+                }
+                if (vehicleType == 'Truck') {
+                    form.setValue('vehicle_type', vehicleTypes.find(t => t.vehicle_type === 'Truck')?.id || '', { shouldDirty: true })
+                }
+                if (vehicleType == 'Passenger Car' || vehicleType == 'Passenger Car' || vehicleType == 'Multipurpose Passenger Vehicle (MPV)' || vehicleType == 'Low Speed Vehicle (LSV)') {
+                    form.setValue('vehicle_type', vehicleTypes.find(t => t.vehicle_type === 'Van')?.id || '', { shouldDirty: true })
+                }
                 setIsAutoPopulated(true)
                 toast.success('Vehicle details auto-populated from VIN')
             } else {
@@ -237,6 +251,7 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
                         <Label htmlFor="type">Vehicle Type</Label>
                         <Select
                             onValueChange={(val) => form.setValue('vehicle_type', val ?? "")}
+                            readOnly={isAutoPopulated}
                             value={form.watch('vehicle_type')}
                         >
                             <SelectTrigger>
