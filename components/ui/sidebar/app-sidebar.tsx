@@ -90,6 +90,10 @@ const sidebarData = {
         {
           title: "Team",
           url: "/dashboard/settings/team",
+        },
+        {
+          title: "Mobile",
+          url: "/dashboard/settings/mobile",
         }
       ],
     },
