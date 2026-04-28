@@ -23,8 +23,8 @@ test.describe("Fleet Vehicles Add Flow", () => {
         await expect(page.locator("#model")).toHaveValue("CTS", { timeout: 10000 });
         await expect(page.locator("#year")).toHaveValue("2011", { timeout: 10000 });
 
-        // Clear VIN field for next test
-        await vinInput.fill("");
+        
+        await page.reload();
 
         // Invalid VIN test
         await vinInput.pressSequentially("JTNAB0AEX0A002410", { delay: 30 });
