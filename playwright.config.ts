@@ -30,7 +30,7 @@ function loadDotEnvFile(fileName: string): void {
 
 loadDotEnvFile(".env.local");
 
-const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000";
+const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
 const authCookieName = process.env.PLAYWRIGHT_SB_AUTH_COOKIE_NAME ?? "FAKE_AUTH_COOKIE_NAME";
 const authCookieValue = process.env.PLAYWRIGHT_SB_AUTH_COOKIE;
 const cookieDomain = new URL(baseURL).hostname;
