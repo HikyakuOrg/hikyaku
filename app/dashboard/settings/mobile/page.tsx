@@ -1,7 +1,6 @@
 import { MobileSettingsQr } from "@/components/settings/mobile-settings-qr";
 import { buildMobileSettingsQrPayload } from "@/lib/mobile-settings-qr";
 
-export const dynamic = "force-dynamic";
 
 export default function MobileSettingsPage() {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
