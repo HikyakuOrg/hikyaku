@@ -1,3 +1,23 @@
+export async function getServiceAreaById(id: string) {
+    const { data, error } = await supabase
+        .from("service_areas")
+        .select("id, name, geometry")
+        .eq("id", id)
+        .single()
+    if (error) throw error
+    return data
+}
+
+export async function updateServiceArea(id: string, name: string, geometry: string) {
+    const { data, error } = await supabase
+        .from("service_areas")
+        .update({ name, geometry })
+        .eq("id", id)
+        .select()
+        .single()
+    if (error) throw error
+    return data
+}
 import { QueryData } from "@supabase/supabase-js";
 import { createClient } from "./client";
 import { Database, Tables } from "./supabase";
@@ -179,7 +199,7 @@ export async function removeDriversWarehouse(driverIds: string[]) {
     return data
 }
 
-export async function getVehiclesNotAssignedInWarehouse(warehouseId: string, page: number, pageSize: number){
+export async function getVehiclesNotAssignedInWarehouse(warehouseId: string, page: number, pageSize: number) {
     const from = (page - 1) * pageSize
     const to = from + pageSize - 1
 
@@ -210,7 +230,7 @@ export async function getVehiclesNotAssignedInWarehouse(warehouseId: string, pag
     return { data: data ?? [], total: count ?? 0 }
 }
 
-export async function getVehiclesInWarehouse(warehouseId: string, page: number, pageSize: number){
+export async function getVehiclesInWarehouse(warehouseId: string, page: number, pageSize: number) {
     const from = (page - 1) * pageSize
     const to = from + pageSize - 1
 
@@ -277,7 +297,7 @@ export async function removeVehiclesWarehouse(vehicleIds: string[]) {
     return data
 }
 
-export async function getVehiclesById(vehicleIds: string[]){
+export async function getVehiclesById(vehicleIds: string[]) {
     const { data, error } = await supabase.from("vehicles").select(`
         id,
         vehicle_plate,

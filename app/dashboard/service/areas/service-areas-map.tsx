@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
 import maplibregl from "maplibre-gl"
 import "maplibre-gl/dist/maplibre-gl.css"
 
@@ -19,6 +20,7 @@ type ServiceAreasMapProps = {
 export function ServiceAreasMap({ featureCollection }: ServiceAreasMapProps) {
     const mapContainerRef = useRef<HTMLDivElement | null>(null)
     const mapRef = useRef<maplibregl.Map | null>(null)
+    const router = useRouter()
 
     useEffect(() => {
         if (!mapContainerRef.current || mapRef.current || featureCollection.features.length === 0) {
@@ -98,6 +100,14 @@ export function ServiceAreasMap({ featureCollection }: ServiceAreasMapProps) {
                 map.getCanvas().style.cursor = ""
                 popup.remove()
             })
+
+            map.on("click", FILL_LAYER_ID, (event) => {
+                const clickedFeature = event.features?.[0]
+                const id = clickedFeature?.properties?.id
+                if (typeof id === "string") {
+                    router.push(`/dashboard/service/areas/edit/${id}`)
+                }
+            })
         }
 
         if (map.isStyleLoaded()) {
@@ -111,7 +121,7 @@ export function ServiceAreasMap({ featureCollection }: ServiceAreasMapProps) {
             map.remove()
             mapRef.current = null
         }
-    }, [featureCollection])
+    }, [featureCollection, router])
 
     if (featureCollection.features.length === 0) {
         return (

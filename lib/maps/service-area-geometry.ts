@@ -1,4 +1,52 @@
+// Converts EWKT (SRID=4326;POLYGON...) to GeoJSON Polygon feature
 import type { Feature, FeatureCollection, Geometry, MultiPolygon, Polygon, Position } from "geojson"
+
+// Converts GeoJSON Polygon feature to EWKT
+export function polygonFeatureToEwkt(feature: Feature<Polygon, any>) {
+    const rings = feature.geometry.coordinates.map(ring => {
+        const normalizedRing = [...ring]
+        const [firstLng, firstLat] = normalizedRing[0]
+        const [lastLng, lastLat] = normalizedRing[normalizedRing.length - 1]
+        if (firstLng !== lastLng || firstLat !== lastLat) {
+            normalizedRing.push([firstLng, firstLat])
+        }
+        return `(${normalizedRing.map(([lng, lat]) => `${lng} ${lat}`).join(", ")})`
+    })
+    return `SRID=4326;POLYGON(${rings.join(", ")})`
+}
+
+export function getEditableServiceAreaPolygonFeature(geometry: unknown): Feature<Polygon, { mode: "polygon" }> | null {
+    const normalizedGeometry = normalizeServiceAreaGeometry(geometry)
+
+    if (!normalizedGeometry) {
+        return null
+    }
+
+    if (normalizedGeometry.type === "Polygon") {
+        return {
+            type: "Feature",
+            geometry: normalizedGeometry,
+            properties: {
+                mode: "polygon",
+            },
+        }
+    }
+
+    const largestPolygon = normalizedGeometry.coordinates.reduce((largest, polygon) => {
+        return getPolygonRingArea(polygon[0]) > getPolygonRingArea(largest[0]) ? polygon : largest
+    })
+
+    return {
+        type: "Feature",
+        geometry: {
+            type: "Polygon",
+            coordinates: largestPolygon,
+        },
+        properties: {
+            mode: "polygon",
+        },
+    }
+}
 
 type ServiceAreaRecord = {
     id: string
@@ -215,6 +263,18 @@ function parsePosition(value: string): Position | null {
     }
 
     return [lng, lat]
+}
+
+function getPolygonRingArea(ring: Position[]) {
+    let area = 0
+
+    for (let index = 0; index < ring.length - 1; index += 1) {
+        const [currentLng, currentLat] = ring[index]
+        const [nextLng, nextLat] = ring[index + 1]
+        area += currentLng * nextLat - nextLng * currentLat
+    }
+
+    return Math.abs(area / 2)
 }
 
 function extractWrappedContent(value: string): string | null {
