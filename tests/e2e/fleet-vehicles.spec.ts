@@ -1,9 +1,5 @@
 import { test, expect } from "@playwright/test";
 
-// Add Vehicle flow
-// TODO: This test is failing. For some reason, the values are not being set in the form after VIN decode, even though the server action is returning the correct data. Need to investigate further.
-// Auto-population of Make, Model, Year fields works when testing manually. 
-
 test.describe("Fleet Vehicles Add Flow", () => {
     test("Valid and invalid VIN autofill", async ({ page }) => {
         test.setTimeout(120000);

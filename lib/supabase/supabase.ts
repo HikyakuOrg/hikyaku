@@ -197,32 +197,6 @@ export type Database = {
           },
         ]
       }
-      drivers_service_area: {
-        Row: {
-          driver_id: string
-          id: string
-          service_id: string
-        }
-        Insert: {
-          driver_id: string
-          id?: string
-          service_id: string
-        }
-        Update: {
-          driver_id?: string
-          id?: string
-          service_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "drivers_service_area_service_id_fkey"
-            columns: ["service_id"]
-            isOneToOne: false
-            referencedRelation: "service_areas"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       package_assignment: {
         Row: {
           created_at: string
@@ -579,6 +553,35 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      scheduler_runs: {
+        Row: {
+          id: string
+          ran_at: string
+          run_date: string
+          warehouse_id: string
+        }
+        Insert: {
+          id?: string
+          ran_at?: string
+          run_date?: string
+          warehouse_id: string
+        }
+        Update: {
+          id?: string
+          ran_at?: string
+          run_date?: string
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduler_runs_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       service_areas: {
         Row: {

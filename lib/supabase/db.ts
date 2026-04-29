@@ -609,3 +609,21 @@ export async function getDeliveryRoutesByDates(startDate: string, endDate: strin
 
     return Array.from(routesMap.values());
 }
+
+
+export async function createServiceArea(name: string, geometry: string) {
+    const { data, error } = await supabase
+        .from("service_areas")
+        .insert({
+            name,
+            geometry,
+        })
+        .select()
+        .single()
+
+    if (error) {
+        throw error
+    }
+
+    return data
+}
