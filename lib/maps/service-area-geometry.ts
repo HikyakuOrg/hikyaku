@@ -129,6 +129,27 @@ export function getServiceAreaFeatureCollectionBounds(featureCollection: Service
     ]
 }
 
+export function isPointWithinServiceAreas(
+    serviceAreas: Array<{ geometry: unknown }>,
+    point: [number, number],
+) {
+    return serviceAreas.some((serviceArea) => {
+        const geometry = normalizeServiceAreaGeometry(serviceArea.geometry)
+
+        if (!geometry) {
+            return false
+        }
+
+        if (geometry.type === "Polygon") {
+            return isPointWithinPolygonGeometry(geometry.coordinates, point)
+        }
+
+        return geometry.coordinates.some((polygonCoordinates) => {
+            return isPointWithinPolygonGeometry(polygonCoordinates, point)
+        })
+    })
+}
+
 function normalizeServiceAreaGeometry(geometry: unknown): ServiceAreaGeometry | null {
     if (typeof geometry === "string") {
         return parseGeometryText(geometry)
@@ -163,6 +184,81 @@ function normalizeServiceAreaGeometry(geometry: unknown): ServiceAreaGeometry | 
     }
 
     return null
+}
+
+function isPointWithinPolygonGeometry(
+    polygonCoordinates: Position[][],
+    point: [number, number],
+) {
+    const [outerRing, ...holes] = polygonCoordinates
+
+    if (!outerRing || !isPointInRing(outerRing, point)) {
+        return false
+    }
+
+    return !holes.some((hole) => isPointInRing(hole, point))
+}
+
+function isPointInRing(ring: Position[], point: [number, number]) {
+    if (ring.length < 3) {
+        return false
+    }
+
+    for (let index = 0; index < ring.length - 1; index += 1) {
+        if (isPointOnSegment(ring[index], ring[index + 1], point)) {
+            return true
+        }
+    }
+
+    const [pointLng, pointLat] = point
+    let isInside = false
+
+    for (
+        let currentIndex = 0, previousIndex = ring.length - 1;
+        currentIndex < ring.length;
+        previousIndex = currentIndex, currentIndex += 1
+    ) {
+        const [currentLng, currentLat] = ring[currentIndex]
+        const [previousLng, previousLat] = ring[previousIndex]
+
+        const intersects = ((currentLat > pointLat) !== (previousLat > pointLat))
+            && (pointLng < ((previousLng - currentLng) * (pointLat - currentLat)) / (previousLat - currentLat) + currentLng)
+
+        if (intersects) {
+            isInside = !isInside
+        }
+    }
+
+    return isInside
+}
+
+function isPointOnSegment(start: Position, end: Position, point: [number, number]) {
+    const epsilon = 1e-9
+    const [startLng, startLat] = start
+    const [endLng, endLat] = end
+    const [pointLng, pointLat] = point
+
+    const crossProduct = (pointLat - startLat) * (endLng - startLng)
+        - (pointLng - startLng) * (endLat - startLat)
+
+    if (Math.abs(crossProduct) > epsilon) {
+        return false
+    }
+
+    const dotProduct = (pointLng - startLng) * (endLng - startLng)
+        + (pointLat - startLat) * (endLat - startLat)
+
+    if (dotProduct < -epsilon) {
+        return false
+    }
+
+    const squaredLength = (endLng - startLng) ** 2 + (endLat - startLat) ** 2
+
+    if (dotProduct - squaredLength > epsilon) {
+        return false
+    }
+
+    return true
 }
 
 function parseGeometryText(value: string): ServiceAreaGeometry | null {

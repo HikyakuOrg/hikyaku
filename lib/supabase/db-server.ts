@@ -110,6 +110,21 @@ export async function getCustomers(page: number, pageSize: number) {
     return { data: data as Customer[] ?? [], total: count ?? 0 }
 }
 
+export async function getCustomer(customerId: string) {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+        .from("customer")
+        .select("*")
+        .eq("id", customerId)
+        .single()
+
+    if (error) {
+        throw error
+    }
+
+    return data as Customer
+}
+
 export async function getWarehousesPaginated(page: number, pageSize: number) {
     const supabase = await createClient()
     const from = (page - 1) * pageSize
