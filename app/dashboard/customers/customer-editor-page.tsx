@@ -57,7 +57,7 @@ export function CustomerEditorPage({ mode, customerId }: CustomerEditorPageProps
 
         async function loadCustomer() {
             try {
-                const customer = await getCustomer(customerId)
+                const customer = await getCustomer(customerId!)
 
                 if (!active) {
                     return
