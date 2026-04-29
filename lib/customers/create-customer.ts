@@ -2,7 +2,7 @@ import type { CustomerFormValues } from "@/components/customers/customer-schema"
 import { geocodeAddress } from "@/lib/maps/geo"
 import { isPointWithinServiceAreas } from "@/lib/maps/service-area-geometry"
 import { createClient } from "@/lib/supabase/client"
-import { createCustomer } from "@/lib/supabase/db"
+import { createCustomer, updateCustomer } from "@/lib/supabase/db"
 
 type ServiceAreaRecord = {
     id: string
@@ -15,7 +15,22 @@ export type PreparedCustomerCreation = {
     isWithinServiceArea: boolean
 }
 
-export async function prepareCustomerFromForm(values: CustomerFormValues): Promise<PreparedCustomerCreation> {
+export function customerToFormValues(customer: Customer): CustomerFormValues {
+    return {
+        customerName: customer.customer_name ?? "",
+        customerPhone: customer.customer_phone ?? "",
+        customerCountry: customer.customer_country ?? "",
+        customerAddress: customer.customer_address ?? "",
+        customerSuburb: customer.customer_suburb ?? "",
+        customerState: customer.customer_state ?? "",
+        customerPostcode: customer.customer_postcode ?? "",
+    }
+}
+
+export async function prepareCustomerFromForm(
+    values: CustomerFormValues,
+    customerId = ""
+): Promise<PreparedCustomerCreation> {
     const geocode = await geocodeAddress({
         street: values.customerAddress,
         suburb: values.customerSuburb,
@@ -34,7 +49,8 @@ export async function prepareCustomerFromForm(values: CustomerFormValues): Promi
     }
 
     const customer: Customer = {
-        id: "",
+        id: customerId,
+        created_at: "",
         customer_name: values.customerName,
         customer_phone: values.customerPhone,
         customer_country: values.customerCountry,
@@ -60,6 +76,13 @@ export async function createCustomerFromForm(values: CustomerFormValues) {
 
 export async function createPreparedCustomer(prepared: PreparedCustomerCreation) {
     return createCustomer(prepared.customer)
+}
+
+export async function updatePreparedCustomer(
+    customerId: string,
+    prepared: PreparedCustomerCreation
+) {
+    return updateCustomer(customerId, prepared.customer)
 }
 
 async function getServiceAreas(): Promise<ServiceAreaRecord[]> {

@@ -14,14 +14,20 @@ import {
 import { parseISO, format } from "date-fns";
 import {
     Card,
-    CardDescription,
     CardContent,
+    CardDescription,
     CardHeader,
     CardTitle,
 } from "@/components/ui/card"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getCustomer } from "@/lib/supabase/db"
-import { Calendar, Phone, Globe, Hash, Loader2 } from "lucide-react"
+import { Calendar, Globe, Hash, Loader2, MoreVertical, Phone } from "lucide-react"
 import { CustomerPackagesTable } from "./customer-packages-table"
 
 type CustomerDetailPageProps = {
@@ -34,12 +40,6 @@ function formatRegion(customer: Customer) {
         .join(" ")
 
     return [customer.customer_suburb, stateAndPostcode].filter(Boolean).join(", ")
-}
-
-function formatFullAddress(customer: Customer) {
-    return [customer.customer_address, formatRegion(customer), customer.customer_country]
-        .filter(Boolean)
-        .join(", ")
 }
 
 function formatDateTime(input: string) {
@@ -113,9 +113,30 @@ export default function CustomerDetailPage({ params }: CustomerDetailPageProps) 
                 </BreadcrumbList>
             </Breadcrumb>
 
-            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                {customer.customer_name}
-            </h1>
+            <div className="flex items-start justify-between gap-4">
+                <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+                    {customer.customer_name}
+                </h1>
+
+                <DropdownMenu>
+                    <DropdownMenuTrigger className="inline-flex size-10 items-center justify-center rounded-md border bg-background transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                        <MoreVertical className="size-4 text-muted-foreground" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" side="bottom" className="w-48">
+                        <DropdownMenuItem>
+                            <Link
+                                href={`/dashboard/customers/${customer.id}/edit`}
+                                className="flex w-full items-center gap-3"
+                            >
+                                Edit Information
+                            </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem variant="destructive" disabled>
+                            Delete Customer
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
 
             <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
                 <div className="space-y-6">

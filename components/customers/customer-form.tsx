@@ -1,7 +1,7 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
-import { ReactNode } from "react"
+import { ReactNode, useEffect } from "react"
 import { Controller, useForm } from "react-hook-form"
 import PhoneInput, { getCountries } from "react-phone-number-input"
 import "react-phone-number-input/style.css"
@@ -45,6 +45,7 @@ type CustomerFormProps = {
     isSubmitting: boolean
     footer?: ReactNode
     className?: string
+    initialValues?: Partial<CustomerFormValues>
 }
 
 export function CustomerForm({
@@ -52,11 +53,22 @@ export function CustomerForm({
     isSubmitting,
     footer,
     className,
+    initialValues,
 }: CustomerFormProps) {
     const form = useForm<CustomerFormValues>({
         resolver: zodResolver(customerSchema),
-        defaultValues,
+        defaultValues: {
+            ...defaultValues,
+            ...initialValues,
+        },
     })
+
+    useEffect(() => {
+        form.reset({
+            ...defaultValues,
+            ...initialValues,
+        })
+    }, [form, initialValues])
 
     return (
         <form onSubmit={form.handleSubmit(onSubmit)} className={className}>

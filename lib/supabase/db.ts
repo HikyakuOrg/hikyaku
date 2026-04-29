@@ -457,6 +457,23 @@ export async function createCustomer(customer: Customer) {
     return data as Customer
 }
 
+export async function updateCustomer(customerId: string, customer: Customer) {
+    const { data, error } = await supabase.from("customer").update({
+        customer_name: customer.customer_name,
+        customer_phone: customer.customer_phone,
+        customer_address: customer.customer_address,
+        customer_suburb: customer.customer_suburb,
+        customer_postcode: customer.customer_postcode,
+        customer_country: customer.customer_country,
+        customer_state: customer.customer_state,
+        customer_location: customer.customer_location,
+    }).eq("id", customerId).select().single()
+
+    if (error) throw error
+
+    return data as Customer
+}
+
 
 export async function searchWarehouse(search: string) {
     const { data, error } = await supabase.from("warehouse").select("*")
