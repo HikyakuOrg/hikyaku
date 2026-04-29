@@ -1,4 +1,5 @@
 import { PackageStatus, STATUS_OPTIONS } from "@/app/models/package-status"
+import { createServiceAreaFeatureCollection, emptyServiceAreaFeatureCollection } from "@/lib/maps/service-area-geometry"
 import { Tables } from "./supabase"
 import { createClient } from "./server"
 import { PackageOptimisation } from "@/app/models/package-optimisation"
@@ -113,6 +114,21 @@ export async function getWarehousesPaginated(page: number, pageSize: number) {
     return { data: data as Tables<'warehouse'>[] ?? [], total: count ?? 0 }
 }
 
+export async function getServiceAreas() {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+        .from("service_areas")
+        .select("id, name, geometry")
+        .order("name", { ascending: true })
+
+    if (error) {
+        console.error(error)
+        return emptyServiceAreaFeatureCollection
+    }
+
+    return createServiceAreaFeatureCollection(data ?? [])
+}
+
 export async function getWarehouseSummaries() {
     const supabase = await createClient()
 
@@ -141,7 +157,7 @@ export async function getWarehouseSummaries() {
 }
 
 
-export async function getRouteSteps(routeId: string){
+export async function getRouteSteps(routeId: string) {
     const supabase = await createClient()
     const { data, error } = await supabase
         .from("vrp_route_step")

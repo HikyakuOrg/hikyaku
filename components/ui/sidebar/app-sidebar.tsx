@@ -75,7 +75,7 @@ const sidebarData = {
         },
         {
           title: "Areas",
-          url: "/dashboard/service/area",
+          url: "/dashboard/service/areas",
         }
       ],
     },
