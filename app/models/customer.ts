@@ -10,5 +10,6 @@ interface Customer {
     customer_suburb: string;
     customer_state: string;
     customer_location: Point;
+    created_at: string;
     id: string;
 }

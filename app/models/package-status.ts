@@ -21,9 +21,9 @@ export function PackageStatusText(status: PackageStatus): string {
 }
 
 export const STATUS_OPTIONS = [
-    "Pending",
-    "Delivered",
-    "Failed",
-    "Assigned",
-    "In Transit",
+    "PENDING",
+    "DELIVERED",
+    "FAILED",
+    "ASSIGNED",
+    "IN_TRANSIT",
 ]
