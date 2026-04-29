@@ -1,25 +1,22 @@
 import { defineConfig, devices } from "@playwright/test";
-import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
 
 function loadDotEnvFile(fileName: string): void {
     const filePath = join(process.cwd(), fileName);
     if (!existsSync(filePath)) {
         return;
     }
-
     const content = readFileSync(filePath, "utf8");
     for (const line of content.split(/\r?\n/)) {
         const trimmed = line.trim();
         if (!trimmed || trimmed.startsWith("#")) {
             continue;
         }
-
         const separator = trimmed.indexOf("=");
         if (separator <= 0) {
             continue;
         }
-
         const key = trimmed.slice(0, separator).trim();
         const value = trimmed.slice(separator + 1);
         if (!process.env[key]) {
@@ -28,31 +25,9 @@ function loadDotEnvFile(fileName: string): void {
     }
 }
 
-loadDotEnvFile(".env.local");
+loadDotEnvFile(".env.test");
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
-const authCookieName = process.env.PLAYWRIGHT_SB_AUTH_COOKIE_NAME ?? "FAKE_AUTH_COOKIE_NAME";
-const authCookieValue = process.env.PLAYWRIGHT_SB_AUTH_COOKIE;
-const cookieDomain = new URL(baseURL).hostname;
-const cookieSecure = new URL(baseURL).protocol === "https:";
-
-const storageState = authCookieValue
-    ? {
-        cookies: [
-            {
-                name: authCookieName,
-                value: authCookieValue,
-                domain: cookieDomain,
-                path: "/",
-                expires: -1,
-                httpOnly: false,
-                secure: cookieSecure,
-                sameSite: "Lax" as const,
-            },
-        ],
-        origins: [],
-    }
-    : undefined;
 
 export default defineConfig({
     testDir: "./tests/e2e",
@@ -64,13 +39,14 @@ export default defineConfig({
     use: {
         baseURL,
         trace: "on-first-retry",
-        storageState,
+        storageState: "playwright.storageState.json",
     },
     webServer: {
         command: "pnpm dev",
         url: baseURL,
         reuseExistingServer: !process.env.CI,
     },
+    globalSetup: require.resolve("./playwright.global-setup.ts"),
     projects: [
         {
             name: "chrome",
