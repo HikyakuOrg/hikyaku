@@ -4,6 +4,20 @@ import { Tables } from "./supabase"
 import { createClient } from "./server"
 import { PackageOptimisation } from "@/app/models/package-optimisation"
 
+type ServiceAreaViewportBounds = {
+    minLat: number
+    minLng: number
+    maxLat: number
+    maxLng: number
+}
+
+type ServiceAreaExtentRow = {
+    min_lat: number
+    min_lng: number
+    max_lat: number
+    max_lng: number
+}
+
 export async function getWarehouse(warehouseId: string) {
     const supabase = await createClient()
     const { data, error } = await supabase
@@ -120,6 +134,46 @@ export async function getServiceAreas() {
         .from("service_areas")
         .select("id, name, geometry")
         .order("name", { ascending: true })
+
+    if (error) {
+        console.error(error)
+        return emptyServiceAreaFeatureCollection
+    }
+
+    return createServiceAreaFeatureCollection(data ?? [])
+}
+
+export async function getServiceAreaExtent() {
+    const supabase = await createClient()
+    const { data, error } = await supabase.rpc("get_service_area_extent")
+
+    if (error) {
+        console.error(error)
+        return null
+    }
+
+    const extent = (data as ServiceAreaExtentRow[] | null)?.[0]
+
+    if (!extent) {
+        return null
+    }
+
+    return {
+        minLat: extent.min_lat,
+        minLng: extent.min_lng,
+        maxLat: extent.max_lat,
+        maxLng: extent.max_lng,
+    }
+}
+
+export async function getServiceAreasInBounds(bounds: ServiceAreaViewportBounds) {
+    const supabase = await createClient()
+    const { data, error } = await supabase.rpc("get_service_areas_in_bounds", {
+        p_min_lng: bounds.minLng,
+        p_min_lat: bounds.minLat,
+        p_max_lng: bounds.maxLng,
+        p_max_lat: bounds.maxLat,
+    })
 
     if (error) {
         console.error(error)

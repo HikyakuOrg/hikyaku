@@ -1,12 +1,12 @@
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
-import { getServiceAreas } from "@/lib/supabase/db-server"
+import { getServiceAreaExtent } from "@/lib/supabase/db-server"
 
 import { ServiceAreasMap } from "./service-areas-map"
 
 export default async function ServiceAreasPage() {
-    const featureCollection = await getServiceAreas()
+    const initialBounds = await getServiceAreaExtent()
 
     return (
         <div className="space-y-6 p-6">
@@ -25,7 +25,10 @@ export default async function ServiceAreasPage() {
                 </Button>
             </div>
 
-            <ServiceAreasMap featureCollection={featureCollection} />
+            <ServiceAreasMap initialBounds={initialBounds ? [
+                [initialBounds.minLng, initialBounds.minLat],
+                [initialBounds.maxLng, initialBounds.maxLat],
+            ] : null} />
         </div>
     )
 }
