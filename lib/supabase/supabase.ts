@@ -1163,6 +1163,7 @@ export type Database = {
           total_pages: number
         }[]
       }
+      has_any_users: { Args: never; Returns: boolean }
       has_permission: { Args: { p_permission: string }; Returns: boolean }
       insert_package_timeline: {
         Args: { p_package_id: string; p_status_enum: string }

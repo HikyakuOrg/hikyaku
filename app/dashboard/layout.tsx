@@ -9,23 +9,34 @@ import {
 } from "@/components/ui/sidebar"
 import { getSupabaseServerClaims } from "@/lib/supabase/server"
 import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
 
 type DashboardLayoutProps = {
   children: React.ReactNode
 }
 
-export default async function DashboardLayout({ children }: DashboardLayoutProps) {
+// The outer shell (SidebarProvider) is static and prerenderable.
+// The inner AuthenticatedShell accesses cookies via getSupabaseServerClaims()
+// and must be inside <Suspense> to satisfy PPR (cacheComponents: true).
+export default function DashboardLayout({ children }: DashboardLayoutProps) {
+  return (
+    <SidebarProvider>
+      <Suspense>
+        <AuthenticatedShell>{children}</AuthenticatedShell>
+      </Suspense>
+    </SidebarProvider>
+  )
+}
+
+async function AuthenticatedShell({ children }: DashboardLayoutProps) {
   const { data, error } = await getSupabaseServerClaims()
   if (error || !data?.claims) {
     redirect('/auth/login')
   }
 
   return (
-    <SidebarProvider>
-      {data.claims && (
-        <AppSidebar user={data.claims} />
-      )}
-
+    <>
+      <AppSidebar user={data.claims!} />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
           <div className="flex items-center gap-2 px-4">
@@ -38,6 +49,6 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
         </header>
         {children}
       </SidebarInset>
-    </SidebarProvider>
+    </>
   )
 }
