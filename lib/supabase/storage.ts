@@ -7,7 +7,7 @@ export async function addAvatar(userId: string, file: File) {
     const fileName = `${userId}.${fileExtension}`;
     const fileBuffer = await file.arrayBuffer()
     const { data, error } = await supabase.storage
-        .from('avatar')
+        .from('avatars')
         .upload(fileName, fileBuffer, {
             contentType: file.type,
             upsert: true,
@@ -15,7 +15,7 @@ export async function addAvatar(userId: string, file: File) {
 
     if (error) throw error;
 
-    const { data: publicUrlData } = supabase.storage.from('avatar').getPublicUrl(fileName);
+    const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
 
     return publicUrlData.publicUrl;
 
