@@ -10,6 +10,7 @@ import { getDriverPackageAssignmentStatus } from "@/lib/supabase/db"
 import { Button } from "@/components/ui/button"
 import { Edit } from "lucide-react"
 import LocationHistoryCard from "./location-history-card"
+import { useDriverPresenceStatus } from "@/hooks/useDriverPresenceStatus"
 
 
 export default function DriverDetailsPage() {
@@ -21,6 +22,7 @@ export default function DriverDetailsPage() {
     const [loading, setLoading] = useState(true)
     const router = useRouter()
     const { location } = useDriverLocationUpdates(driverId ?? "")
+    const { isOnline, isLoading: isPresenceLoading } = useDriverPresenceStatus(driverId ?? "")
 
     useEffect(() => {
         if (!driverId) return
@@ -75,9 +77,11 @@ export default function DriverDetailsPage() {
         <div className="p-6 space-y-8">
 
             <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-semibold">
-                    {driver?.display_name ?? "Driver"}
-                </h1>
+                <div className="flex items-center gap-3">
+                    <h1 className="text-3xl font-semibold">
+                        {driver?.display_name ?? "Driver"}
+                    </h1>
+                </div>
                 <Button
                     onClick={() => router.push(`/dashboard/fleet/drivers/${driverId}/edit`)}
                     variant="outline"
@@ -105,6 +109,13 @@ export default function DriverDetailsPage() {
                         {location
                             ? new Date(location.updated_at).toLocaleString()
                             : "—"}
+                    </p>
+                </div>
+
+                <div className="border rounded-lg p-4">
+                    <p className="text-sm text-muted-foreground">Online Status</p>
+                    <p className="text-2xl font-semibold">
+                        {isPresenceLoading ? "Checking" : isOnline ? "Online" : "Offline"}
                     </p>
                 </div>
             </div>
