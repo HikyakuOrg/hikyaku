@@ -92,17 +92,7 @@ export default function DriverDetailsPage() {
                 </Button>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-
-                <div className="border rounded-lg p-4">
-                    <p className="text-sm text-muted-foreground">Packages Assigned</p>
-                    <p className="text-2xl font-semibold">{packages.length}</p>
-                </div>
-
-                <div className="border rounded-lg p-4">
-                    <p className="text-sm text-muted-foreground">Delivered</p>
-                    <p className="text-2xl font-semibold">{deliveredCount}</p>
-                </div>
+            <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
 
                 <div className="border rounded-lg p-4">
                     <p className="text-sm text-muted-foreground">Last Location Update</p>
