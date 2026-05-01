@@ -23,6 +23,7 @@ import { CaretUpDownIcon, SparkleIcon, CheckCircleIcon, CreditCardIcon, BellIcon
 import { JwtPayload } from "@supabase/supabase-js"
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
 
 export function NavUser({
   user,
@@ -30,7 +31,22 @@ export function NavUser({
   user: JwtPayload
 }) {
   const { isMobile } = useSidebar()
+  const router = useRouter()
 
+  const [displayName, setDisplayName] = useState<string>(
+    user?.user_metadata?.display_name ?? ""
+  )
+
+  useEffect(() => {
+    const supabase = createClient()
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const name = session?.user?.user_metadata?.display_name
+      if (name !== undefined) {
+        setDisplayName(name)
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [])
 
   function logout() {
     const supabase = createClient()
@@ -38,9 +54,6 @@ export function NavUser({
     router.push('/auth/login')
   }
 
-  const userMetaData = user?.user_metadata
-
-  const router = useRouter()
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -51,14 +64,14 @@ export function NavUser({
             }
           >
             <Avatar className="h-8 w-8 rounded-lg">
-              {userMetaData && (
-                <AvatarFallback className="rounded-lg">{userMetaData?.display_name?.substring(0, 1)}</AvatarFallback>
+              {displayName && (
+                <AvatarFallback className="rounded-lg">{displayName.substring(0, 1)}</AvatarFallback>
               )}
             </Avatar>
 
             <div className="grid flex-1 text-start text-sm leading-tight">
-              {userMetaData && (
-                <span className="truncate font-medium">{userMetaData?.display_name}</span>
+              {displayName && (
+                <span className="truncate font-medium">{displayName}</span>
               )}
               <span className="truncate text-xs">{user.email}</span>
             </div>
@@ -71,28 +84,10 @@ export function NavUser({
             sideOffset={4}
           >
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <SparkleIcon
-                />
-                Upgrade to Pro
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push('/dashboard/user/account')}>
                 <CheckCircleIcon
                 />
                 Account
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <CreditCardIcon
-                />
-                Billing
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <BellIcon
-                />
-                Notifications
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
