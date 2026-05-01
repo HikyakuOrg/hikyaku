@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { format } from "date-fns"
-import { CalendarIcon, Pause, Play } from "lucide-react"
+import { CalendarIcon, Pause, Play, RotateCcw } from "lucide-react"
 import { getDriverLocationHistory } from "@/lib/supabase/supabase-rpc"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -208,11 +208,13 @@ export default function LocationHistoryCard({ driverId }: Props) {
                                 variant="outline"
                                 size="icon"
                                 onClick={isPlaying ? pause : play}
-                                aria-label={isPlaying ? "Pause" : "Play"}
+                                aria-label={isPlaying ? "Pause" : currentIndex >= points.length - 1 ? "Restart" : "Play"}
                                 data-testid="playback-btn"
                             >
                                 {isPlaying ? (
                                     <Pause className="h-4 w-4" />
+                                ) : currentIndex >= points.length - 1 ? (
+                                    <RotateCcw className="h-4 w-4" />
                                 ) : (
                                     <Play className="h-4 w-4" />
                                 )}
