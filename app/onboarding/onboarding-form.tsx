@@ -45,7 +45,7 @@ export function OnboardingForm({ className, ...props }: React.ComponentPropsWith
                                     id="email"
                                     name="email"
                                     type="email"
-                                    placeholder="jane@example.com"
+                                    placeholder="email@whendan.com"
                                     required
                                 />
                             </div>
