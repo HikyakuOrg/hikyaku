@@ -227,7 +227,16 @@ export default function LocationHistoryCard({ driverId }: Props) {
                                 // onValueChange only fires on user interaction, not on
                                 // programmatic controlled-value updates, so scrub() here
                                 // is safe and won't interrupt the playback interval.
-                                onValueChange={(v) => scrub((v as number[])[0])}
+                                //
+                                // Base UI v1.x inconsistency: pointer/mouse events call
+                                // onValueChange with a plain number (SliderControl
+                                // treats a single-thumb slider as non-range and passes
+                                // the raw computed value). Keyboard events go through
+                                // SliderRoot.handleInputChange which wraps the value in
+                                // an array. Handle both shapes at runtime.
+                                onValueChange={(v) =>
+                                    scrub(Array.isArray(v) ? (v as number[])[0] : (v as unknown as number))
+                                }
                                 data-testid="playback-slider"
                             />
                         </div>
