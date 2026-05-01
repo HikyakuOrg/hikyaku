@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Edit } from "lucide-react"
 import LocationHistoryCard from "./location-history-card"
 import { useDriverPresenceStatus } from "@/hooks/useDriverPresenceStatus"
+import { DriverShiftsCalendar } from "@/app/dashboard/driver-shifts/driver-shifts-calendar"
 
 
 export default function DriverDetailsPage() {
@@ -169,6 +170,20 @@ export default function DriverDetailsPage() {
                         No live location available
                     </p>
                 )}
+            </div>
+
+            <div className="border rounded-lg p-6 space-y-4">
+                <div>
+                    <h2 className="font-medium">Assigned Shifts</h2>
+                    <p className="text-sm text-muted-foreground">
+                        Weekly shift calendar for this driver. Select a shift to open its route details.
+                    </p>
+                </div>
+
+                <DriverShiftsCalendar
+                    driverId={driverId}
+                    emptyMessage="No shifts assigned to this driver for the selected week."
+                />
             </div>
 
             <div className="border rounded-lg p-6">

@@ -582,7 +582,11 @@ export interface DeliveryRouteByDate {
     }[]
 }
 
-export async function getDeliveryRoutesByDates(startDate: string, endDate: string): Promise<DeliveryRouteByDate[]> {
+export async function getDeliveryRoutesByDates(
+    startDate: string,
+    endDate: string,
+    driverId?: string
+): Promise<DeliveryRouteByDate[]> {
     const { data, error } = await supabase.from('package_delivery_window')
         .select(`
             package_id,
@@ -619,6 +623,8 @@ export async function getDeliveryRoutesByDates(startDate: string, endDate: strin
         for (const assignment of assignments) {
             if (!assignment) continue;
             const driver_id = assignment.driver_id;
+            if (driverId && driver_id !== driverId) continue;
+
             const steps = Array.isArray(assignment.vrp_route_step)
                 ? assignment.vrp_route_step
                 : [assignment.vrp_route_step];
@@ -644,7 +650,7 @@ export async function getDeliveryRoutesByDates(startDate: string, endDate: strin
         }
     }
 
-    return Array.from(routesMap.values());
+    return Array.from(routesMap.values()).filter((route) => route.package_assignment.length > 0);
 }
 
 

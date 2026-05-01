@@ -12,7 +12,16 @@ import { getDeliveryRoutesByDates, DeliveryRouteByDate } from '@/lib/supabase/db
 import { getDriversByIds } from '@/lib/supabase/supabase-rpc'
 
 
-export function DriverShiftsCalendar() {
+interface DriverShiftsCalendarProps {
+    driverId?: string
+    emptyMessage?: string
+}
+
+
+export function DriverShiftsCalendar({
+    driverId,
+    emptyMessage = 'No shifts found for the selected period.',
+}: DriverShiftsCalendarProps) {
     const router = useRouter()
     const [startDate, setStartDate] = useState(startOfWeek(new Date(), { weekStartsOn: 0 }))
     const [endDate, setEndDate] = useState(endOfWeek(new Date(), { weekStartsOn: 0 }))
@@ -31,8 +40,18 @@ export function DriverShiftsCalendar() {
 
     useEffect(() => {
         const fetchEvents = async () => {
-            const data = await getDeliveryRoutesByDates(startDate.toISOString(), endDate.toISOString())
-            if (!data) return;
+            const data = await getDeliveryRoutesByDates(
+                startDate.toISOString(),
+                endDate.toISOString(),
+                driverId
+            )
+
+            if (!data) {
+                setEvents([])
+                setDrivers({})
+                return
+            }
+
             setEvents(data)
 
             const driverIds = new Set<string>();
@@ -53,10 +72,12 @@ export function DriverShiftsCalendar() {
                 } catch (e) {
                     console.error('Failed to fetch drivers', e);
                 }
+            } else {
+                setDrivers({})
             }
         }
         fetchEvents()
-    }, [startDate, endDate])
+    }, [driverId, startDate, endDate])
 
     const locales = {
         'en-US': enUS,
@@ -103,7 +124,7 @@ export function DriverShiftsCalendar() {
 
     const CustomEvent = ({ event }: { event: DeliveryRouteByDate }) => {
         const { start: depDate, end: arrDate } = getRouteStartEnd(event);
-        
+
         if (!depDate || !arrDate) {
             return (
                 <div></div>
@@ -138,28 +159,34 @@ export function DriverShiftsCalendar() {
     }
 
     return (
-        <ShadcnBigCalendar
-            localizer={localizer}
-            startAccessor={(event) => getRouteStartEnd(event).start || new Date()}
-            endAccessor={(event) => getRouteStartEnd(event).end || new Date()}
-            events={events}
-            onRangeChange={onRangeChange}
-            eventPropGetter={eventStyleGetter}
-            onSelectEvent={(event) => {
-                const routeId = event.route_id;
-                if (routeId) {
-                    router.push(`/dashboard/driver-shifts/${routeId}`);
-                }
-            }}
-            components={{
-                event: CustomEvent
-            }}
-            defaultView="week"
-            views={['week']}
-            messages={{
-                previous: <ChevronLeft className="w-4 h-4" />,
-                next: <ChevronRight className="w-4 h-4" />,
-            }}
-        />
+        <div className="space-y-3">
+            <ShadcnBigCalendar
+                localizer={localizer}
+                startAccessor={(event) => getRouteStartEnd(event).start || new Date()}
+                endAccessor={(event) => getRouteStartEnd(event).end || new Date()}
+                events={events}
+                onRangeChange={onRangeChange}
+                eventPropGetter={eventStyleGetter}
+                onSelectEvent={(event) => {
+                    const routeId = event.route_id;
+                    if (routeId) {
+                        router.push(`/dashboard/driver-shifts/${routeId}`);
+                    }
+                }}
+                components={{
+                    event: CustomEvent
+                }}
+                defaultView="week"
+                views={['week']}
+                messages={{
+                    previous: <ChevronLeft className="w-4 h-4" />,
+                    next: <ChevronRight className="w-4 h-4" />,
+                }}
+            />
+
+            {events.length === 0 && (
+                <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+            )}
+        </div>
     )
 }
