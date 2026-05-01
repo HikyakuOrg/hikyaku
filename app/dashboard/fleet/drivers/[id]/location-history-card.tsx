@@ -10,11 +10,42 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Input } from "@/components/ui/input"
 import { Slider } from "@/components/ui/slider"
+import { calculateDistance } from "@/lib/maps/geo"
 import { cn } from "@/lib/utils"
 import LocationHistoryMap, { HistoryPoint } from "./location-history-map"
 
 interface Props {
     driverId: string
+}
+
+interface RouteSummary {
+    distanceKm: number
+    averageSpeedKmh: number
+}
+
+function getRouteSummary(points: HistoryPoint[]): RouteSummary {
+    if (points.length < 2) {
+        return {
+            distanceKm: 0,
+            averageSpeedKmh: 0,
+        }
+    }
+
+    let distanceKm = 0
+
+    for (let index = 1; index < points.length; index += 1) {
+        distanceKm += calculateDistance(points[index - 1], points[index])
+    }
+
+    const startedAt = new Date(points[0].created_at).getTime()
+    const endedAt = new Date(points[points.length - 1].created_at).getTime()
+    const elapsedHours = (endedAt - startedAt) / (1000 * 60 * 60)
+
+    return {
+        distanceKm,
+        averageSpeedKmh:
+            Number.isFinite(elapsedHours) && elapsedHours > 0 ? distanceKm / elapsedHours : 0,
+    }
 }
 
 function DateTimePicker({
@@ -119,6 +150,7 @@ export default function LocationHistoryCard({ driverId }: Props) {
     const [toTime, setToTime] = useState("23:59")
 
     const [points, setPoints] = useState<HistoryPoint[]>([])
+    const [summary, setSummary] = useState<RouteSummary | null>(null)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
@@ -134,6 +166,7 @@ export default function LocationHistoryCard({ driverId }: Props) {
         setLoading(true)
         setError(null)
         setPoints([])
+        setSummary(null)
         reset()
 
         try {
@@ -142,11 +175,13 @@ export default function LocationHistoryCard({ driverId }: Props) {
                 setError("No location history found for the selected range.")
                 return
             }
-            setPoints(
-                (data.reverse() as { lat: number; lng: number; created_at: string }[]).map(
-                    (row) => ({ lat: row.lat, lng: row.lng, created_at: row.created_at })
-                )
-            )
+            const nextPoints = [...(data as { lat: number; lng: number; created_at: string }[])]
+                .reverse()
+                .map((row) => ({ lat: row.lat, lng: row.lng, created_at: row.created_at }))
+
+            setPoints(nextPoints)
+            setSummary(getRouteSummary(nextPoints))
+            setError(null)
         } catch (e) {
             console.error(e)
             setError("Failed to fetch location history.")
@@ -194,6 +229,27 @@ export default function LocationHistoryCard({ driverId }: Props) {
                 {/* Map + playback */}
                 {points.length > 0 && (
                     <div className="space-y-3">
+                        {summary && (
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <div className="rounded-md border bg-muted/30 px-4 py-3">
+                                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                        Distance travelled
+                                    </p>
+                                    <p className="mt-1 text-2xl font-semibold">
+                                        {summary.distanceKm.toFixed(1)} km
+                                    </p>
+                                </div>
+                                <div className="rounded-md border bg-muted/30 px-4 py-3">
+                                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                        Average speed
+                                    </p>
+                                    <p className="mt-1 text-2xl font-semibold">
+                                        {summary.averageSpeedKmh.toFixed(1)} km/h
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Map */}
                         <div className="w-full h-[450px] rounded-md overflow-hidden border">
                             <LocationHistoryMap
