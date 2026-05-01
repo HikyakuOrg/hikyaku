@@ -13,6 +13,9 @@ import { CameraIcon, CalendarIcon } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { CreateDriverDto } from "@/lib/api"
+import PhoneInput, { getCountries } from "react-phone-number-input"
+import "react-phone-number-input/style.css"
+import flags from "react-phone-number-input/flags"
 
 export default function AddDriverPage() {
     const router = useRouter()
@@ -85,7 +88,17 @@ export default function AddDriverPage() {
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="phone">Phone</Label>
-                            <Input id="phone" placeholder="8720 6021" value={phone} onChange={e => setPhone(e.target.value)} />
+                            <PhoneInput
+                                id="phone"
+                                placeholder="Enter phone number"
+                                value={phone}
+                                onChange={(e) => setPhone(e ?? "")}
+                                flags={flags}
+                                defaultCountry="AU"
+                                className={cn(
+                                    "dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground"
+                                )}
+                            />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="license">Driver License</Label>
