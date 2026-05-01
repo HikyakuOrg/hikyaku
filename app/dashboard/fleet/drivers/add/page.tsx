@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { addDriver } from "@/lib/supabase/supabase-rpc"
+import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,13 +12,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CameraIcon, CalendarIcon } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
-import { CreateDriverDto } from "@/lib/api"
-import PhoneInput, { getCountries } from "react-phone-number-input"
+import PhoneInput from "react-phone-number-input"
 import "react-phone-number-input/style.css"
 import flags from "react-phone-number-input/flags"
 
 export default function AddDriverPage() {
     const router = useRouter()
+    const supabase = createClient()
     const [driverName, setDriverName] = useState("")
     const [email, setEmail] = useState("")
     const [phone, setPhone] = useState("")
@@ -37,21 +37,50 @@ export default function AddDriverPage() {
     async function handleSubmit(e: { preventDefault: () => void }) {
         e.preventDefault()
         setLoading(true)
+
         const licenseEx = licenseExpiry ? format(licenseExpiry, "yyyy-MM-dd") : null
-        const driver: CreateDriverDto = {
-            displayName: driverName,
-            email: email,
-            phoneNumber: phone,
-            driverLicense: license,
-            licenseExpiry: licenseEx,
-            file: avatarFile
-        }
+
         try {
-            await addDriver(driver)
+            const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+            if (sessionError || !sessionData.session?.access_token) {
+                throw new Error("Unable to authenticate request")
+            }
+
+            const formData = new FormData()
+            formData.append("displayName", driverName)
+            formData.append("email", email)
+            formData.append("phone_number", phone)
+
+            if (license.trim()) {
+                formData.append("driverLicense", license.trim())
+            }
+
+            if (licenseEx) {
+                formData.append("licenseExpiry", licenseEx)
+            }
+
+            if (avatarFile) {
+                formData.append("avatar", avatarFile)
+            }
+
+            const response = await fetch("/api/auth/createDriver", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${sessionData.session.access_token}`,
+                },
+                body: formData,
+            })
+
+            if (!response.ok) {
+                const body = await response.json().catch(() => null)
+                throw new Error(body?.error || "Failed to add driver")
+            }
+
             toast.success("Driver added successfully")
             router.push("/dashboard/fleet/drivers")
-        } catch (error: any) {
-            toast.error(error.message || "Failed to add driver")
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : "Failed to add driver"
+            toast.error(message)
         } finally {
             setLoading(false)
         }

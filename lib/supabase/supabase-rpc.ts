@@ -62,37 +62,6 @@ export async function updateDriver(
     return data as unknown as ListDriverDto;
 }
 
-
-export async function addDriver(createDriverDto: CreateDriverDto, supabaseClient?: SupabaseClient<Database>) {
-    const client = supabaseClient ?? supabase;
-    const { data, error } = await client.rpc('create_driver', {
-        p_email: createDriverDto.email,
-        p_display_name: createDriverDto.displayName,
-        p_phone: createDriverDto.phoneNumber,
-        p_driver_license: createDriverDto.driverLicense || undefined,
-        p_license_expiry: createDriverDto.licenseExpiry || undefined
-    });
-
-
-    if (error) throw error;
-
-    let avatarUrl: string | undefined;
-    const listDriver = data as unknown as ListDriverDto
-    if (listDriver != null && createDriverDto.file) {
-        const { data: uploadData } = await client.storage
-            .from('avatars')
-            .upload(`drivers/${listDriver.id}/${createDriverDto.file.name}`, createDriverDto.file, { upsert: true });
-
-        avatarUrl = client.storage
-            .from('avatars')
-            .getPublicUrl(`drivers/${listDriver.id}/${createDriverDto.file.name}`).data.publicUrl;
-    }
-
-    const driver = { ...listDriver, avatarUrl };
-    return driver;
-}
-
-
 export async function getPackages(
     pageSize: number,
     page: number,
