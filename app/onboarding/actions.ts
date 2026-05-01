@@ -24,10 +24,18 @@ export async function createFirstUser(_prevState: string | null, formData: FormD
         },
     })
 
-    if (error) return error.message
+
+    if(error) return error.message
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+    })
+
+    if (signInError) return signInError.message
 
     // Bust the cache so the app now knows at least one user exists
     revalidateTag('has-users')
 
-    redirect('/auth/login')
+    redirect('/dashboard')
 }
