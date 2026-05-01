@@ -9,9 +9,10 @@ import { Spinner } from "@/components/ui/spinner"
 import { getDriverPackageAssignmentStatus } from "@/lib/supabase/db"
 import { Button } from "@/components/ui/button"
 import { Edit } from "lucide-react"
+import LocationHistoryCard from "./location-history-card"
 
 
-export default function DriverDetailsPage(){
+export default function DriverDetailsPage() {
     const params = useParams()
     const driverId = params.id as string
 
@@ -71,7 +72,7 @@ export default function DriverDetailsPage(){
 
 
     return (
-        <div className="mx-auto max-w-7xl p-6 space-y-8">
+        <div className="p-6 space-y-8">
 
             <div className="flex items-center justify-between">
                 <h1 className="text-3xl font-semibold">
@@ -196,6 +197,8 @@ export default function DriverDetailsPage(){
                     </ul>
                 )}
             </div>
+
+            <LocationHistoryCard driverId={driverId} />
 
         </div>
     )
