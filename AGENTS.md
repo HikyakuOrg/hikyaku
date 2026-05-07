@@ -16,7 +16,7 @@
 - Fleet vehicle forms are client components using React Hook Form + Zod and call the VIN-decoding server action in `lib/actions/vin.ts`; `tests/e2e/fleet-vehicles.spec.ts` is already marked TODO/flaky around this autofill flow.
 - Driver-shift detail pages combine Supabase route-step data from `lib/supabase/db-server.ts:getRouteSteps()` with OpenRouteService geometry from `lib/maps/openrouteservice.ts`, then render MapLibre client maps in `app/dashboard/driver-shifts/[id]/route-map.tsx`.
 - Live driver tracking uses Supabase realtime channels through `subscribeToDriverLocationUpdates()` in `lib/supabase/db.ts` and `hooks/useDriverLocationUpdates.ts`.
-- Storage bucket usage is feature-specific and not fully uniform: packages use `packages`, vehicle images use `vehicles`, and avatar code references both `avatars` and `avatar`; verify the bucket name before changing upload paths.
+- Storage bucket usage is feature-specific and not fully uniform: packages use `packages`, vehicle images use `vehicles`, and avatar code references `avatars`; verify the bucket name before changing upload paths.
 - Team settings are not fully wired end to end: `app/dashboard/settings/team/team-member-dialog.tsx` calls `addTeamMember`, but `lib/supabase/team-rpc.ts` still has the RPC implementation commented out.
 
 ## UI Conventions
