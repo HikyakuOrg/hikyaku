@@ -35,13 +35,13 @@ export default function DriversPage() {
         <div className="space-y-6 p-6">
             <div className="flex items-center justify-between mb-2">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Drivers</h1>
-                    <p className="text-muted-foreground">Manage your drivers and their assignments.</p>
+                    <h1 className="text-3xl font-bold tracking-tight">Team Members</h1>
+                    <p className="text-muted-foreground">Manage your team members.</p>
                 </div>
                 <Button
-                    onClick={() => router.push("/dashboard/fleet/drivers/add")}
+                    onClick={() => router.push("/dashboard/fleet/team-members/add")}
                 >
-                    Add Driver
+                    Add Team Member
                 </Button>
             </div>
             <DriverTable
@@ -52,7 +52,7 @@ export default function DriversPage() {
                 totalPages={totalPages}
                 onPageChange={setPage}
                 actions={(row) => {
-                    router.push(`drivers/${row.id}`);
+                    router.push(`team-members/${row.id}`);
                 }}
                 handleDelete={(rows) => {
                     console.log(rows);

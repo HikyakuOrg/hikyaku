@@ -52,8 +52,8 @@ const sidebarData = {
       ),
       items: [
         {
-          title: "Drivers",
-          url: "/dashboard/fleet/drivers",
+          title: "Team Members",
+          url: "/dashboard/fleet/team-members",
         },
         {
           title: "Vehicles",

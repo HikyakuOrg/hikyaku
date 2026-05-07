@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.1"
+    PostgrestVersion: "14.5"
   }
   graphql_public: {
     Tables: {
@@ -51,6 +51,21 @@ export type Database = {
         Update: {
           id?: number
           permission?: string
+        }
+        Relationships: []
+      }
+      app_roles: {
+        Row: {
+          id: number
+          name: string
+        }
+        Insert: {
+          id?: number
+          name: string
+        }
+        Update: {
+          id?: number
+          name?: string
         }
         Relationships: []
       }
@@ -557,6 +572,36 @@ export type Database = {
         }
         Relationships: []
       }
+      role_permission: {
+        Row: {
+          permission_id: number
+          role_id: number
+        }
+        Insert: {
+          permission_id: number
+          role_id: number
+        }
+        Update: {
+          permission_id?: number
+          role_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permission_permission_id_fkey"
+            columns: ["permission_id"]
+            isOneToOne: false
+            referencedRelation: "app_permission"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_permission_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "app_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scheduler_runs: {
         Row: {
           id: string
@@ -608,16 +653,30 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          metadata: Json | null
+          role_id: number | null
         }
         Insert: {
           created_at?: string
           id: string
+          metadata?: Json | null
+          role_id?: number | null
         }
         Update: {
           created_at?: string
           id?: string
+          metadata?: Json | null
+          role_id?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "team_members_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "app_roles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_permission: {
         Row: {
@@ -1033,6 +1092,7 @@ export type Database = {
       }
     }
     Functions: {
+      before_user_created: { Args: { event: Json }; Returns: Json }
       create_driver: {
         Args: {
           p_display_name: string

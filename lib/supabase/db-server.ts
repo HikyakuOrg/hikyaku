@@ -226,6 +226,27 @@ export async function getWarehouseSummaries() {
 }
 
 
+export async function getAppRoles() {
+    const supabase = await createClient()
+    const { data, error } = await supabase.from("app_roles").select("id, name")
+    if (error) throw error
+    return data ?? []
+}
+
+export async function getAppPermissions() {
+    const supabase = await createClient()
+    const { data, error } = await supabase.from("app_permission").select("id, permission")
+    if (error) throw error
+    return data ?? []
+}
+
+export async function getVehicleTypes() {
+    const supabase = await createClient()
+    const { data, error } = await supabase.from("vehicle_type").select("id, vehicle_type")
+    if (error) throw error
+    return data ?? []
+}
+
 export async function getRouteSteps(routeId: string) {
     const supabase = await createClient()
     const { data, error } = await supabase
