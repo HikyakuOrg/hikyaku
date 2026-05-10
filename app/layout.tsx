@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "WhenDan",
-  description: "Open Source Logistics OS",
+  title: "Hikyaku",
+  description: "Open Source Logistics OS — 飛脚",
 };
 
 export default function RootLayout({
@@ -27,6 +27,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={notoSans.variable}>
+      <meta name="apple-mobile-web-app-title" content="Hikyaku" />
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
