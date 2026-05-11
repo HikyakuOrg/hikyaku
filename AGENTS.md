@@ -29,8 +29,7 @@
 - Main app commands are `pnpm dev`, `pnpm build`, `pnpm lint`, `pnpm test:e2e`, `pnpm test:e2e:headed`, and `pnpm test:e2e:ui`.
 - There is no root `pnpm test` script even though some nested README snippets mention it; the checked-in automated coverage here is Playwright.
 - `.env.example` documents the main runtime keys: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY`, `NEXT_PUBLIC_ORS_SERVER`, `NEXT_PUBLIC_OSM_TILE_URL`, and Playwright auth cookie vars.
-- `lib/maps/snap-to-roads.ts` also expects `NEXT_PUBLIC_MAP_KEY`, but that key is not listed in `.env.example`.
-- Playwright runs the Chrome project only, starts `pnpm dev` itself, and can bootstrap authenticated tests from `PLAYWRIGHT_SB_AUTH_COOKIE` plus the optional `PLAYWRIGHT_SB_AUTH_COOKIE_NAME`.
+- Playwright runs the Chrome project only, do not start `pnpm dev`(most of the time it has already been started). Bootstrap authenticated tests from `PLAYWRIGHT_EMAIL` and `PLAYWRIGHT_PASSWORD`.
 - `app/dashboard/settings/mobile/page.tsx` is `force-dynamic` because it builds a QR payload from live Supabase env values for the mobile app handshake.
 
 ## Adjacent Repos And Generated Files
