@@ -41,7 +41,7 @@ export default function Page() {
                     <div className="flex items-center gap-3">
                         <Link
                             href="/auth/login"
-                            className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800"
+                            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary/90"
                         >
                             Get Started
                         </Link>

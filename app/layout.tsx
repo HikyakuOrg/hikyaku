@@ -1,19 +1,13 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Noto_Sans } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 
-const notoSans = Noto_Sans({ variable: '--font-sans' });
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const fontSans = Inter({
   subsets: ["latin"],
+  variable: "--font-sans",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Hikyaku",
@@ -26,11 +20,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={notoSans.variable}>
+    <html lang="en">
       <meta name="apple-mobile-web-app-title" content="Hikyaku" />
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${fontSans.variable} antialiased`}>
         {children}
         <Toaster richColors />
       </body>
