@@ -2,7 +2,7 @@ import { PackageStatus, STATUS_OPTIONS } from "@/app/models/package-status"
 import { createServiceAreaFeatureCollection, emptyServiceAreaFeatureCollection } from "@/lib/maps/service-area-geometry"
 import { Tables } from "./supabase"
 import { createClient } from "./server"
-import { PackageOptimisation } from "@/app/models/package-optimisation"
+import { PackageOptimisation, Location } from "@/app/models/package-optimisation"
 
 type ServiceAreaViewportBounds = {
     minLat: number
@@ -295,4 +295,194 @@ export async function getRouteSteps(routeId: string) {
 
     if (error) throw error
     return data as PackageOptimisation[]
+}
+
+export interface DriverVehiclePair {
+    dvaId: string
+    driverId: string
+    vehicleId: string
+    driverName: string
+    licenseType: string
+    licenseExpiry: string | null
+    driverUnderProbation: boolean
+    vehiclePlate: string
+    vehicleMake: string
+    vehicleModel: string
+    vehicleYear: number | null
+    vehicleGrossLimits: number | null
+    orsVehicleType: string
+}
+
+export async function getAvailableDriverVehiclePairs(warehouseId: string, date: string): Promise<DriverVehiclePair[]> {
+    const supabase = await createClient()
+
+    // All driver-vehicle assignments in this warehouse
+    const { data: allPairs, error: pairsError } = await supabase
+        .from("driver_vehicle_assignment")
+        .select(`
+            id,
+            driver_id,
+            vehicle_id,
+            drivers:drivers!driver_vehicle_assignment_driver_fkey(
+                id,
+                driver_license,
+                license_expiry,
+                license_type,
+                driver_under_probation
+            ),
+            vehicles:vehicles(
+                id,
+                vehicle_plate,
+                vehicle_make,
+                vehicle_model,
+                vehicle_year,
+                vehicle_gross_limits,
+                is_deleted,
+                warehouse_id,
+                vehicle_type:vehicle_type!vehicles_vehicle_type_fkey(
+                    ors_vehicle_type
+                )
+            )
+        `)
+        .eq("vehicles.warehouse_id", warehouseId)
+        .eq("vehicles.is_deleted", false)
+
+    if (pairsError) throw pairsError
+
+    const validPairs = (allPairs ?? []).filter(
+        (p) => p.vehicles && !p.vehicles.is_deleted && p.vehicles.warehouse_id === warehouseId
+    )
+
+    // Find busy driver/vehicle IDs on that date
+    const dayStart = `${date}T00:00:00`
+    const dayEnd = `${date}T23:59:59`
+
+    const { data: busyAssignments, error: busyError } = await supabase
+        .from("package_assignment")
+        .select(`
+            driver_id,
+            vehicle_id,
+            package_delivery_window:package_delivery_window!package_delivery_window_package_id_fkey(
+                scheduled_departure
+            )
+        `)
+        .gte("package_delivery_window.scheduled_departure", dayStart)
+        .lte("package_delivery_window.scheduled_departure", dayEnd)
+
+    if (busyError) throw busyError
+
+    const busyDriverIds = new Set<string>()
+    const busyVehicleIds = new Set<string>()
+    for (const a of busyAssignments ?? []) {
+        if (a.package_delivery_window) {
+            if (a.driver_id) busyDriverIds.add(a.driver_id)
+            if (a.vehicle_id) busyVehicleIds.add(a.vehicle_id)
+        }
+    }
+
+    const filteredPairs = validPairs.filter(
+        (p) => !busyDriverIds.has(p.driver_id) && !busyVehicleIds.has(p.vehicle_id)
+    )
+
+    // Enrich with display names from auth profile
+    const driverIds = [...new Set(filteredPairs.map((p) => p.driver_id))]
+    let displayNameMap: Record<string, string> = {}
+    if (driverIds.length > 0) {
+        const { data: driverProfiles } = await supabase.rpc("get_drivers_by_ids", {
+            p_driver_ids: driverIds
+        })
+        if (driverProfiles) {
+            for (const profile of driverProfiles as any[]) {
+                displayNameMap[profile.id] = profile.display_name ?? profile.email ?? profile.id
+            }
+        }
+    }
+
+    return filteredPairs.map((p) => {
+        const driver = p.drivers as any
+        const vehicle = p.vehicles as any
+        return {
+            dvaId: p.id,
+            driverId: p.driver_id,
+            vehicleId: p.vehicle_id,
+            driverName: displayNameMap[p.driver_id] ?? driver?.driver_license ?? p.driver_id,
+            licenseType: driver?.license_type ?? "",
+            licenseExpiry: driver?.license_expiry ?? null,
+            driverUnderProbation: driver?.driver_under_probation ?? false,
+            vehiclePlate: vehicle?.vehicle_plate ?? "",
+            vehicleMake: vehicle?.vehicle_make ?? "",
+            vehicleModel: vehicle?.vehicle_model ?? "",
+            vehicleYear: vehicle?.vehicle_year ?? null,
+            vehicleGrossLimits: vehicle?.vehicle_gross_limits ?? null,
+            orsVehicleType: vehicle?.vehicle_type?.ors_vehicle_type ?? "driving-car",
+        }
+    })
+}
+
+export interface UnassignedPackage {
+    id: string
+    tracking_number: string | null
+    weight_kg: number | null
+    length_cm: number | null
+    width_cm: number | null
+    height_cm: number | null
+    customer_name: string | null
+    customer_address: string | null
+    customer_suburb: string | null
+    customer_state: string | null
+    customer_postcode: string | null
+    customer_lng: number | null
+    customer_lat: number | null
+    scheduled_arrival: string | null
+}
+
+export async function getUnassignedPackagesByWarehouse(warehouseId: string): Promise<UnassignedPackage[]> {
+    const supabase = await createClient()
+
+    const { data, error } = await supabase
+        .from("packages")
+        .select(`
+            id,
+            tracking_number,
+            package_dimensions:package_dimensions!package_dimensions_package_id_fkey(
+                weight_kg, length_cm, width_cm, height_cm
+            ),
+            to_customer:customer!packages_to_customer_fkey(
+                customer_name, customer_address, customer_suburb,
+                customer_state, customer_postcode, customer_location
+            ),
+            package_delivery_window:package_delivery_window!package_delivery_window_package_id_fkey(
+                scheduled_arrival
+            ),
+            package_assignment!left(
+                package_id
+            )
+        `)
+        .eq("warehouse_id", warehouseId)
+        .is("package_assignment.package_id", null)
+
+    if (error) throw error
+
+    return (data ?? []).map((p) => {
+        const dims = p.package_dimensions as any
+        const cust = p.to_customer as any
+        const pdw = p.package_delivery_window as any
+        const loc = cust?.customer_location as Location | null
+        return {
+            id: p.id,
+            tracking_number: p.tracking_number ?? null,
+            weight_kg: dims?.weight_kg ?? null,
+            length_cm: dims?.length_cm ?? null,
+            width_cm: dims?.width_cm ?? null,
+            height_cm: dims?.height_cm ?? null,
+            customer_name: cust?.customer_name ?? null,
+            customer_address: cust?.customer_address ?? null,
+            customer_suburb: cust?.customer_suburb ?? null,
+            customer_state: cust?.customer_state ?? null,
+            customer_postcode: cust?.customer_postcode ?? null,
+            customer_lng: loc?.coordinates?.[0] ?? null,
+            customer_lat: loc?.coordinates?.[1] ?? null,
+            scheduled_arrival: pdw?.scheduled_arrival ?? null,
+        }
+    })
 }
