@@ -15,6 +15,7 @@ interface DataTableProps<TData> {
     handleDelete?: (rows: TData[]) => void
     onRowSelectionChange?: React.Dispatch<React.SetStateAction<RowSelectionState>>
     rowSelection?: RowSelectionState
+    isRowSelectable?: (row: TData) => boolean
 }
 
 export function DataTable<TData>({
@@ -29,6 +30,7 @@ export function DataTable<TData>({
     handleDelete,
     onRowSelectionChange,
     rowSelection,
+    isRowSelectable,
 }: DataTableProps<TData>) {
 
     return (
@@ -42,6 +44,7 @@ export function DataTable<TData>({
                 handleDelete={handleDelete}
                 onRowSelectionChange={onRowSelectionChange}
                 rowSelection={rowSelection}
+                isRowSelectable={isRowSelectable}
             />
 
             <div className="flex items-center justify-end space-x-2">

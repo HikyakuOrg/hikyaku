@@ -10,6 +10,9 @@ export interface ListTeamMemberDto {
     phone_number: string;
     display_name: string;
     avatar_url: string | null;
+    role: string;
+    email_confirmed_at: string | null;
+    is_admin: boolean;
     page_number?: number;
     page_size?: number;
     total?: number;
@@ -23,15 +26,16 @@ export interface CreateTeamMemberDto {
     permissions: string[];
 }
 
-export async function getTeamMembers(page: number, pageSize: number) {
+export async function getTeamMembers(page: number, pageSize: number, search?: string) {
     const { data, error } = await supabase.rpc("get_team_members_paginated", {
         p_page: page,
         p_limit: pageSize,
+        p_search: search || null,
     });
 
     if (error) throw error;
     if (!data) return [];
-    return data as any as ListTeamMemberDto[];
+    return data as ListTeamMemberDto[];
 }
 
 export async function addTeamMember(createDto: CreateTeamMemberDto, supabaseClient?: SupabaseClient<Database>) {

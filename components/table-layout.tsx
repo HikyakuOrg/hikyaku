@@ -13,9 +13,10 @@ interface TableLayoutProps<TData> {
     handleDelete?: (a: TData[]) => void
     rowSelection?: RowSelectionState
     onRowSelectionChange?: React.Dispatch<React.SetStateAction<RowSelectionState>>
+    isRowSelectable?: (row: TData) => boolean
 }
 
-export function TableLayout<TData>({ data, columns, loading, pageSize, actions, handleDelete, rowSelection, onRowSelectionChange }: TableLayoutProps<TData>) {
+export function TableLayout<TData>({ data, columns, loading, pageSize, actions, handleDelete, rowSelection, onRowSelectionChange, isRowSelectable }: TableLayoutProps<TData>) {
 
     const isSelectionEnabled =
         rowSelection !== undefined && onRowSelectionChange !== undefined
@@ -30,6 +31,7 @@ export function TableLayout<TData>({ data, columns, loading, pageSize, actions, 
                         onCheckedChange={(value) =>
                             table.toggleAllPageRowsSelected(!!value)
                         }
+                        className="border-primary text-primary focus:ring-primary"
                         aria-label="Select all"
                     />
                 ),
@@ -39,6 +41,7 @@ export function TableLayout<TData>({ data, columns, loading, pageSize, actions, 
                         className="flex items-center"
                     >
                         <Checkbox
+                            className="border-primary text-primary focus:ring-primary"
                             checked={row.getIsSelected()}
                             onCheckedChange={(value) =>
                                 row.toggleSelected(!!value)
@@ -61,7 +64,9 @@ export function TableLayout<TData>({ data, columns, loading, pageSize, actions, 
         state: isSelectionEnabled
             ? { rowSelection }
             : {},
-        enableRowSelection: isSelectionEnabled,
+        enableRowSelection: isSelectionEnabled
+            ? (isRowSelectable ? (row) => isRowSelectable(row.original as TData) : true)
+            : false,
         onRowSelectionChange: isSelectionEnabled
             ? onRowSelectionChange
             : undefined,
@@ -96,19 +101,19 @@ export function TableLayout<TData>({ data, columns, loading, pageSize, actions, 
     return (
         <div className="rounded-md border bg-background">
             {selectedCount > 0 && (
-                <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">                    
-                <p className="text-sm text-muted-foreground">
-                    {selectedRows.length} selected
-                </p>
-                
-                { handleDelete != undefined && (
-                    <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleDelete(selectedRows.map((r) => r.original))}>
-                        Delete
-                    </Button>
-                )}
+                <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+                    <p className="text-sm text-muted-foreground">
+                        {selectedRows.length} selected
+                    </p>
+
+                    {handleDelete != undefined && (
+                        <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleDelete(selectedRows.map((r) => r.original))}>
+                            Delete
+                        </Button>
+                    )}
                 </div>
             )}
 
