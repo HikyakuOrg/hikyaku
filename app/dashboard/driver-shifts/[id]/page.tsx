@@ -56,7 +56,7 @@ export default async function DriverShiftsDetails({ params }: { params: Promise<
                 <div className="lg:col-span-2 space-y-6">
                     <RouteMap routeSteps={routeStepArray} route={route} />
 
-                    <RouteProgressionCard routeSteps={routeSteps} />
+                    <RouteProgressionCard routeSteps={routeSteps} routeId={id} />
                 </div>
 
                 <div className="space-y-6">
