@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { ColumnDef, RowSelectionState } from "@tanstack/react-table"
 import { TableLayout } from "@/components/table-layout"
@@ -180,8 +180,9 @@ export function PackagesRouteStep({
     const totalWeight = routeList.reduce((sum, p) => sum + (p.weight_kg ?? 0), 0)
     const overCapacity = vehicleGrossLimits > 0 && totalWeight > vehicleGrossLimits
 
-    // Build route steps for the map
-    const routeSteps: RouteStep[] = [
+    // Build route steps for the map — memoized so row-selection state changes don't
+    // recreate the array reference and trigger a full map teardown/rebuild.
+    const routeSteps: RouteStep[] = useMemo(() => [
         {
             coords: [warehouse.warehouseLocation[0], warehouse.warehouseLocation[1]],
             type: "start",
@@ -198,7 +199,7 @@ export function PackagesRouteStep({
             type: "end",
             warehouse_name: warehouse.warehouseName,
         },
-    ]
+    ], [warehouse, routeList])
 
     const fetchRoute = useCallback(
         (list: UnassignedPackage[]) => {
