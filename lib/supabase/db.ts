@@ -681,3 +681,35 @@ export async function createServiceArea(name: string, geometry: string) {
 
     return data
 }
+
+export async function createServiceRate(params: {
+    name: string
+    currency: string
+    delivery_type: string
+    base_rate: number
+    distance_unit: string
+    rate_per_distance: number
+    storage_per_day?: number
+    has_signature_charge: boolean
+    signature_charge?: number
+    has_out_of_area_surcharge: boolean
+    out_of_area_type?: string
+    out_of_area_rate?: number
+}) {
+    const { data, error } = await supabase
+        .from("service_rates")
+        .insert(params)
+        .select()
+        .single()
+    if (error) throw error
+    return data
+}
+
+export async function createServiceRateCoverage(serviceRateId: string, serviceAreaIds: string[]) {
+    const rows = serviceAreaIds.map((service_area_id) => ({
+        service_rate_id: serviceRateId,
+        service_area_id,
+    }))
+    const { error } = await supabase.from("service_rate_coverage").insert(rows)
+    if (error) throw error
+}

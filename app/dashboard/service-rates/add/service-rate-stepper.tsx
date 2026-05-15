@@ -1,8 +1,10 @@
 "use client"
 
-import React from "react"
+import React, { useState } from "react"
 import { defineStepper } from "@stepperize/react"
 import { StepStatus, useStepItemContext } from "@stepperize/react/primitives"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -17,6 +19,7 @@ import { SetupStep } from "./steps/setup-step"
 import { PricingStep } from "./steps/pricing-step"
 import { CoverageStep } from "./steps/coverage-step"
 import { ReviewStep } from "./steps/review-step"
+import { createServiceRateAction } from "@/lib/actions/service-rates"
 
 export type SelectedServiceArea = { id: string; name: string }
 
@@ -28,6 +31,8 @@ export type ServiceRateFormData = {
 }
 
 export function ServiceRateStepper() {
+    const router = useRouter()
+    const [isSubmitting, setIsSubmitting] = useState(false)
     const { Stepper } = defineStepper(
         {
             id: "setup",
@@ -228,10 +233,37 @@ export function ServiceRateStepper() {
                                         formData={formData}
                                         selectedServiceAreas={formData.selectedServiceAreas ?? []}
                                         onPrev={() => stepper.navigation.prev()}
-                                        onSubmit={() => {
-                                            // TODO: wire in data layer
-                                            console.log("Submit service rate:", formData)
+                                        onSubmit={async () => {
+                                            if (!formData.setup || !formData.pricing || !formData.coverage) {
+                                                toast.error("Missing form data. Please complete all steps.")
+                                                return
+                                            }
+                                            setIsSubmitting(true)
+                                            try {
+                                                await createServiceRateAction({
+                                                    name: formData.setup.name,
+                                                    currency: formData.setup.currency,
+                                                    deliveryType: formData.setup.deliveryType,
+                                                    baseRate: formData.pricing.baseRate,
+                                                    distanceUnit: formData.pricing.distanceUnit,
+                                                    ratePerDistance: formData.pricing.ratePerDistance,
+                                                    storagePerDay: formData.pricing.storagePerDay,
+                                                    hasSignatureCharge: formData.coverage.hasSignatureCharge,
+                                                    signatureCharge: formData.coverage.signatureCharge,
+                                                    hasOutOfAreaSurcharge: formData.coverage.hasOutOfAreaSurcharge,
+                                                    outOfAreaType: formData.coverage.outOfAreaType,
+                                                    outOfAreaRate: formData.coverage.outOfAreaRate,
+                                                    serviceAreaIds: formData.coverage.serviceAreaIds,
+                                                })
+                                                toast.success("Service rate created successfully!")
+                                                router.push("/dashboard/service-rates")
+                                            } catch (err: any) {
+                                                toast.error(err?.message ?? "Failed to create service rate.")
+                                            } finally {
+                                                setIsSubmitting(false)
+                                            }
                                         }}
+                                        isSubmitting={isSubmitting}
                                     />
                                 ),
                             })}

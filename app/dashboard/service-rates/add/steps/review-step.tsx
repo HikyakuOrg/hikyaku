@@ -1,5 +1,6 @@
 "use client"
 
+import { Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -45,6 +46,7 @@ export function ReviewStep({
     selectedServiceAreas,
     onPrev,
     onSubmit,
+    isSubmitting = false,
 }: {
     formData: {
         setup?: SetupFormValues
@@ -53,7 +55,8 @@ export function ReviewStep({
     }
     selectedServiceAreas: SelectedServiceArea[]
     onPrev: () => void
-    onSubmit: () => void
+    onSubmit: () => void | Promise<void>
+    isSubmitting?: boolean
 }) {
     const { setup, pricing, coverage } = formData
 
@@ -181,7 +184,8 @@ export function ReviewStep({
                 <Button type="button" variant="outline" onClick={onPrev}>
                     Previous
                 </Button>
-                <Button type="button" onClick={onSubmit}>
+                <Button type="button" onClick={onSubmit} disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Save Service Rate
                 </Button>
             </div>

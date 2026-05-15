@@ -81,6 +81,7 @@ export type Database = {
           customer_state: string
           customer_suburb: string
           id: string
+          stripe_customer_id: string | null
         }
         Insert: {
           created_at?: string
@@ -93,6 +94,7 @@ export type Database = {
           customer_state?: string
           customer_suburb: string
           id?: string
+          stripe_customer_id?: string | null
         }
         Update: {
           created_at?: string
@@ -105,6 +107,7 @@ export type Database = {
           customer_state?: string
           customer_suburb?: string
           id?: string
+          stripe_customer_id?: string | null
         }
         Relationships: []
       }
@@ -646,6 +649,93 @@ export type Database = {
           geometry?: unknown
           id?: string
           name?: string
+        }
+        Relationships: []
+      }
+      service_rate_coverage: {
+        Row: {
+          id: string
+          service_area_id: string
+          service_rate_id: string
+        }
+        Insert: {
+          id?: string
+          service_area_id: string
+          service_rate_id: string
+        }
+        Update: {
+          id?: string
+          service_area_id?: string
+          service_rate_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_rate_coverage_service_rate_id_fkey"
+            columns: ["service_rate_id"]
+            isOneToOne: false
+            referencedRelation: "service_rates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_rate_coverage_service_area_id_fkey"
+            columns: ["service_area_id"]
+            isOneToOne: false
+            referencedRelation: "service_areas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_rates: {
+        Row: {
+          base_rate: number
+          created_at: string
+          currency: string
+          delivery_type: string
+          distance_unit: string
+          has_out_of_area_surcharge: boolean
+          has_signature_charge: boolean
+          id: string
+          name: string
+          out_of_area_rate: number | null
+          out_of_area_type: string | null
+          rate_per_distance: number
+          signature_charge: number | null
+          storage_per_day: number | null
+          updated_at: string
+        }
+        Insert: {
+          base_rate: number
+          created_at?: string
+          currency?: string
+          delivery_type: string
+          distance_unit?: string
+          has_out_of_area_surcharge?: boolean
+          has_signature_charge?: boolean
+          id?: string
+          name: string
+          out_of_area_rate?: number | null
+          out_of_area_type?: string | null
+          rate_per_distance: number
+          signature_charge?: number | null
+          storage_per_day?: number | null
+          updated_at?: string
+        }
+        Update: {
+          base_rate?: number
+          created_at?: string
+          currency?: string
+          delivery_type?: string
+          distance_unit?: string
+          has_out_of_area_surcharge?: boolean
+          has_signature_charge?: boolean
+          id?: string
+          name?: string
+          out_of_area_rate?: number | null
+          out_of_area_type?: string | null
+          rate_per_distance?: number
+          signature_charge?: number | null
+          storage_per_day?: number | null
+          updated_at?: string
         }
         Relationships: []
       }
