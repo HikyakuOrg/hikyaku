@@ -60,7 +60,7 @@ export function PackageInfo({ onNext, defaultValues }: {
                                 Weight
                                 <Badge variant="destructive">Required</Badge>
                             </FieldLabel>
-                            <InputGroup >
+                            <InputGroup>
                                 <InputGroupInput  {...field}
                                     id="stepper-form-weight"
                                     aria-invalid={fieldState.invalid}
