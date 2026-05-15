@@ -483,6 +483,17 @@ export async function searchWarehouse(search: string) {
     return data
 }
 
+export async function searchServiceArea(search: string) {
+    const { data, error } = await supabase
+        .from("service_areas")
+        .select("id, name")
+        .ilike("name", `%${search}%`)
+        .order("name", { ascending: true })
+        .limit(20)
+    if (error) throw error
+    return data
+}
+
 export async function insertPackage(packageId: string, fromCustomer: string, toCustomer: string,
     warehouseId: string, trackingNumber?: string, deliveryNotes?: string | null) {
     const payload: any = {
