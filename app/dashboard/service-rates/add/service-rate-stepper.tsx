@@ -65,6 +65,7 @@ export function ServiceRateStepper() {
 
         return (
             <Stepper.Trigger
+                disabled={isInactive}
                 render={(domProps) => (
                     <Button
                         className="rounded-full"
