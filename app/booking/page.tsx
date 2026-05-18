@@ -1,6 +1,9 @@
 import { BookingStepper } from "./booking-stepper"
+import { getServiceRates } from "@/lib/supabase/db-server"
 
-export default function BookingPage() {
+export default async function BookingPage() {
+    const serviceRates = await getServiceRates()
+
     return (
         <div className="space-y-6">
             <div>
@@ -11,7 +14,7 @@ export default function BookingPage() {
                     Fill in your package and delivery details to get started.
                 </p>
             </div>
-            <BookingStepper />
+            <BookingStepper serviceRates={serviceRates} />
         </div>
     )
 }

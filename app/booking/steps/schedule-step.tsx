@@ -5,6 +5,7 @@ import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { format } from "date-fns"
 import { CalendarIcon } from "@phosphor-icons/react"
+import { z } from "zod/v4"
 
 import { ScheduleFormValues, scheduleSchema } from "../booking-schema"
 import { Button } from "@/components/ui/button"
@@ -45,15 +46,24 @@ export function ScheduleStep({
         [defaultValues]
     )
 
+    const resolverSchema = isScheduled
+        ? scheduleSchema.extend({
+              deliveryDate: z.string().min(1, "Delivery date is required"),
+          })
+        : scheduleSchema
+
     const form = useForm<ScheduleFormValues>({
-        resolver: zodResolver(scheduleSchema),
+        resolver: zodResolver(resolverSchema as typeof scheduleSchema),
         defaultValues: initial,
     })
+
+    const submit = (data: ScheduleFormValues) =>
+        onNext(isScheduled ? data : { ...data, deliveryDate: data.pickupDate })
 
     return (
         <form
             id="schedule"
-            onSubmit={form.handleSubmit(onNext)}
+            onSubmit={form.handleSubmit(submit)}
             className="space-y-8 p-4"
         >
             <div>
@@ -152,6 +162,8 @@ export function ScheduleStep({
                     </Field>
                 )}
 
+                {isScheduled && (
+                  <>
                 <Separator />
 
                 <Controller
@@ -237,6 +249,8 @@ export function ScheduleStep({
                             />
                         </div>
                     </Field>
+                )}
+                  </>
                 )}
 
                 <Separator />

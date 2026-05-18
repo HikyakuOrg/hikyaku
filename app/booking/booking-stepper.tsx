@@ -9,6 +9,7 @@ import {
     PackageFormValues,
     AddressesFormValues,
     ScheduleFormValues,
+    ServiceRateOption,
     packageSchema,
     addressesSchema,
     scheduleSchema,
@@ -18,6 +19,7 @@ import { AddressesStep } from "./steps/addresses-step"
 import { ScheduleStep } from "./steps/schedule-step"
 import { ReviewStep } from "./steps/review-step"
 import { calculateServiceFee } from "@/lib/api/service-fees"
+import { createBooking } from "@/lib/actions/create-booking"
 
 export type BookingFormData = {
     package?: PackageFormValues
@@ -25,34 +27,38 @@ export type BookingFormData = {
     schedule?: ScheduleFormValues
 }
 
-export function BookingStepper() {
-    const [isSubmitting, setIsSubmitting] = useState(false)
+const { Stepper } = defineStepper(
+    {
+        id: "package",
+        title: "Package",
+        description: "Item details",
+        schema: packageSchema,
+    },
+    {
+        id: "addresses",
+        title: "Addresses",
+        description: "Sender & recipient",
+        schema: addressesSchema,
+    },
+    {
+        id: "schedule",
+        title: "Schedule",
+        description: "Dates & options",
+        schema: scheduleSchema,
+    },
+    {
+        id: "review",
+        title: "Review",
+        description: "Confirm & submit",
+    }
+)
 
-    const { Stepper } = defineStepper(
-        {
-            id: "package",
-            title: "Package",
-            description: "Item details",
-            schema: packageSchema,
-        },
-        {
-            id: "addresses",
-            title: "Addresses",
-            description: "Sender & recipient",
-            schema: addressesSchema,
-        },
-        {
-            id: "schedule",
-            title: "Schedule",
-            description: "Dates & options",
-            schema: scheduleSchema,
-        },
-        {
-            id: "review",
-            title: "Review",
-            description: "Confirm & submit",
-        }
-    )
+export function BookingStepper({
+    serviceRates,
+}: {
+    serviceRates: ServiceRateOption[]
+}) {
+    const [isSubmitting, setIsSubmitting] = useState(false)
 
     const StepperTriggerWrapper = () => {
         const item = useStepItemContext()
@@ -178,6 +184,7 @@ export function BookingStepper() {
                                 package: () => (
                                     <PackageStep
                                         defaultValues={formData.package}
+                                        serviceRates={serviceRates}
                                         onNext={(data) => {
                                             stepper.metadata.set("package", {
                                                 ...formData,
@@ -219,15 +226,17 @@ export function BookingStepper() {
                                 review: () => (
                                     <ReviewStep
                                         formData={formData}
+                                        serviceRates={serviceRates}
                                         onPrev={() => stepper.navigation.prev()}
                                         onSubmit={async () => {
                                             setIsSubmitting(true)
                                             try {
-                                                const serviceRateId = process.env.NEXT_PUBLIC_DEFAULT_SERVICE_RATE_ID ?? ""
+                                                const serviceRateId = formData.package?.serviceRateId ?? ""
                                                 const result = await calculateServiceFee(formData, serviceRateId)
-                                                console.log("Service fee calculation:", result)
+                                                await createBooking(formData, result)
+                                                console.log("Booking created successfully:", result)
                                             } catch (err) {
-                                                console.error("Service fee calculation failed:", err)
+                                                console.error("Booking creation failed:", err)
                                             } finally {
                                                 setIsSubmitting(false)
                                             }

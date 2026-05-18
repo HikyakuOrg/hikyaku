@@ -5,7 +5,11 @@ import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { PackageIcon, CalendarIcon } from "@phosphor-icons/react"
 
-import { PackageFormValues, packageSchema } from "../booking-schema"
+import {
+    PackageFormValues,
+    ServiceRateOption,
+    packageSchema,
+} from "../booking-schema"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
@@ -15,31 +19,19 @@ import {
     InputGroupInput,
 } from "@/components/ui/input-group"
 
-const DELIVERY_TYPES = [
-    {
-        value: "on_demand" as const,
-        label: "On Demand",
-        description: "Same-day pickup and delivery at specific times.",
-        icon: PackageIcon,
-    },
-    {
-        value: "scheduled" as const,
-        label: "Scheduled",
-        description: "Pick up on one day and deliver at a future date.",
-        icon: CalendarIcon,
-    },
-]
-
 export function PackageStep({
     defaultValues,
+    serviceRates,
     onNext,
 }: {
     defaultValues?: PackageFormValues
+    serviceRates: ServiceRateOption[]
     onNext: (data: PackageFormValues) => void
 }) {
     const initial = useMemo(
         () =>
             defaultValues ?? {
+                serviceRateId: "",
                 deliveryType: "on_demand" as const,
                 description: "",
                 weight: undefined as unknown as number,
@@ -56,6 +48,7 @@ export function PackageStep({
     })
 
     const weightUnit = form.watch("weightUnit")
+    const hasServiceRates = serviceRates.length > 0
 
     return (
         <form
@@ -73,55 +66,82 @@ export function PackageStep({
             </div>
 
             <FieldGroup>
-                {/* Delivery Type */}
+                {/* Service */}
                 <Controller
-                    name="deliveryType"
+                    name="serviceRateId"
                     control={form.control}
                     render={({ field, fieldState }) => (
                         <Field data-invalid={fieldState.invalid}>
-                            <FieldLabel>Delivery Type</FieldLabel>
-                            <div className="grid grid-cols-2 gap-4">
-                                {DELIVERY_TYPES.map(({ value, label, description, icon: Icon }) => (
-                                    <button
-                                        key={value}
-                                        type="button"
-                                        onClick={() => field.onChange(value)}
-                                        className={cn(
-                                            "rounded-lg border-2 p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                                            field.value === value
-                                                ? "border-primary bg-primary/5"
-                                                : "border-border hover:border-primary/40 hover:bg-muted/30"
-                                        )}
-                                    >
-                                        <div className="flex items-start gap-3">
-                                            <Icon
-                                                size={20}
+                            <FieldLabel>Service</FieldLabel>
+                            {hasServiceRates ? (
+                                <div className="grid grid-cols-2 gap-4">
+                                    {serviceRates.map((rate) => {
+                                        const Icon =
+                                            rate.delivery_type === "on_demand"
+                                                ? PackageIcon
+                                                : CalendarIcon
+                                        const selected = field.value === rate.id
+                                        return (
+                                            <button
+                                                key={rate.id}
+                                                type="button"
+                                                onClick={() => {
+                                                    form.setValue("serviceRateId", rate.id, {
+                                                        shouldValidate: true,
+                                                    })
+                                                    form.setValue(
+                                                        "deliveryType",
+                                                        rate.delivery_type
+                                                    )
+                                                    form.setValue(
+                                                        "weightUnit",
+                                                        rate.distance_unit === "mi" ? "lb" : "kg"
+                                                    )
+                                                }}
                                                 className={cn(
-                                                    "mt-0.5 shrink-0",
-                                                    field.value === value
-                                                        ? "text-primary"
-                                                        : "text-muted-foreground"
+                                                    "rounded-lg border-2 p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                                                    selected
+                                                        ? "border-primary bg-primary/5"
+                                                        : "border-border hover:border-primary/40 hover:bg-muted/30"
                                                 )}
-                                            />
-                                            <div>
-                                                <p
-                                                    className={cn(
-                                                        "font-semibold",
-                                                        field.value === value
-                                                            ? "text-primary"
-                                                            : "text-foreground"
-                                                    )}
-                                                >
-                                                    {label}
-                                                </p>
-                                                <p className="text-muted-foreground mt-1 text-sm">
-                                                    {description}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
+                                            >
+                                                <div className="flex items-start gap-3">
+                                                    <Icon
+                                                        size={20}
+                                                        className={cn(
+                                                            "mt-0.5 shrink-0",
+                                                            selected
+                                                                ? "text-primary"
+                                                                : "text-muted-foreground"
+                                                        )}
+                                                    />
+                                                    <div>
+                                                        <p
+                                                            className={cn(
+                                                                "font-semibold",
+                                                                selected
+                                                                    ? "text-primary"
+                                                                    : "text-foreground"
+                                                            )}
+                                                        >
+                                                            {rate.name}
+                                                        </p>
+                                                        <p className="text-muted-foreground mt-1 text-sm">
+                                                            {rate.delivery_type === "on_demand"
+                                                                ? "On Demand"
+                                                                : "Scheduled"}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            ) : (
+                                <p className="text-muted-foreground rounded-lg border border-dashed p-4 text-sm">
+                                    No services are currently available. Please try again later.
+                                </p>
+                            )}
                             {fieldState.invalid && (
                                 <FieldError errors={[fieldState.error]} />
                             )}
@@ -158,41 +178,20 @@ export function PackageStep({
                     render={({ field, fieldState }) => (
                         <Field data-invalid={fieldState.invalid}>
                             <FieldLabel htmlFor="pkg-weight">Weight</FieldLabel>
-                            <div className="flex gap-2 items-start">
-                                <InputGroup className="flex-1">
-                                    <InputGroupInput
-                                        {...field}
-                                        id="pkg-weight"
-                                        type="number"
-                                        min={0.01}
-                                        step="0.01"
-                                        placeholder="0.00"
-                                        value={field.value ?? ""}
-                                        onChange={(e) => field.onChange(e.target.valueAsNumber)}
-                                        aria-invalid={fieldState.invalid}
-                                    />
-                                    <InputGroupAddon align="inline-end">{weightUnit}</InputGroupAddon>
-                                </InputGroup>
-                                <Controller
-                                    name="weightUnit"
-                                    control={form.control}
-                                    render={({ field: unitField }) => (
-                                        <div className="flex gap-1">
-                                            {(["kg", "lb"] as const).map((unit) => (
-                                                <Button
-                                                    key={unit}
-                                                    type="button"
-                                                    variant={unitField.value === unit ? "default" : "outline"}
-                                                    size="sm"
-                                                    onClick={() => unitField.onChange(unit)}
-                                                >
-                                                    {unit}
-                                                </Button>
-                                            ))}
-                                        </div>
-                                    )}
+                            <InputGroup>
+                                <InputGroupInput
+                                    {...field}
+                                    id="pkg-weight"
+                                    type="number"
+                                    min={0.01}
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    value={field.value ?? ""}
+                                    onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                                    aria-invalid={fieldState.invalid}
                                 />
-                            </div>
+                                <InputGroupAddon align="inline-end">{weightUnit}</InputGroupAddon>
+                            </InputGroup>
                             {fieldState.invalid && (
                                 <FieldError errors={[fieldState.error]} />
                             )}
@@ -247,7 +246,9 @@ export function PackageStep({
             </FieldGroup>
 
             <div className="flex justify-end pt-6 border-t">
-                <Button type="submit">Next</Button>
+                <Button type="submit" disabled={!hasServiceRates}>
+                    Next
+                </Button>
             </div>
         </form>
     )

@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { BookingFormData } from "../booking-stepper"
-import type { AddressesFormValues } from "../booking-schema"
+import type { AddressesFormValues, ServiceRateOption } from "../booking-schema"
 
 function ReviewRow({
     label,
@@ -54,20 +54,24 @@ function formatTimeWindow(from?: string, to?: string): string {
 
 export function ReviewStep({
     formData,
+    serviceRates,
     onPrev,
     onSubmit,
     isSubmitting = false,
 }: {
     formData: BookingFormData
+    serviceRates: ServiceRateOption[]
     onPrev: () => void
     onSubmit: () => void | Promise<void>
     isSubmitting?: boolean
 }) {
     const { package: pkg, addresses, schedule } = formData
 
-    const deliveryTypeLabel =
-        pkg?.deliveryType === "on_demand" ? "On Demand" : "Scheduled"
     const isScheduled = pkg?.deliveryType === "scheduled"
+    const selectedRate = serviceRates.find((r) => r.id === pkg?.serviceRateId)
+    const serviceLabel =
+        selectedRate?.name ??
+        (pkg?.deliveryType === "on_demand" ? "On Demand" : "Scheduled")
 
     return (
         <div className="space-y-8 p-4">
@@ -84,8 +88,8 @@ export function ReviewStep({
                 {/* Package Details */}
                 <ReviewSection title="Package Details">
                     <ReviewRow
-                        label="Delivery Type"
-                        value={<Badge variant="secondary">{deliveryTypeLabel}</Badge>}
+                        label="Service"
+                        value={<Badge variant="secondary">{serviceLabel}</Badge>}
                     />
                     <ReviewRow label="Description" value={pkg?.description ?? "—"} />
                     <ReviewRow
@@ -150,19 +154,21 @@ export function ReviewStep({
                             )}
                         />
                     )}
-                    <Separator className="my-0" />
-                    <ReviewRow
-                        label="Delivery Date"
-                        value={schedule?.deliveryDate ?? "—"}
-                    />
                     {isScheduled && (
-                        <ReviewRow
-                            label="Delivery Window"
-                            value={formatTimeWindow(
-                                schedule?.deliveryTimeFrom,
-                                schedule?.deliveryTimeTo
-                            )}
-                        />
+                        <>
+                            <Separator className="my-0" />
+                            <ReviewRow
+                                label="Delivery Date"
+                                value={schedule?.deliveryDate ?? "—"}
+                            />
+                            <ReviewRow
+                                label="Delivery Window"
+                                value={formatTimeWindow(
+                                    schedule?.deliveryTimeFrom,
+                                    schedule?.deliveryTimeTo
+                                )}
+                            />
+                        </>
                     )}
                     <Separator className="my-0" />
                     {schedule?.deliveryNotes && (

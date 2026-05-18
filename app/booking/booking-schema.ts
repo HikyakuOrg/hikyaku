@@ -2,6 +2,7 @@ import { z } from "zod/v4"
 import { isValidPhoneNumber } from "react-phone-number-input"
 
 export const packageSchema = z.object({
+    serviceRateId: z.string().min(1, "Select a service"),
     deliveryType: z.enum(["on_demand", "scheduled"]),
     description: z.string().min(1, "Description is required"),
     weight: z.number().min(0.01, "Weight must be greater than 0"),
@@ -34,12 +35,19 @@ export const scheduleSchema = z.object({
     pickupDate: z.string().min(1, "Pickup date is required"),
     pickupTimeFrom: z.string().optional(),
     pickupTimeTo: z.string().optional(),
-    deliveryDate: z.string().min(1, "Delivery date is required"),
+    deliveryDate: z.string().optional(),
     deliveryTimeFrom: z.string().optional(),
     deliveryTimeTo: z.string().optional(),
     deliveryNotes: z.string().optional(),
     signatureRequired: z.boolean(),
 })
+
+export type ServiceRateOption = {
+    id: string
+    name: string
+    delivery_type: "on_demand" | "scheduled"
+    distance_unit: string
+}
 
 export type PackageFormValues = z.infer<typeof packageSchema>
 export type AddressesFormValues = z.infer<typeof addressesSchema>

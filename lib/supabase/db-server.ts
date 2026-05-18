@@ -3,6 +3,7 @@ import { createServiceAreaFeatureCollection, emptyServiceAreaFeatureCollection }
 import { Tables } from "./supabase"
 import { createClient } from "./server"
 import { PackageOptimisation, Location } from "@/app/models/package-optimisation"
+import type { ServiceRateOption } from "@/app/booking/booking-schema"
 
 type ServiceAreaViewportBounds = {
     minLat: number
@@ -156,6 +157,26 @@ export async function getServiceAreas() {
     }
 
     return createServiceAreaFeatureCollection(data ?? [])
+}
+
+export async function getServiceRates(): Promise<ServiceRateOption[]> {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+        .from("service_rates")
+        .select("id, name, delivery_type, distance_unit")
+        .order("name", { ascending: true })
+
+    if (error) {
+        console.error(error)
+        return []
+    }
+
+    return (data ?? []).map((r) => ({
+        id: r.id,
+        name: r.name,
+        delivery_type: r.delivery_type === "on_demand" ? "on_demand" : "scheduled",
+        distance_unit: r.distance_unit,
+    }))
 }
 
 export async function getServiceAreaExtent() {
