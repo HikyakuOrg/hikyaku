@@ -1,5 +1,3 @@
-"use server"
-
 import { createServiceRate, createServiceRateCoverage } from "@/lib/supabase/db"
 
 export interface CreateServiceRateInput {
