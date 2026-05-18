@@ -3,6 +3,33 @@ import type { BookingFormData } from "@/app/booking/booking-stepper"
 
 const API_URL = process.env.NEXT_PUBLIC_HIKYAKU_API_URL ?? "http://localhost:3002"
 
+export type ServiceFeeResult = {
+    currency: string
+    service_rate: { id: string; name: string }
+    breakdown: {
+        base_rate: number
+        distance: {
+            total: number
+            unit: string
+            rate_per_unit: number
+            cost: number
+        }
+        signature: {
+            applies: boolean
+            charge_per_receiver: number
+            receiver_count: number
+            cost: number
+        }
+        storage: {
+            applies: boolean
+            rate_per_day: number
+            receivers: { name: string; days: number; cost: number }[]
+            cost: number
+        }
+    }
+    total: number
+}
+
 function toKg(weight: number, unit: string): number {
     return unit === "lb" ? weight * 0.453592 : weight
 }
@@ -10,7 +37,7 @@ function toKg(weight: number, unit: string): number {
 export async function calculateServiceFee(
     formData: BookingFormData,
     serviceRateId: string,
-) {
+): Promise<ServiceFeeResult> {
     const { package: pkg, addresses, schedule } = formData
 
     const supabase = createClient()

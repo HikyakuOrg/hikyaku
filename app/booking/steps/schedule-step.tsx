@@ -5,6 +5,7 @@ import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { format } from "date-fns"
 import { CalendarIcon } from "@phosphor-icons/react"
+import { Loader2 } from "lucide-react"
 import { z } from "zod/v4"
 
 import { ScheduleFormValues, scheduleSchema } from "../booking-schema"
@@ -21,11 +22,13 @@ import { cn } from "@/lib/utils"
 export function ScheduleStep({
     defaultValues,
     deliveryType,
+    isSubmitting = false,
     onNext,
     onPrev,
 }: {
     defaultValues?: ScheduleFormValues
     deliveryType: "on_demand" | "scheduled"
+    isSubmitting?: boolean
     onNext: (data: ScheduleFormValues) => void
     onPrev: () => void
 }) {
@@ -302,10 +305,20 @@ export function ScheduleStep({
             </FieldGroup>
 
             <div className="flex justify-between pt-6 border-t">
-                <Button type="button" variant="outline" onClick={onPrev}>
+                <Button
+                    type="button"
+                    variant="outline"
+                    onClick={onPrev}
+                    disabled={isSubmitting}
+                >
                     Previous
                 </Button>
-                <Button type="submit">Next</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    Next
+                </Button>
             </div>
         </form>
     )

@@ -3,6 +3,7 @@
 import React, { useState } from "react"
 import { defineStepper } from "@stepperize/react"
 import { StepStatus, useStepItemContext } from "@stepperize/react/primitives"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -18,8 +19,7 @@ import { PackageStep } from "./steps/package-step"
 import { AddressesStep } from "./steps/addresses-step"
 import { ScheduleStep } from "./steps/schedule-step"
 import { ReviewStep } from "./steps/review-step"
-import { calculateServiceFee } from "@/lib/api/service-fees"
-import { createBooking } from "@/lib/actions/create-booking"
+import { calculateServiceFee, ServiceFeeResult } from "@/lib/api/service-fees"
 
 export type BookingFormData = {
     package?: PackageFormValues
@@ -58,7 +58,8 @@ export function BookingStepper({
 }: {
     serviceRates: ServiceRateOption[]
 }) {
-    const [isSubmitting, setIsSubmitting] = useState(false)
+    const [serviceFee, setServiceFee] = useState<ServiceFeeResult | null>(null)
+    const [isCalculatingFee, setIsCalculatingFee] = useState(false)
 
     const StepperTriggerWrapper = () => {
         const item = useStepItemContext()
@@ -213,12 +214,30 @@ export function BookingStepper({
                                         deliveryType={
                                             formData.package?.deliveryType ?? "on_demand"
                                         }
-                                        onNext={(data) => {
-                                            stepper.metadata.set("schedule", {
+                                        isSubmitting={isCalculatingFee}
+                                        onNext={async (data) => {
+                                            const updated = {
                                                 ...formData,
                                                 schedule: data,
-                                            })
-                                            stepper.navigation.next()
+                                            }
+                                            stepper.metadata.set("schedule", updated)
+                                            setIsCalculatingFee(true)
+                                            try {
+                                                const result = await calculateServiceFee(
+                                                    updated,
+                                                    formData.package?.serviceRateId ?? ""
+                                                )
+                                                setServiceFee(result)
+                                                stepper.navigation.next()
+                                            } catch (err) {
+                                                toast.error(
+                                                    err instanceof Error
+                                                        ? err.message
+                                                        : "Failed to calculate service fee"
+                                                )
+                                            } finally {
+                                                setIsCalculatingFee(false)
+                                            }
                                         }}
                                         onPrev={() => stepper.navigation.prev()}
                                     />
@@ -227,21 +246,11 @@ export function BookingStepper({
                                     <ReviewStep
                                         formData={formData}
                                         serviceRates={serviceRates}
+                                        serviceFee={serviceFee}
                                         onPrev={() => stepper.navigation.prev()}
-                                        onSubmit={async () => {
-                                            setIsSubmitting(true)
-                                            try {
-                                                const serviceRateId = formData.package?.serviceRateId ?? ""
-                                                const result = await calculateServiceFee(formData, serviceRateId)
-                                                await createBooking(formData, result)
-                                                console.log("Booking created successfully:", result)
-                                            } catch (err) {
-                                                console.error("Booking creation failed:", err)
-                                            } finally {
-                                                setIsSubmitting(false)
-                                            }
+                                        onSubmit={() => {
+                                            
                                         }}
-                                        isSubmitting={isSubmitting}
                                     />
                                 ),
                             })}

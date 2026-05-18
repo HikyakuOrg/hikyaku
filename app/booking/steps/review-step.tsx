@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { BookingFormData } from "../booking-stepper"
 import type { AddressesFormValues, ServiceRateOption } from "../booking-schema"
+import type { ServiceFeeResult } from "@/lib/api/service-fees"
+import { formatCurrency } from "@/lib/currency"
 
 function ReviewRow({
     label,
@@ -55,12 +57,14 @@ function formatTimeWindow(from?: string, to?: string): string {
 export function ReviewStep({
     formData,
     serviceRates,
+    serviceFee,
     onPrev,
     onSubmit,
     isSubmitting = false,
 }: {
     formData: BookingFormData
     serviceRates: ServiceRateOption[]
+    serviceFee?: ServiceFeeResult | null
     onPrev: () => void
     onSubmit: () => void | Promise<void>
     isSubmitting?: boolean
@@ -182,6 +186,81 @@ export function ReviewStep({
                         value={schedule?.signatureRequired ? "Yes" : "No"}
                     />
                 </ReviewSection>
+
+                {/* Service Fees */}
+                {serviceFee && (
+                    <ReviewSection title="Service Fees">
+                        <ReviewRow
+                            label="Base Rate"
+                            value={formatCurrency(
+                                serviceFee.breakdown.base_rate,
+                                serviceFee.currency
+                            )}
+                        />
+                        {serviceFee.breakdown.distance.cost > 0 && (
+                            <ReviewRow
+                                label={`Distance · ${serviceFee.breakdown.distance.total} ${
+                                    serviceFee.breakdown.distance.unit
+                                } × ${formatCurrency(
+                                    serviceFee.breakdown.distance.rate_per_unit,
+                                    serviceFee.currency
+                                )}/${serviceFee.breakdown.distance.unit}`}
+                                value={formatCurrency(
+                                    serviceFee.breakdown.distance.cost,
+                                    serviceFee.currency
+                                )}
+                            />
+                        )}
+                        {serviceFee.breakdown.signature.applies && (
+                            <ReviewRow
+                                label={`Signature · ${
+                                    serviceFee.breakdown.signature.receiver_count
+                                } × ${formatCurrency(
+                                    serviceFee.breakdown.signature.charge_per_receiver,
+                                    serviceFee.currency
+                                )}`}
+                                value={formatCurrency(
+                                    serviceFee.breakdown.signature.cost,
+                                    serviceFee.currency
+                                )}
+                            />
+                        )}
+                        {serviceFee.breakdown.storage.applies && (
+                            <>
+                                <ReviewRow
+                                    label="Storage"
+                                    value={formatCurrency(
+                                        serviceFee.breakdown.storage.cost,
+                                        serviceFee.currency
+                                    )}
+                                />
+                                {serviceFee.breakdown.storage.receivers.map(
+                                    (receiver, index) => (
+                                        <ReviewRow
+                                            key={index}
+                                            label={`${receiver.name} · ${
+                                                receiver.days
+                                            } day${receiver.days === 1 ? "" : "s"}`}
+                                            value={formatCurrency(
+                                                receiver.cost,
+                                                serviceFee.currency
+                                            )}
+                                        />
+                                    )
+                                )}
+                            </>
+                        )}
+                        <div className="flex items-center justify-between gap-4 py-3 font-semibold">
+                            <p className="text-sm">Total</p>
+                            <p className="text-base text-right">
+                                {formatCurrency(
+                                    serviceFee.total,
+                                    serviceFee.currency
+                                )}
+                            </p>
+                        </div>
+                    </ReviewSection>
+                )}
             </div>
 
             <div className="flex justify-between pt-6 border-t">
