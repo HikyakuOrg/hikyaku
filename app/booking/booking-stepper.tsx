@@ -20,6 +20,7 @@ import { AddressesStep } from "./steps/addresses-step"
 import { ScheduleStep } from "./steps/schedule-step"
 import { ReviewStep } from "./steps/review-step"
 import { calculateServiceFee, ServiceFeeResult } from "@/lib/api/service-fees"
+import { createCheckout } from "@/lib/api/payments"
 
 export type BookingFormData = {
     package?: PackageFormValues
@@ -60,6 +61,7 @@ export function BookingStepper({
 }) {
     const [serviceFee, setServiceFee] = useState<ServiceFeeResult | null>(null)
     const [isCalculatingFee, setIsCalculatingFee] = useState(false)
+    const [isSubmitting, setIsSubmitting] = useState(false)
 
     const StepperTriggerWrapper = () => {
         const item = useStepItemContext()
@@ -247,9 +249,31 @@ export function BookingStepper({
                                         formData={formData}
                                         serviceRates={serviceRates}
                                         serviceFee={serviceFee}
+                                        isSubmitting={isSubmitting}
                                         onPrev={() => stepper.navigation.prev()}
-                                        onSubmit={() => {
-                                            
+                                        onSubmit={async () => {
+                                            setIsSubmitting(true)
+                                            try {
+                                                const { checkoutUrl } =
+                                                    await createCheckout(
+                                                        formData,
+                                                        formData.package
+                                                            ?.serviceRateId ?? ""
+                                                    )
+                                                // Redirect to Stripe-hosted
+                                                // Checkout. Fulfillment happens
+                                                // via the webhook, not here.
+                                                window.location.assign(
+                                                    checkoutUrl
+                                                )
+                                            } catch (err) {
+                                                toast.error(
+                                                    err instanceof Error
+                                                        ? err.message
+                                                        : "Failed to start payment"
+                                                )
+                                                setIsSubmitting(false)
+                                            }
                                         }}
                                     />
                                 ),
