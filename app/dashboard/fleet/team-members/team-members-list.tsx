@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Search, Plus } from "lucide-react"
+import { Search, Plus, Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { TeamMemberTable } from "@/components/team-member/team-member-table"
 import { ListTeamMemberDto, getTeamMembers } from "@/lib/supabase/team-rpc"
+import { InviteUserDialog } from "./invite-user-dialog"
 
 const PAGE_SIZE = 10
 
@@ -15,6 +16,8 @@ interface TeamMembersListProps {
     canEdit: boolean
     canDelete: boolean
     roles: string[]
+    permissions: { id: number; permission: string }[]
+    orgId: string | null
 }
 
 const ROLE_DESCRIPTIONS: Record<string, string> = {
@@ -23,7 +26,7 @@ const ROLE_DESCRIPTIONS: Record<string, string> = {
     Dispatcher: "Dispatchers can manage package assignments and driver shifts. However, they cannot edit organisation settings or manage billing.",
 }
 
-export function TeamMembersList({ canAdd, canEdit, canDelete, roles }: TeamMembersListProps) {
+export function TeamMembersList({ canAdd, canEdit, canDelete, roles, permissions, orgId }: TeamMembersListProps) {
     const router = useRouter()
 
     const [data, setData] = useState<ListTeamMemberDto[]>([])
@@ -32,6 +35,7 @@ export function TeamMembersList({ canAdd, canEdit, canDelete, roles }: TeamMembe
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState("")
     const [debouncedSearch, setDebouncedSearch] = useState("")
+    const [inviteOpen, setInviteOpen] = useState(false)
 
     // Debounce search input by 300ms
     useEffect(() => {
@@ -75,16 +79,40 @@ export function TeamMembersList({ canAdd, canEdit, canDelete, roles }: TeamMembe
                         <p className="text-muted-foreground">Manage your team members.</p>
                     </div>
                     {canAdd && (
-                        <Button
-                            onClick={() => router.push("/dashboard/fleet/team-members/add")}
-                            data-testid="add-member-btn"
-                            className="cursor-pointer"
-                        >
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add member
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            {orgId && (
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setInviteOpen(true)}
+                                    data-testid="invite-member-btn"
+                                    className="cursor-pointer"
+                                >
+                                    <Mail className="mr-2 h-4 w-4" />
+                                    Invite member
+                                </Button>
+                            )}
+                            <Button
+                                onClick={() => router.push("/dashboard/fleet/team-members/add")}
+                                data-testid="add-member-btn"
+                                className="cursor-pointer"
+                            >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Add member
+                            </Button>
+                        </div>
                     )}
                 </div>
+
+                {canAdd && orgId && (
+                    <InviteUserDialog
+                        open={inviteOpen}
+                        onOpenChange={setInviteOpen}
+                        orgId={orgId}
+                        roles={roles}
+                        permissions={permissions}
+                        onInvited={handleDataChange}
+                    />
+                )}
 
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

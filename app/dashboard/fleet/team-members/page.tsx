@@ -1,5 +1,7 @@
+import { headers } from "next/headers"
 import { createClient } from "@/lib/supabase/server"
-import { getAppRoles } from "@/lib/supabase/db-server"
+import { getAppRoles, getAppPermissions } from "@/lib/supabase/db-server"
+import { listMyOrganisations } from "@/lib/actions/organisations"
 import { TeamMembersList } from "./team-members-list"
 
 async function getPermissions(supabase: Awaited<ReturnType<typeof createClient>>) {
@@ -17,12 +19,17 @@ async function getPermissions(supabase: Awaited<ReturnType<typeof createClient>>
 
 export default async function TeamMembersPage() {
     const supabase = await createClient()
-    const [permissions, roles] = await Promise.all([
+    const [permissions, roles, appPermissions, organisations, hdrs] = await Promise.all([
         getPermissions(supabase),
         getAppRoles(),
+        getAppPermissions(),
+        listMyOrganisations(),
+        headers(),
     ])
 
     const roleNames = roles.map((r) => r.name)
+    const slug = hdrs.get("x-org-slug")
+    const orgId = organisations.find((o) => o.slug === slug)?.id ?? null
 
     return (
         <TeamMembersList
@@ -30,6 +37,8 @@ export default async function TeamMembersPage() {
             canEdit={permissions.canEdit}
             canDelete={permissions.canDelete}
             roles={roleNames}
+            permissions={appPermissions}
+            orgId={orgId}
         />
     )
 }

@@ -9,6 +9,8 @@ import {
 } from "@/components/ui/sidebar"
 import { getSupabaseServerClaims } from "@/lib/supabase/server"
 import { listMyOrganisations } from "@/lib/actions/organisations"
+import { listPendingInvitations } from "@/lib/actions/invitations"
+import { PendingInvitationsDialog } from "@/components/pending-invitations-dialog"
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
@@ -36,18 +38,32 @@ async function AuthenticatedShell({ children }: DashboardLayoutProps) {
     redirect('/auth/login')
   }
 
-  const [organisations, headerList] = await Promise.all([
+  const [organisations, pendingInvitations, headerList] = await Promise.all([
     listMyOrganisations(),
+    listPendingInvitations(),
     headers(),
   ])
 
   const currentPathname = headerList.get('x-pathname') ?? ''
-  if (organisations.length === 0 && currentPathname !== '/dashboard/new') {
+  // A brand-new invitee with zero orgs but a pending invite should see the
+  // dialog instead of being routed to "create an organisation".
+  if (
+    organisations.length === 0 &&
+    pendingInvitations.length === 0 &&
+    currentPathname !== '/dashboard/new'
+  ) {
     redirect('/dashboard/new')
   }
 
   if (organisations.length === 0) {
-    return <>{children}</>
+    return (
+      <>
+        {pendingInvitations.length > 0 && (
+          <PendingInvitationsDialog invitations={pendingInvitations} />
+        )}
+        {children}
+      </>
+    )
   }
 
   const currentSlug = headerList.get('x-org-slug')
@@ -69,6 +85,9 @@ async function AuthenticatedShell({ children }: DashboardLayoutProps) {
             />
           </div>
         </header>
+        {pendingInvitations.length > 0 && (
+          <PendingInvitationsDialog invitations={pendingInvitations} />
+        )}
         {children}
       </SidebarInset>
     </>
