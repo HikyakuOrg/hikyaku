@@ -1,5 +1,6 @@
 "use server"
 
+import { headers } from "next/headers"
 import { createClient } from "@/lib/supabase/server"
 
 export interface UpdateTeamMemberRoleResult {
@@ -31,6 +32,13 @@ function getApiUrl(): string | null {
     return process.env.WHENDAN_API_URL ?? null
 }
 
+// The active tenant is set by middleware as the x-org-slug request header and
+// must be forwarded so the API scopes the operation to this organisation.
+async function getOrgSlug(): Promise<string | null> {
+    const h = await headers()
+    return h.get("x-org-slug")
+}
+
 export async function updateTeamMemberRole(
     userId: string,
     roleName: string,
@@ -41,6 +49,9 @@ export async function updateTeamMemberRole(
     const apiUrl = getApiUrl()
     if (!apiUrl) return { success: false, error: "API is not configured." }
 
+    const orgSlug = await getOrgSlug()
+    if (!orgSlug) return { success: false, error: "No active organisation." }
+
     let res: Response
     try {
         res = await fetch(`${apiUrl}/api/v1/users/role`, {
@@ -48,6 +59,7 @@ export async function updateTeamMemberRole(
             headers: {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${auth.accessToken}`,
+                "X-Organisation-Slug": orgSlug,
             },
             body: JSON.stringify({ user_id: userId, role_name: roleName }),
         })
@@ -78,6 +90,9 @@ export async function deleteTeamMembers(
     const apiUrl = getApiUrl()
     if (!apiUrl) return { success: false, error: "API is not configured." }
 
+    const orgSlug = await getOrgSlug()
+    if (!orgSlug) return { success: false, error: "No active organisation." }
+
     let res: Response
     try {
         res = await fetch(`${apiUrl}/api/v1/users`, {
@@ -85,6 +100,7 @@ export async function deleteTeamMembers(
             headers: {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${auth.accessToken}`,
+                "X-Organisation-Slug": orgSlug,
             },
             body: JSON.stringify({ user_ids: userIds }),
         })

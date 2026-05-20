@@ -2,6 +2,7 @@
 
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { cookieDomain } from '@/lib/subdomain'
 import { Database } from './supabase'
 
 /**
@@ -15,6 +16,7 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY!,
     {
+      cookieOptions: { domain: cookieDomain() },
       cookies: {
         getAll() {
           return cookieStore.getAll()

@@ -3,12 +3,15 @@
 import * as React from "react"
 import { NavMain } from "@/components/ui/sidebar/nav-main"
 import { NavUser } from "@/components/ui/sidebar/nav-user"
+import { OrgSwitcher } from "@/components/ui/sidebar/org-switcher"
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar"
+import type { OrganisationSummary } from "@/lib/actions/organisations"
 import { GearIcon, PersonIcon, BlueprintIcon, MapTrifoldIcon, PackageIcon, TruckIcon } from "@phosphor-icons/react"
 import { JwtPayload } from "@supabase/supabase-js"
 import { ClockIcon } from "lucide-react"
@@ -106,11 +109,16 @@ const sidebarData = {
 
 type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
   user: JwtPayload
+  organisations: OrganisationSummary[]
+  currentSlug: string | null
 }
 
-export function AppSidebar({ user, ...props }: AppSidebarProps) {
+export function AppSidebar({ user, organisations, currentSlug, ...props }: AppSidebarProps) {
   return (
     <Sidebar collapsible="icon" {...props}>
+      <SidebarHeader>
+        <OrgSwitcher organisations={organisations} currentSlug={currentSlug} />
+      </SidebarHeader>
       <SidebarContent>
         <NavMain items={sidebarData.navMain} />
       </SidebarContent>

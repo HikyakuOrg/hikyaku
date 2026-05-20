@@ -81,6 +81,7 @@ export type Database = {
           customer_state: string
           customer_suburb: string
           id: string
+          organisation_id: string
           stripe_customer_id: string | null
         }
         Insert: {
@@ -94,6 +95,7 @@ export type Database = {
           customer_state?: string
           customer_suburb: string
           id?: string
+          organisation_id: string
           stripe_customer_id?: string | null
         }
         Update: {
@@ -107,9 +109,18 @@ export type Database = {
           customer_state?: string
           customer_suburb?: string
           id?: string
+          organisation_id?: string
           stripe_customer_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "customer_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       driver_current_location: {
         Row: {
@@ -191,24 +202,50 @@ export type Database = {
       }
       drivers: {
         Row: {
+          country_of_issue: string | null
           driver_license: string | null
+          driver_under_probation: boolean | null
           id: string
           license_expiry: string | null
+          license_type: string | null
+          organisation_id: string
           warehouse_id: string | null
         }
         Insert: {
+          country_of_issue?: string | null
           driver_license?: string | null
+          driver_under_probation?: boolean | null
           id: string
           license_expiry?: string | null
+          license_type?: string | null
+          organisation_id: string
           warehouse_id?: string | null
         }
         Update: {
+          country_of_issue?: string | null
           driver_license?: string | null
+          driver_under_probation?: boolean | null
           id?: string
           license_expiry?: string | null
+          license_type?: string | null
+          organisation_id?: string
           warehouse_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "drivers_license_type_fkey"
+            columns: ["license_type"]
+            isOneToOne: false
+            referencedRelation: "vehicle_type"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "drivers_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "drivers_warehouse_id_fkey"
             columns: ["warehouse_id"]
@@ -217,6 +254,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      organisations: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          slug: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+          slug: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          slug?: string
+        }
+        Relationships: []
       }
       package_assignment: {
         Row: {
@@ -502,6 +563,7 @@ export type Database = {
           from_customer: string
           id: string
           optimisation_id: string | null
+          organisation_id: string
           to_customer: string
           tracking_number: string
           warehouse_id: string | null
@@ -512,6 +574,7 @@ export type Database = {
           from_customer: string
           id?: string
           optimisation_id?: string | null
+          organisation_id: string
           to_customer: string
           tracking_number: string
           warehouse_id?: string | null
@@ -522,6 +585,7 @@ export type Database = {
           from_customer?: string
           id?: string
           optimisation_id?: string | null
+          organisation_id?: string
           to_customer?: string
           tracking_number?: string
           warehouse_id?: string | null
@@ -542,6 +606,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "packages_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "packages_to_customer_fkey"
             columns: ["to_customer"]
             isOneToOne: false
@@ -553,6 +624,58 @@ export type Database = {
             columns: ["warehouse_id"]
             isOneToOne: false
             referencedRelation: "warehouse"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          created_at: string
+          id: string
+          organisation_id: string
+          package_id: string | null
+          status: string
+          stripe_checkout_session_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          organisation_id: string
+          package_id?: string | null
+          status?: string
+          stripe_checkout_session_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          organisation_id?: string
+          package_id?: string | null
+          status?: string
+          stripe_checkout_session_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "packages_with_latest_status"
             referencedColumns: ["id"]
           },
         ]
@@ -608,23 +731,39 @@ export type Database = {
       scheduler_runs: {
         Row: {
           id: string
+          organisation_id: string
           ran_at: string
+          retry_count: number
           run_date: string
+          status: string
           warehouse_id: string
         }
         Insert: {
           id?: string
+          organisation_id: string
           ran_at?: string
+          retry_count?: number
           run_date?: string
+          status?: string
           warehouse_id: string
         }
         Update: {
           id?: string
+          organisation_id?: string
           ran_at?: string
+          retry_count?: number
           run_date?: string
+          status?: string
           warehouse_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "scheduler_runs_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "scheduler_runs_warehouse_id_fkey"
             columns: ["warehouse_id"]
@@ -639,18 +778,29 @@ export type Database = {
           geometry: unknown
           id: string
           name: string
+          organisation_id: string
         }
         Insert: {
           geometry: unknown
           id?: string
           name: string
+          organisation_id: string
         }
         Update: {
           geometry?: unknown
           id?: string
           name?: string
+          organisation_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "service_areas_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       service_rate_coverage: {
         Row: {
@@ -670,17 +820,17 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "service_rate_coverage_service_rate_id_fkey"
-            columns: ["service_rate_id"]
-            isOneToOne: false
-            referencedRelation: "service_rates"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "service_rate_coverage_service_area_id_fkey"
             columns: ["service_area_id"]
             isOneToOne: false
             referencedRelation: "service_areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_rate_coverage_service_rate_id_fkey"
+            columns: ["service_rate_id"]
+            isOneToOne: false
+            referencedRelation: "service_rates"
             referencedColumns: ["id"]
           },
         ]
@@ -696,6 +846,7 @@ export type Database = {
           has_signature_charge: boolean
           id: string
           name: string
+          organisation_id: string
           out_of_area_rate: number | null
           out_of_area_type: string | null
           rate_per_distance: number
@@ -706,13 +857,14 @@ export type Database = {
         Insert: {
           base_rate: number
           created_at?: string
-          currency?: string
+          currency: string
           delivery_type: string
           distance_unit?: string
           has_out_of_area_surcharge?: boolean
           has_signature_charge?: boolean
           id?: string
           name: string
+          organisation_id: string
           out_of_area_rate?: number | null
           out_of_area_type?: string | null
           rate_per_distance: number
@@ -730,6 +882,7 @@ export type Database = {
           has_signature_charge?: boolean
           id?: string
           name?: string
+          organisation_id?: string
           out_of_area_rate?: number | null
           out_of_area_type?: string | null
           rate_per_distance?: number
@@ -737,28 +890,43 @@ export type Database = {
           storage_per_day?: number | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "service_rates_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       team_members: {
         Row: {
           created_at: string
           id: string
-          metadata: Json | null
-          role_id: number | null
+          organisation_id: string
+          role_id: number
         }
         Insert: {
           created_at?: string
           id: string
-          metadata?: Json | null
-          role_id?: number | null
+          organisation_id: string
+          role_id: number
         }
         Update: {
           created_at?: string
           id?: string
-          metadata?: Json | null
-          role_id?: number | null
+          organisation_id?: string
+          role_id?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "team_members_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "team_members_role_id_fkey"
             columns: ["role_id"]
@@ -770,18 +938,28 @@ export type Database = {
       }
       user_permission: {
         Row: {
+          organisation_id: string
           permission_id: number
           user_id: string
         }
         Insert: {
+          organisation_id: string
           permission_id: number
           user_id: string
         }
         Update: {
+          organisation_id?: string
           permission_id?: number
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "user_permission_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "user_permission_permission_id_fkey"
             columns: ["permission_id"]
@@ -816,6 +994,7 @@ export type Database = {
         Row: {
           id: string
           is_deleted: boolean
+          organisation_id: string
           vehicle_gross_limits: number
           vehicle_identification_number: string | null
           vehicle_make: string | null
@@ -828,6 +1007,7 @@ export type Database = {
         Insert: {
           id?: string
           is_deleted?: boolean
+          organisation_id: string
           vehicle_gross_limits: number
           vehicle_identification_number?: string | null
           vehicle_make?: string | null
@@ -840,6 +1020,7 @@ export type Database = {
         Update: {
           id?: string
           is_deleted?: boolean
+          organisation_id?: string
           vehicle_gross_limits?: number
           vehicle_identification_number?: string | null
           vehicle_make?: string | null
@@ -850,6 +1031,13 @@ export type Database = {
           warehouse_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "vehicles_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "vehicles_vehicle_type_fkey"
             columns: ["vehicle_type"]
@@ -1110,6 +1298,7 @@ export type Database = {
       warehouse: {
         Row: {
           id: string
+          organisation_id: string
           warehouse_address: string
           warehouse_city: string
           warehouse_country: string
@@ -1120,6 +1309,7 @@ export type Database = {
         }
         Insert: {
           id?: string
+          organisation_id: string
           warehouse_address: string
           warehouse_city: string
           warehouse_country: string
@@ -1130,6 +1320,7 @@ export type Database = {
         }
         Update: {
           id?: string
+          organisation_id?: string
           warehouse_address?: string
           warehouse_city?: string
           warehouse_country?: string
@@ -1138,7 +1329,15 @@ export type Database = {
           warehouse_state?: string
           warehouse_zipcode?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "warehouse_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -1182,7 +1381,6 @@ export type Database = {
       }
     }
     Functions: {
-      before_user_created: { Args: { event: Json }; Returns: Json }
       create_driver: {
         Args: {
           p_display_name: string
@@ -1298,24 +1496,39 @@ export type Database = {
           name: string
         }[]
       }
-      get_team_members_paginated: {
-        Args: { p_limit: number; p_page: number; p_search?: string | null }
-        Returns: {
-          avatar_url: string
-          display_name: string
-          email: string
-          email_confirmed_at: string | null
-          id: string
-          is_admin: boolean
-          page_number: number
-          page_size: number
-          phone_number: string
-          role: string
-          total: number
-          total_pages: number
-        }[]
-      }
-      has_any_users: { Args: never; Returns: boolean }
+      get_team_members_paginated:
+        | {
+            Args: { p_limit: number; p_page: number }
+            Returns: {
+              avatar_url: string
+              display_name: string
+              email: string
+              id: string
+              page_number: number
+              page_size: number
+              phone_number: string
+              role: string
+              total: number
+              total_pages: number
+            }[]
+          }
+        | {
+            Args: { p_limit: number; p_page: number; p_search?: string }
+            Returns: {
+              avatar_url: string
+              display_name: string
+              email: string
+              email_confirmed_at: string
+              id: string
+              is_admin: boolean
+              page_number: number
+              page_size: number
+              phone_number: string
+              role: string
+              total: number
+              total_pages: number
+            }[]
+          }
       has_permission: { Args: { p_permission: string }; Returns: boolean }
       insert_package_timeline: {
         Args: { p_package_id: string; p_status_enum: string }
@@ -1387,116 +1600,116 @@ type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-  | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-  : never = never,
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
-  ? R
-  : never
+    ? R
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-    DefaultSchema["Views"])
-  ? (DefaultSchema["Tables"] &
-    DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-      Row: infer R
-    }
-  ? R
-  : never
-  : never
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-  | keyof DefaultSchema["Tables"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-    Insert: infer I
-  }
-  ? I
-  : never
+      Insert: infer I
+    }
+    ? I
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-    Insert: infer I
-  }
-  ? I
-  : never
-  : never
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-  | keyof DefaultSchema["Tables"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-    Update: infer U
-  }
-  ? U
-  : never
+      Update: infer U
+    }
+    ? U
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-    Update: infer U
-  }
-  ? U
-  : never
-  : never
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-  | keyof DefaultSchema["Enums"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-  ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-  : never
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-  | keyof DefaultSchema["CompositeTypes"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-  ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-  : never
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
 
 export const Constants = {
   graphql_public: {

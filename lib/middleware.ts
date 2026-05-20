@@ -1,9 +1,21 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { cookieDomain, getSlugFromHost } from '@/lib/subdomain'
 
 export async function updateSession(request: NextRequest) {
+  // Resolve the tenant from the host and forward it to server components /
+  // route handlers as a request header. Done before createServerClient so no
+  // code runs between createServerClient and getClaims (see Supabase note).
+  const slug = getSlugFromHost(request.headers.get('host'))
+  const requestHeaders = new Headers(request.headers)
+  if (slug) {
+    requestHeaders.set('x-org-slug', slug)
+  } else {
+    requestHeaders.delete('x-org-slug')
+  }
+
   let supabaseResponse = NextResponse.next({
-    request,
+    request: { headers: requestHeaders },
   })
 
   // With Fluid compute, don't put this client in a global environment
@@ -12,6 +24,7 @@ export async function updateSession(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY!,
     {
+      cookieOptions: { domain: cookieDomain() },
       cookies: {
         getAll() {
           return request.cookies.getAll()
@@ -19,7 +32,7 @@ export async function updateSession(request: NextRequest) {
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({
-            request,
+            request: { headers: requestHeaders },
           })
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
@@ -38,24 +51,25 @@ export async function updateSession(request: NextRequest) {
   const { data } = await supabase.auth.getClaims()
   const user = data?.claims
 
-  if (
-    !user &&
-    !request.nextUrl.pathname.startsWith('/login') &&
-    !request.nextUrl.pathname.startsWith('/auth') &&
-    !request.nextUrl.pathname.startsWith('/onboarding') &&
-    !request.nextUrl.pathname.startsWith('/')
-  ) {
-    // no user, potentially respond by redirecting the user to the login page
-    const url = request.nextUrl.clone()
-    url.pathname = '/auth/login'
-    return NextResponse.redirect(url)
-  }
+  const { pathname } = request.nextUrl
+  const isAuthRoute = pathname.startsWith('/auth')
 
-  // Redirect authenticated users away from onboarding
-  if (user && request.nextUrl.pathname.startsWith('/onboarding')) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
-    return NextResponse.redirect(url)
+  if (slug) {
+    // Tenant host: everything requires auth except the auth pages.
+    if (!user && !isAuthRoute) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/auth/login'
+      return NextResponse.redirect(url)
+    }
+  } else {
+    // Apex / www host: signup, login and org selection only.
+    if (!user) {
+      if (!isAuthRoute && pathname !== '/') {
+        const url = request.nextUrl.clone()
+        url.pathname = '/auth/login'
+        return NextResponse.redirect(url)
+      }
+    }
   }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is.

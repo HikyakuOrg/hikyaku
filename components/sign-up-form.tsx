@@ -1,10 +1,10 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { tenantUrl } from '@/lib/subdomain'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -20,10 +20,10 @@ import Link from 'next/link'
 export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [displayName, setDisplayName] = useState('')
   const [repeatPassword, setRepeatPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -38,15 +38,40 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/protected`,
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+          data: { display_name: displayName },
         },
       })
-      if (error) throw error
-      router.push('/auth/sign-up-success')
+      if (signUpError) throw signUpError
+
+      // Ensure a live session so the org lookup below is authorised.
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+      if (signInError) throw signInError
+
+      const { data: userData, error: userError } = await supabase.auth.getUser()
+      if (userError) throw userError
+      const userId = userData.user?.id
+      if (!userId) throw new Error('No user returned after signup')
+
+      // A signup triggers DB-side creation of an organisations row owned by
+      // the new user. Pick that org's slug so we land on the tenant subdomain
+      // rather than the apex (where the middleware would bounce to /select-org).
+      const { data: org, error: orgError } = await supabase
+        .from('organisations')
+        .select('slug')
+        .eq('created_by', userId)
+        .limit(1)
+        .maybeSingle()
+      if (orgError) throw orgError
+      const slug = org?.slug
+      if (!slug) throw new Error('No organisation was provisioned for this account')
+
+      // Cross-subdomain redirect — use window.location, not router.push.
+      window.location.href = tenantUrl(slug, '/dashboard')
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An error occurred')
     } finally {
@@ -65,11 +90,22 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
           <form onSubmit={handleSignUp}>
             <div className="flex flex-col gap-6">
               <div className="grid gap-2">
+                <Label htmlFor="displayName">Display name</Label>
+                <Input
+                  id="displayName"
+                  type="text"
+                  placeholder="Jane Doe"
+                  required
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="m@example.com"
+                  placeholder="email@hikyaku.org"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}

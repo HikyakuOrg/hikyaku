@@ -16,6 +16,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Link from 'next/link'
+import { tenantUrl } from '@/lib/subdomain'
 
 type LoginMode = null | 'email' | 'magic-link'
 
@@ -41,9 +42,22 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
     setError(null)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) throw error
-      router.push('/dashboard')
+      if(!data.user) throw new Error('No user returned after login')
+      console.log('user', data.user)
+      const { data: org, error: orgError } = await supabase
+        .from('organisations')
+        .select('slug')
+        .eq('created_by', data.user?.id)
+        .limit(1)
+        .maybeSingle()
+      if (orgError) throw orgError
+      console.log('org', org)
+      const slug = org?.slug
+      if (!slug) throw new Error('No organisation was provisioned for this account')
+
+      window.location.href = tenantUrl(slug, '/dashboard')
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An error occurred')
     } finally {
@@ -159,6 +173,13 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
               </div>
             </form>
           )}
+
+          <div className="mt-4 text-center text-sm">
+            Don&apos;t have an account?{' '}
+            <Link href="/auth/signup" className="underline underline-offset-4">
+              Sign up
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>
