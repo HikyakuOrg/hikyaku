@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -18,6 +19,7 @@ import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 
 export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
+  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
@@ -68,7 +70,10 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
         .maybeSingle()
       if (orgError) throw orgError
       const slug = org?.slug
-      if (!slug) throw new Error('No organisation was provisioned for this account')
+      if (!slug) {
+        router.push('/dashboard/new')
+        return
+      }
 
       // Cross-subdomain redirect — use window.location, not router.push.
       window.location.href = tenantUrl(slug, '/dashboard')

@@ -16,6 +16,7 @@ import {
 import { CaretUpDownIcon, BuildingsIcon, PlusIcon, CheckIcon } from "@phosphor-icons/react"
 import { tenantUrl } from "@/lib/subdomain"
 import type { OrganisationSummary } from "@/lib/actions/organisations"
+import { useRouter } from "next/navigation"
 
 export function OrgSwitcher({
   organisations,
@@ -25,6 +26,7 @@ export function OrgSwitcher({
   currentSlug: string | null
 }) {
   const { isMobile } = useSidebar()
+  const router = useRouter()
   const current =
     organisations.find((o) => o.slug === currentSlug) ?? organisations[0] ?? null
 
@@ -42,7 +44,7 @@ export function OrgSwitcher({
             </div>
             <div className="grid flex-1 text-start text-sm leading-tight">
               <span className="truncate font-medium">
-                {current.slug}
+                {current.name}
               </span>
             </div>
             <CaretUpDownIcon className="ms-auto size-4" />
@@ -62,14 +64,14 @@ export function OrgSwitcher({
                   }
                 }}
               >
-                <span className="truncate">{org.slug}</span>
+                <span className="truncate">{org.name}</span>
                 {org.slug === currentSlug && (
                   <CheckIcon className="ms-auto size-4" />
                 )}
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push("/dashboard/new")}>
               <PlusIcon />
               New organisation
             </DropdownMenuItem>

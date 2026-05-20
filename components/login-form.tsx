@@ -55,7 +55,10 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
       if (orgError) throw orgError
       console.log('org', org)
       const slug = org?.slug
-      if (!slug) throw new Error('No organisation was provisioned for this account')
+      if (!slug) {
+        router.push('/dashboard/new')
+        return
+      }
 
       window.location.href = tenantUrl(slug, '/dashboard')
     } catch (error: unknown) {

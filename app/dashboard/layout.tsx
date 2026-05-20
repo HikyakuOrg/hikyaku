@@ -40,6 +40,16 @@ async function AuthenticatedShell({ children }: DashboardLayoutProps) {
     listMyOrganisations(),
     headers(),
   ])
+
+  const currentPathname = headerList.get('x-pathname') ?? ''
+  if (organisations.length === 0 && currentPathname !== '/dashboard/new') {
+    redirect('/dashboard/new')
+  }
+
+  if (organisations.length === 0) {
+    return <>{children}</>
+  }
+
   const currentSlug = headerList.get('x-org-slug')
 
   return (

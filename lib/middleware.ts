@@ -8,6 +8,7 @@ export async function updateSession(request: NextRequest) {
   // code runs between createServerClient and getClaims (see Supabase note).
   const slug = getSlugFromHost(request.headers.get('host'))
   const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-pathname', request.nextUrl.pathname)
   if (slug) {
     requestHeaders.set('x-org-slug', slug)
   } else {
