@@ -50,9 +50,19 @@ export default defineConfig({
     projects: [
         {
             name: "chrome",
+            testIgnore: /(auth-|org-cross-user-).*\.spec\.ts/,
             use: {
                 ...devices["Desktop Chrome"],
                 channel: "chrome",
+            },
+        },
+        {
+            name: "chrome-unauthed",
+            testMatch: /(auth-|org-cross-user-).*\.spec\.ts/,
+            use: {
+                ...devices["Desktop Chrome"],
+                channel: "chrome",
+                storageState: undefined,
             },
         },
     ],

@@ -43,6 +43,7 @@ async function globalSetup(_config: FullConfig) {
     const page = await context.newPage();
 
     await page.goto("/auth/login");
+    await page.getByRole("button", { name: "Email & password" }).click();
     await page.getByLabel("Email").fill(process.env.PLAYWRIGHT_EMAIL!);
     await page.getByLabel("Password").fill(process.env.PLAYWRIGHT_PASSWORD!);
     await page.getByRole("button", { name: "Login" }).click();
