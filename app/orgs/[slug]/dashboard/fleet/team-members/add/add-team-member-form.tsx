@@ -17,10 +17,9 @@ import { Calendar } from "@/components/ui/calendar"
 import { Loader2, AlertCircle, CameraIcon } from "lucide-react"
 import { toast } from "sonner"
 import { createUser } from "@/lib/actions/users"
-import PhoneInput, { isValidPhoneNumber, getCountries } from "react-phone-number-input"
+import { isValidPhoneNumber, getCountries } from "react-phone-number-input"
+import { PhoneInput } from "@/components/reui/phone-input"
 import en from "react-phone-number-input/locale/en.json"
-import "react-phone-number-input/style.css"
-import flags from "react-phone-number-input/flags"
 
 const countryOptions = getCountries().map((code) => ({
     code,
@@ -281,11 +280,7 @@ export default function AddTeamMemberForm({ roles, permissions, vehicleTypes }: 
                                         id="phone"
                                         value={field.value}
                                         onChange={(value) => field.onChange(value ?? "")}
-                                        flags={flags}
                                         defaultCountry="AU"
-                                        className={cn(
-                                            "dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground"
-                                        )}
                                     />
                                 )}
                             />

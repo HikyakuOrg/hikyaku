@@ -3,10 +3,8 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { ReactNode, useEffect } from "react"
 import { Controller, useForm } from "react-hook-form"
-import PhoneInput, { getCountries } from "react-phone-number-input"
-import "react-phone-number-input/style.css"
-import flags from "react-phone-number-input/flags"
-
+import { getCountries } from "react-phone-number-input"
+import { PhoneInput } from "@/components/reui/phone-input"
 import {
     Select,
     SelectContent,
@@ -18,7 +16,6 @@ import {
 } from "@/components/ui/select"
 import { Field, FieldError, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { cn } from "@/lib/utils"
 
 import { customerSchema, type CustomerFormValues } from "./customer-schema"
 
@@ -102,14 +99,10 @@ export function CustomerForm({
                             <PhoneInput
                                 id="customer-phone"
                                 placeholder="Enter phone number"
-                                value={field.value}
-                                onChange={(value) => field.onChange(value ?? "")}
-                                flags={flags}
                                 defaultCountry="AU"
+                                value={field.value}
                                 disabled={isSubmitting}
-                                className={cn(
-                                    "dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 h-10 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground"
-                                )}
+                                onChange={(value) => field.onChange(value ?? "")}
                             />
 
                             {fieldState.error && (

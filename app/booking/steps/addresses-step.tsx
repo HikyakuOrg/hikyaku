@@ -8,7 +8,7 @@ import { PlusIcon, TrashIcon } from "@phosphor-icons/react"
 import { fetchAddressSuggestions, type AddressSuggestion } from "@/lib/maps/geocode-autocomplete"
 import { AddressesFormValues, addressesSchema } from "../booking-schema"
 import { Button } from "@/components/ui/button"
-import PhoneInput from "react-phone-number-input"
+import { PhoneInput } from "@/components/reui/phone-input"
 import {
     Combobox,
     ComboboxContent,
@@ -19,9 +19,6 @@ import {
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupInput } from "@/components/ui/input-group"
 import { Separator } from "@/components/ui/separator"
-import flags from "react-phone-number-input/flags"
-import "react-phone-number-input/style.css"
-import { cn } from "@/lib/utils"
 
 const ADDRESS_FIELDS = [
     { name: "fullName" as const, label: "Full Name", placeholder: "Jane Smith" },
@@ -131,11 +128,7 @@ function AddressSection({
                                         id={`${prefix}-${name}`}
                                         value={field.value}
                                         onChange={(value) => field.onChange(value ?? "")}
-                                        flags={flags}
                                         defaultCountry="AU"
-                                        className={cn(
-                                            "dark:bg-input/30 border-primary focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 h-full w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground"
-                                        )}
                                         aria-invalid={fieldState.invalid}
                                     />
                                 ) : name === "address" ? (
@@ -199,12 +192,8 @@ function RecipientSection({
                                     id={`recipient-${index}-${name}`}
                                     value={field.value}
                                     onChange={(value) => field.onChange(value ?? "")}
-                                    flags={flags}
                                     aria-invalid={fieldState.invalid}
                                     defaultCountry="AU"
-                                    className={cn(
-                                        "dark:bg-input/30 border-primary focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 h-full w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground"
-                                    )}
                                 />
                             ) : name === "address" ? (
                                 <AddressAutocomplete
