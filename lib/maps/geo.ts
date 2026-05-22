@@ -19,42 +19,6 @@ export function calculateDistance(pointA: Path, pointB: Path){
 }
 
 
-export async function geocodeAddress({ street, suburb, state, country, postcode }: { street: string, suburb: string, state: string, country: string, postcode: string }) {
-    const params = new URLSearchParams({
-        street: street,
-        city: suburb,
-        state: state,
-        country: country,
-        postalcode: postcode,
-        format: "json",
-        limit: "1"
-    });
-
-    const url = `https://nominatim.openstreetmap.org/search?${params.toString()}`;
-
-    const response = await fetch(url, {
-        headers: {
-            "User-Agent": "Whendan Logistics"
-        }
-    });
-
-    if (!response.ok) {
-        throw new Error(`Nominatim error: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    if (data.length === 0) {
-        return null;
-    }
-
-    return {
-        lat: parseFloat(data[0].lat),
-        lon: parseFloat(data[0].lon),
-        displayName: data[0].display_name
-    };
-}
-
 export function decodePolyline(encoded: string): [number, number][] {
     const points: [number, number][] = [];
     let index = 0, len = encoded.length;

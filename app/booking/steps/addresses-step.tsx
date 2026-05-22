@@ -1,21 +1,14 @@
 "use client"
 
-import { useMemo, useRef, useState } from "react"
+import { useMemo } from "react"
 import { Controller, useFieldArray, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { PlusIcon, TrashIcon } from "@phosphor-icons/react"
 
-import { fetchAddressSuggestions, type AddressSuggestion } from "@/lib/maps/geocode-autocomplete"
 import { AddressesFormValues, addressesSchema } from "../booking-schema"
+import { AddressAutocomplete } from "@/components/ui/address-autocomplete"
 import { Button } from "@/components/ui/button"
 import { PhoneInput } from "@/components/reui/phone-input"
-import {
-    Combobox,
-    ComboboxContent,
-    ComboboxInput,
-    ComboboxItem,
-    ComboboxList,
-} from "@/components/ui/combobox"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupInput } from "@/components/ui/input-group"
 import { Separator } from "@/components/ui/separator"
@@ -26,79 +19,6 @@ const ADDRESS_FIELDS = [
     { name: "phone" as const, label: "Phone", placeholder: "+81 90 0000 0000" },
     { name: "address" as const, label: "Address", placeholder: "1-1 Chiyoda" }
 ]
-
-function AddressAutocomplete({
-    value,
-    onChange,
-    onSuggestionSelect,
-    id,
-    placeholder,
-    "aria-invalid": ariaInvalid,
-}: {
-    value: string
-    onChange: (value: string) => void
-    onSuggestionSelect?: (suggestion: AddressSuggestion) => void
-    id?: string
-    placeholder?: string
-    "aria-invalid"?: boolean
-}) {
-    const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([])
-    const [loading, setLoading] = useState(false)
-    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-    function handleInputChange(text: string) {
-        if (timerRef.current) clearTimeout(timerRef.current)
-        if (!text.trim()) {
-            setSuggestions([])
-            return
-        }
-        timerRef.current = setTimeout(async () => {
-            setLoading(true)
-            try {
-                setSuggestions(await fetchAddressSuggestions(text))
-            } catch {
-                setSuggestions([])
-            } finally {
-                setLoading(false)
-            }
-        }, 450)
-    }
-
-    return (
-        <Combobox
-            value={value}
-            onValueChange={(v) => {
-                const match = suggestions.find((s) => s.label === v)
-                onChange(v as string)
-                if (match) onSuggestionSelect?.(match)
-                setSuggestions([])
-            }}
-        >
-            <ComboboxInput
-                id={id}
-                placeholder={placeholder}
-                aria-invalid={ariaInvalid}
-                loading={loading}
-                showTrigger={false}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                    onChange(e.target.value)
-                    handleInputChange(e.target.value)
-                }}
-            />
-            {suggestions.length > 0 && (
-                <ComboboxContent>
-                    <ComboboxList>
-                        {suggestions.map((s) => (
-                            <ComboboxItem key={s.label} value={s.label}>
-                                {s.label}
-                            </ComboboxItem>
-                        ))}
-                    </ComboboxList>
-                </ComboboxContent>
-            )}
-        </Combobox>
-    )
-}
 
 function AddressSection({
     title,

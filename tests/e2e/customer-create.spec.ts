@@ -17,13 +17,17 @@ test.describe("Customer create", () => {
             await page.locator("#customer-name").fill(customer.name)
             await page.locator("#customer-phone").fill(customer.phone)
 
-            await page.getByRole("combobox").filter({ hasText: /select a country|country/i }).first().click()
-            await page.getByRole("option", { name: customer.country }).click()
+            // The address field is an autocomplete: typing fetches suggestions from
+            // Pelias and selecting one populates suburb/state/country/postcode/lat/lon.
+            await page.locator("#customer-address").fill(
+                `${customer.address}, ${customer.suburb}`
+            )
 
-            await page.locator("#customer-address").fill(customer.address)
-            await page.locator("#customer-suburb").fill(customer.suburb)
-            await page.locator("#customer-state").fill(customer.state)
-            await page.locator("#customer-postcode").fill(customer.postcode)
+            const suggestion = page
+                .getByRole("option")
+                .filter({ hasText: new RegExp(customer.suburb, "i") })
+                .first()
+            await suggestion.click({ timeout: 15_000 })
 
             await page.getByRole("button", { name: /create customer/i }).click()
 

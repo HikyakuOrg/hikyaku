@@ -26,6 +26,7 @@ import {
     prepareCustomerFromForm,
     type PreparedCustomerCreation,
 } from "@/lib/customers/create-customer"
+import { useOrgSlug } from "@/lib/use-org"
 import { TriangleAlert } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
@@ -37,6 +38,7 @@ interface AddCustomerDialogProps {
 }
 
 export function AddCustomerDialog({ open, onOpenChange, onCustomerAdded }: AddCustomerDialogProps) {
+    const slug = useOrgSlug()
     const [isLoading, setIsLoading] = useState(false)
     const [pendingCreation, setPendingCreation] = useState<PreparedCustomerCreation | null>(null)
     const [showOutsideServiceAreaDialog, setShowOutsideServiceAreaDialog] = useState(false)
@@ -44,7 +46,7 @@ export function AddCustomerDialog({ open, onOpenChange, onCustomerAdded }: AddCu
     const onSubmit = async (values: CustomerFormValues) => {
         setIsLoading(true)
         try {
-            const prepared = await prepareCustomerFromForm(values)
+            const prepared = await prepareCustomerFromForm(values, slug)
 
             if (!prepared.isWithinServiceArea) {
                 setPendingCreation(prepared)

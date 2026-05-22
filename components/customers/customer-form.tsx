@@ -3,17 +3,8 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { ReactNode, useEffect } from "react"
 import { Controller, useForm } from "react-hook-form"
-import { getCountries } from "react-phone-number-input"
 import { PhoneInput } from "@/components/reui/phone-input"
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectLabel,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
+import { AddressAutocomplete } from "@/components/ui/address-autocomplete"
 import { Field, FieldError, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 
@@ -27,14 +18,8 @@ const defaultValues: CustomerFormValues = {
     customerSuburb: "",
     customerState: "",
     customerPostcode: "",
-}
-
-function getCountryNames(locale = "en") {
-    const regionNames = new Intl.DisplayNames([locale], { type: "region" })
-
-    return getCountries()
-        .map((countryCode) => regionNames.of(countryCode))
-        .filter(Boolean) as string[]
+    customerLat: 0,
+    customerLon: 0
 }
 
 type CustomerFormProps = {
@@ -67,11 +52,20 @@ export function CustomerForm({
         })
     }, [form, initialValues])
 
+    const { errors } = form.formState
+    const hasMissingAddressDetails = Boolean(
+        errors.customerSuburb ||
+        errors.customerState ||
+        errors.customerCountry ||
+        errors.customerLat ||
+        errors.customerLon
+    )
+
     return (
         <form onSubmit={form.handleSubmit(onSubmit)} className={className}>
             <div className="space-y-6">
                 <Field className="space-y-2">
-                    <FieldLabel htmlFor="customer-name">Customer Name</FieldLabel>
+                    <FieldLabel htmlFor="customer-name">Name</FieldLabel>
 
                     <Input
                         id="customer-name"
@@ -93,7 +87,7 @@ export function CustomerForm({
                     render={({ field, fieldState }) => (
                         <Field className="space-y-2">
                             <FieldLabel htmlFor="customer-phone">
-                                Customer Phone Number
+                                Phone Number
                             </FieldLabel>
 
                             <PhoneInput
@@ -113,114 +107,40 @@ export function CustomerForm({
                 />
 
                 <Controller
-                    name="customerCountry"
+                    name="customerAddress"
                     control={form.control}
                     render={({ field, fieldState }) => (
                         <Field className="space-y-2">
-                            <FieldLabel>Customer Country</FieldLabel>
+                            <FieldLabel htmlFor="customer-address">
+                                Address
+                            </FieldLabel>
 
-                            <Select
+                            <AddressAutocomplete
+                                id="customer-address"
                                 value={field.value}
-                                onValueChange={field.onChange}
-                                disabled={isSubmitting}
-                            >
-                                <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Select a country" />
-                                </SelectTrigger>
+                                onChange={field.onChange}
+                                onSuggestionSelect={(s) => {
+                                    form.setValue("customerSuburb", s.suburb)
+                                    form.setValue("customerState", s.state)
+                                    form.setValue("customerCountry", s.country)
+                                    form.setValue("customerPostcode", s.postcode)
+                                    form.setValue("customerLat", s.lat)
+                                    form.setValue("customerLon", s.lon)
+                                }}
+                                placeholder="Enter customer address"
+                                aria-invalid={fieldState.invalid}
+                            />
 
-                                <SelectContent className="w-[--radix-select-trigger-width]">
-                                    <SelectGroup>
-                                        <SelectLabel>Country</SelectLabel>
-
-                                        {getCountryNames().map((country) => (
-                                            <SelectItem key={country} value={country}>
-                                                {country}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
-
-                            {fieldState.error && (
+                            {fieldState.error ? (
                                 <FieldError>{fieldState.error.message}</FieldError>
-                            )}
+                            ) : hasMissingAddressDetails ? (
+                                <FieldError>
+                                    Select an address from the suggestions.
+                                </FieldError>
+                            ) : null}
                         </Field>
                     )}
                 />
-
-                <Field className="space-y-2">
-                    <FieldLabel htmlFor="customer-address">
-                        Customer Address
-                    </FieldLabel>
-
-                    <Input
-                        id="customer-address"
-                        placeholder="Enter customer address"
-                        disabled={isSubmitting}
-                        {...form.register("customerAddress")}
-                    />
-
-                    {form.formState.errors.customerAddress && (
-                        <FieldError>
-                            {form.formState.errors.customerAddress.message}
-                        </FieldError>
-                    )}
-                </Field>
-
-                <Field className="space-y-2">
-                    <FieldLabel htmlFor="customer-suburb">
-                        Customer Suburb
-                    </FieldLabel>
-
-                    <Input
-                        id="customer-suburb"
-                        placeholder="Enter customer suburb"
-                        disabled={isSubmitting}
-                        {...form.register("customerSuburb")}
-                    />
-
-                    {form.formState.errors.customerSuburb && (
-                        <FieldError>
-                            {form.formState.errors.customerSuburb.message}
-                        </FieldError>
-                    )}
-                </Field>
-
-                <Field className="space-y-2">
-                    <FieldLabel htmlFor="customer-state">Customer State</FieldLabel>
-
-                    <Input
-                        id="customer-state"
-                        placeholder="Enter customer state"
-                        disabled={isSubmitting}
-                        {...form.register("customerState")}
-                    />
-
-                    {form.formState.errors.customerState && (
-                        <FieldError>
-                            {form.formState.errors.customerState.message}
-                        </FieldError>
-                    )}
-                </Field>
-
-                <Field className="space-y-2">
-                    <FieldLabel htmlFor="customer-postcode">
-                        Customer Postcode
-                    </FieldLabel>
-
-                    <Input
-                        id="customer-postcode"
-                        placeholder="Enter customer postcode"
-                        disabled={isSubmitting}
-                        {...form.register("customerPostcode")}
-                    />
-
-                    {form.formState.errors.customerPostcode && (
-                        <FieldError>
-                            {form.formState.errors.customerPostcode.message}
-                        </FieldError>
-                    )}
-                </Field>
             </div>
 
             {footer}

@@ -5,6 +5,7 @@ interface AddressProperties {
     locality?: string
     region_a?: string
     country: string
+    postalcode?: string
 }
 
 export interface AddressSuggestion {
@@ -13,6 +14,7 @@ export interface AddressSuggestion {
     suburb: string
     state: string
     country: string
+    postcode: string
     lat: number
     lon: number
 }
@@ -30,7 +32,8 @@ export async function fetchAddressSuggestions(text: string): Promise<AddressSugg
         const suburb = p.locality ?? ""
         const state = p.region_a ?? ""
         const country = p.country ?? ""
+        const postcode = p.postalcode ?? ""
         const label = [street, suburb, state, country].filter(Boolean).join(", ")
-        return { label, street, suburb, state, country, lat, lon }
+        return { label, street, suburb, state, country, postcode, lat, lon }
     })
 }

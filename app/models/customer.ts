@@ -2,6 +2,7 @@
 
 
 interface Customer {
+    organisation_id: string;
     customer_address: string;
     customer_country: string;
     customer_name: string;

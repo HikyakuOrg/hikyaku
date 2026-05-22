@@ -1,8 +1,7 @@
 import type { CustomerFormValues } from "@/components/customers/customer-schema"
-import { geocodeAddress } from "@/lib/maps/geo"
 import { isPointWithinServiceAreas } from "@/lib/maps/service-area-geometry"
 import { createClient } from "@/lib/supabase/client"
-import { createCustomer, updateCustomer } from "@/lib/supabase/db"
+import { createCustomer, getOrganisationIdBySlug, updateCustomer } from "@/lib/supabase/db"
 
 type ServiceAreaRecord = {
     id: string
@@ -24,32 +23,27 @@ export function customerToFormValues(customer: Customer): CustomerFormValues {
         customerSuburb: customer.customer_suburb ?? "",
         customerState: customer.customer_state ?? "",
         customerPostcode: customer.customer_postcode ?? "",
+        customerLat: customer.customer_location?.coordinates[1] ?? 0,
+        customerLon: customer.customer_location?.coordinates[0] ?? 0,
     }
 }
 
 export async function prepareCustomerFromForm(
     values: CustomerFormValues,
+    slug: string,
     customerId = ""
 ): Promise<PreparedCustomerCreation> {
-    const geocode = await geocodeAddress({
-        street: values.customerAddress,
-        suburb: values.customerSuburb,
-        state: values.customerState,
-        country: values.customerCountry,
-        postcode: values.customerPostcode,
-    })
-
-    if (!geocode?.lat || !geocode.lon) {
-        throw new Error("Geocode not found")
-    }
 
     const location: Point = {
         type: "Point",
-        coordinates: [geocode.lon, geocode.lat],
+        coordinates: [values.customerLon, values.customerLat],
     }
+
+    const organisationId = await getOrganisationIdBySlug(slug)
 
     const customer: Customer = {
         id: customerId,
+        organisation_id: organisationId,
         created_at: "",
         customer_name: values.customerName,
         customer_phone: values.customerPhone,
@@ -66,12 +60,12 @@ export async function prepareCustomerFromForm(
 
     return {
         customer,
-        isWithinServiceArea: isPointWithinServiceAreas(serviceAreas, [geocode.lon, geocode.lat]),
+        isWithinServiceArea: isPointWithinServiceAreas(serviceAreas, [values.customerLon, values.customerLat]),
     }
 }
 
-export async function createCustomerFromForm(values: CustomerFormValues) {
-    const prepared = await prepareCustomerFromForm(values)
+export async function createCustomerFromForm(values: CustomerFormValues, slug: string) {
+    const prepared = await prepareCustomerFromForm(values, slug)
     return createPreparedCustomer(prepared)
 }
 

@@ -99,7 +99,7 @@ export function CustomerEditorPage({ mode, customerId }: CustomerEditorPageProps
         setIsSubmitting(true)
 
         try {
-            const prepared = await prepareCustomerFromForm(values, customerId)
+            const prepared = await prepareCustomerFromForm(values, slug, customerId ?? "")
 
             if (!prepared.isWithinServiceArea) {
                 setPendingSubmission(prepared)
@@ -184,7 +184,7 @@ export function CustomerEditorPage({ mode, customerId }: CustomerEditorPageProps
                     initialValues={initialValues}
                     className="space-y-6"
                     footer={
-                        <div className="flex items-center justify-end gap-2 border-t pt-6">
+                        <div className="flex items-center justify-end gap-2 pt-6">
                             <Button
                                 type="button"
                                 variant="outline"

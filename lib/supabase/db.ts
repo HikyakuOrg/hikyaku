@@ -440,8 +440,19 @@ export async function getCustomerDetails(details: string) {
 }
 
 
+export async function getOrganisationIdBySlug(slug: string) {
+    const { data, error } = await supabase
+        .from("organisations")
+        .select("id")
+        .eq("slug", slug)
+        .single()
+    if (error) throw error
+    return data.id
+}
+
 export async function createCustomer(customer: Customer) {
     const { data, error } = await supabase.from("customer").insert({
+        organisation_id: customer.organisation_id,
         customer_name: customer.customer_name,
         customer_phone: customer.customer_phone,
         customer_address: customer.customer_address,
