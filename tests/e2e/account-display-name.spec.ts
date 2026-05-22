@@ -1,10 +1,11 @@
 import { expect, test } from "@playwright/test"
 import { faker } from "@faker-js/faker"
+import { d } from "./helpers/org-url"
 
 test.describe("Account — change display name", () => {
     test("updating display name updates the sidebar nav-user text", async ({ page }) => {
-        await page.goto("/dashboard/user/account")
-        await expect(page).toHaveURL(/\/dashboard\/user\/account$/)
+        await page.goto(d('/user/account'))
+        await expect(page).toHaveURL(d('/user/account'))
 
         const displayNameInput = page.locator("#display-name")
         await expect(displayNameInput).toBeVisible()

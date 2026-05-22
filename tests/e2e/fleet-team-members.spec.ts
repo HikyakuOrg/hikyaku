@@ -1,16 +1,17 @@
 import { expect, test } from "@playwright/test"
+import { d } from "./helpers/org-url"
 
 test.describe("Fleet Team Members", () => {
     test("page loads and shows the list", async ({ page }) => {
-        const response = await page.goto("/dashboard/fleet/team-members")
+        const response = await page.goto(d('/fleet/team-members'))
         expect(response?.ok()).toBeTruthy()
-        await expect(page).toHaveURL("/dashboard/fleet/team-members")
+        await expect(page).toHaveURL(d('/fleet/team-members'))
         await expect(page.getByRole("heading", { name: "Team Members", level: 1 })).toBeVisible()
         await expect(page.getByTestId("team-members-table")).toBeVisible()
     })
 
     test("shows name, email and role columns", async ({ page }) => {
-        await page.goto("/dashboard/fleet/team-members")
+        await page.goto(d('/fleet/team-members'))
         await expect(page.getByTestId("team-members-table")).toBeVisible()
 
         // Wait for at least one row
@@ -23,7 +24,7 @@ test.describe("Fleet Team Members", () => {
     })
 
     test("search filters by email", async ({ page }) => {
-        await page.goto("/dashboard/fleet/team-members")
+        await page.goto(d('/fleet/team-members'))
         await expect(page.getByTestId("team-members-table")).toBeVisible()
 
         const searchInput = page.getByTestId("team-members-search-input")
@@ -38,7 +39,7 @@ test.describe("Fleet Team Members", () => {
     })
 
     test("search filters by display name", async ({ page }) => {
-        await page.goto("/dashboard/fleet/team-members")
+        await page.goto(d('/fleet/team-members'))
         await expect(page.getByTestId("team-members-table")).toBeVisible()
 
         // Get first row's name to use as search term
@@ -55,7 +56,7 @@ test.describe("Fleet Team Members", () => {
     })
 
     test("clearing search restores full list", async ({ page }) => {
-        await page.goto("/dashboard/fleet/team-members")
+        await page.goto(d('/fleet/team-members'))
         await expect(page.getByTestId("team-members-table")).toBeVisible()
 
         const searchInput = page.getByTestId("team-members-search-input")
@@ -72,7 +73,7 @@ test.describe("Fleet Team Members", () => {
     })
 
     test("row click navigates to team member detail", async ({ page }) => {
-        await page.goto("/dashboard/fleet/team-members")
+        await page.goto(d('/fleet/team-members'))
         await expect(page.getByTestId("team-members-table")).toBeVisible()
 
         // Wait for data row
@@ -86,17 +87,17 @@ test.describe("Fleet Team Members", () => {
     })
 
     test("Add member button navigates to /add", async ({ page }) => {
-        await page.goto("/dashboard/fleet/team-members")
+        await page.goto(d('/fleet/team-members'))
 
         const addBtn = page.getByTestId("add-member-btn")
         await expect(addBtn).toBeVisible()
         await addBtn.click()
 
-        await expect(page).toHaveURL("/dashboard/fleet/team-members/add", { timeout: 10000 })
+        await expect(page).toHaveURL(d('/fleet/team-members/add'), { timeout: 10000 })
     })
 
     test("pending badge visible for unconfirmed users", async ({ page }) => {
-        await page.goto("/dashboard/fleet/team-members")
+        await page.goto(d('/fleet/team-members'))
         await expect(page.getByTestId("team-members-table")).toBeVisible()
         await page.waitForTimeout(500)
 
@@ -109,7 +110,7 @@ test.describe("Fleet Team Members", () => {
     })
 
     test("access control sidebar shows role descriptions", async ({ page }) => {
-        await page.goto("/dashboard/fleet/team-members")
+        await page.goto(d('/fleet/team-members'))
 
         const sidebar = page.getByTestId("access-control-sidebar")
         await expect(sidebar).toBeVisible()
@@ -121,7 +122,7 @@ test.describe("Fleet Team Members", () => {
     })
 
     test("role select is visible for users with edit permission", async ({ page }) => {
-        await page.goto("/dashboard/fleet/team-members")
+        await page.goto(d('/fleet/team-members'))
         await expect(page.getByTestId("team-members-table")).toBeVisible()
         await page.waitForTimeout(500)
 
@@ -133,7 +134,7 @@ test.describe("Fleet Team Members", () => {
     })
 
     test("delete button visible for users with delete permission", async ({ page }) => {
-        await page.goto("/dashboard/fleet/team-members")
+        await page.goto(d('/fleet/team-members'))
         await expect(page.getByTestId("team-members-table")).toBeVisible()
         await page.waitForTimeout(500)
 
@@ -145,7 +146,7 @@ test.describe("Fleet Team Members", () => {
     })
 
     test("screenshot of team members page", async ({ page }, testInfo) => {
-        await page.goto("/dashboard/fleet/team-members")
+        await page.goto(d('/fleet/team-members'))
         await expect(page.getByTestId("team-members-table")).toBeVisible()
         // Wait for data to load
         await expect(page.getByRole("row").nth(1)).toBeVisible({ timeout: 15000 })

@@ -1,12 +1,13 @@
 import { expect, test } from "@playwright/test"
+import { d } from "./helpers/org-url"
 
 test.describe("Service Area Add Flow", () => {
     test("warns before replacing a drawn area with uploaded geojson", async ({ page }) => {
         const serviceAreaName = `Replacement Area ${Date.now()}`
-        const response = await page.goto("/dashboard/service/areas/add")
+        const response = await page.goto(d('/service/areas/add'))
 
         expect(response?.ok()).toBeTruthy()
-        await expect(page).toHaveURL("/dashboard/service/areas/add")
+        await expect(page).toHaveURL(d('/service/areas/add'))
         await page.waitForFunction(() => {
             const canvas = document.querySelector('[data-testid="service-area-map-container"] canvas') as HTMLCanvasElement | null
             return Boolean(canvas && canvas.width > 0 && canvas.height > 0)
@@ -63,10 +64,10 @@ test.describe("Service Area Add Flow", () => {
 
     test("uploads a geojson overlay and captures a screenshot", async ({ page }, testInfo) => {
         const serviceAreaName = `Test Service Area ${Date.now()}`
-        const response = await page.goto("/dashboard/service/areas/add")
+        const response = await page.goto(d('/service/areas/add'))
 
         expect(response?.ok()).toBeTruthy()
-        await expect(page).toHaveURL("/dashboard/service/areas/add")
+        await expect(page).toHaveURL(d('/service/areas/add'))
         await expect(
             page.getByRole("heading", { name: "Add Service Area", level: 1 })
         ).toBeVisible()

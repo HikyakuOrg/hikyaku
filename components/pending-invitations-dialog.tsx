@@ -19,7 +19,7 @@ import {
     declineInvitation,
     type PendingInvitation,
 } from "@/lib/actions/invitations"
-import { tenantUrl } from "@/lib/subdomain"
+import { orgPath } from "@/lib/subdomain"
 
 interface PendingInvitationsDialogProps {
     invitations: PendingInvitation[]
@@ -43,9 +43,7 @@ export function PendingInvitationsDialog({ invitations }: PendingInvitationsDial
                 return
             }
             toast.success(`Joined ${invitation.organisation.name}`)
-            // Cross-subdomain — hard navigation so the new x-org-slug header is
-            // attached on the very next request.
-            window.location.href = tenantUrl(invitation.organisation.slug, "/dashboard")
+            router.push(orgPath(invitation.organisation.slug, '/dashboard'))
         })
     }
 

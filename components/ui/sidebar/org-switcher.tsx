@@ -14,7 +14,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { CaretUpDownIcon, BuildingsIcon, PlusIcon, CheckIcon } from "@phosphor-icons/react"
-import { tenantUrl } from "@/lib/subdomain"
+import { orgPath } from "@/lib/subdomain"
 import type { OrganisationSummary } from "@/lib/actions/organisations"
 import { useRouter } from "next/navigation"
 
@@ -60,7 +60,7 @@ export function OrgSwitcher({
                 key={org.id}
                 onClick={() => {
                   if (org.slug !== currentSlug) {
-                    window.location.href = tenantUrl(org.slug, "/dashboard")
+                    router.push(orgPath(org.slug, '/dashboard'))
                   }
                 }}
               >
@@ -71,7 +71,7 @@ export function OrgSwitcher({
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => router.push("/dashboard/new")}>
+            <DropdownMenuItem onClick={() => router.push("/orgs/new")}>
               <PlusIcon />
               New organisation
             </DropdownMenuItem>

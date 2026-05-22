@@ -22,9 +22,10 @@ interface PackageData {
 
 interface RecentPackagesProps {
     packages: PackageData[]
+    slug: string
 }
 
-export function RecentPackages({ packages }: RecentPackagesProps) {
+export function RecentPackages({ packages, slug }: RecentPackagesProps) {
     return (
         <Card className="col-span-1 lg:col-span-3 border-none bg-card/50 backdrop-blur-sm shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between">
@@ -33,7 +34,7 @@ export function RecentPackages({ packages }: RecentPackagesProps) {
                     <p className="text-sm text-muted-foreground">Latest package updates across the network</p>
                 </div>
                 <Link
-                    href="/dashboard/packages"
+                    href={`/orgs/${slug}/dashboard/packages`}
                     className="text-sm font-medium text-primary hover:underline flex items-center gap-1"
                 >
                     View all <ArrowRight className="h-4 w-4" />

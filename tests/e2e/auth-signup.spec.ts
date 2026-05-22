@@ -18,7 +18,7 @@ test.describe("Auth — signup + email confirm", () => {
         await page.locator("#org-name").fill(orgName)
         await page.getByRole("button", { name: /create organization/i }).click()
 
-        await expect(page).toHaveURL(/^https?:\/\/[a-z0-9-]+\.lvh\.me:3000\/dashboard\/?$/i, {
+        await expect(page).toHaveURL(/\/orgs\/[a-z0-9-]+\/dashboard\/?$/, {
             timeout: 20_000,
         })
 
@@ -27,16 +27,16 @@ test.describe("Auth — signup + email confirm", () => {
         await expect(trigger).toContainText(orgName)
     })
 
-    test("signed-up user without an org navigates away then back, gets bounced to /dashboard/new", async ({ page }) => {
+    test("signed-up user without an org navigates away then back, gets bounced to /orgs/new", async ({ page }) => {
         test.setTimeout(120_000)
 
         await signUpAndConfirm(page)
 
-        // Currently sitting on /dashboard/new. Navigate to external site, then back.
+        // Currently sitting on /orgs/new. Navigate to external site, then back.
         await page.goto("https://google.com")
-        await page.goto("http://lvh.me:3000/dashboard")
+        await page.goto("http://localhost:3000/orgs")
 
-        // Middleware sees an authed user with zero orgs and bounces them.
-        await expect(page).toHaveURL(/\/dashboard\/new$/, { timeout: 15_000 })
+        // The /orgs resolver sees an authed user with zero orgs and bounces them.
+        await expect(page).toHaveURL(/\/orgs\/new$/, { timeout: 15_000 })
     })
 })

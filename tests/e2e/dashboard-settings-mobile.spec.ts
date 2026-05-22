@@ -1,12 +1,13 @@
 import { expect, test } from "@playwright/test";
+import { d } from "./helpers/org-url";
 
 // pnpm test:e2e -- tests/e2e/dashboard-settings-mobile.spec.ts
 test.describe("Dashboard Settings Mobile", () => {
     test("displays the QR code and captures a screenshot", async ({ page }, testInfo) => {
-        const response = await page.goto("/dashboard/settings/mobile");
+        const response = await page.goto(d('/settings/mobile'));
 
         expect(response?.ok()).toBeTruthy();
-        await expect(page).toHaveURL("/dashboard/settings/mobile");
+        await expect(page).toHaveURL(d('/settings/mobile'));
 
         await expect(
             page.getByRole("heading", { name: "Scan the QR code in WhenDan app", level: 1 })

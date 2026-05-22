@@ -1,14 +1,15 @@
 import { test, expect } from "@playwright/test";
+import { d } from "./helpers/org-url";
 
 test.describe("Fleet Vehicles Add Flow", () => {
     test("Valid and invalid VIN autofill", async ({ page }) => {
         test.setTimeout(120000);
 
         // Navigate to Add Vehicle page directly (assuming user is already authenticated via storageState)
-        await page.goto("/dashboard/fleet/vehicles/add");
+        await page.goto(d('/fleet/vehicles/add'));
 
         // Should navigate to /dashboard/fleet/vehicles/add
-        await expect(page).toHaveURL("/dashboard/fleet/vehicles/add");
+        await expect(page).toHaveURL(d('/fleet/vehicles/add'));
 
         const vinInput = page.getByLabel(/vin/i);
 

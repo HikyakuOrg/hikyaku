@@ -16,7 +16,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Link from 'next/link'
-import { tenantUrl } from '@/lib/subdomain'
+import { orgPath } from '@/lib/subdomain'
 
 type LoginMode = null | 'email' | 'magic-link'
 
@@ -45,7 +45,6 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
       const { data, error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) throw error
       if(!data.user) throw new Error('No user returned after login')
-      console.log('user', data.user)
       const { data: org, error: orgError } = await supabase
         .from('organisations')
         .select('slug')
@@ -53,14 +52,13 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
         .limit(1)
         .maybeSingle()
       if (orgError) throw orgError
-      console.log('org', org)
       const slug = org?.slug
       if (!slug) {
-        router.push('/dashboard/new')
+        router.push('/orgs/new')
         return
       }
 
-      window.location.href = tenantUrl(slug, '/dashboard')
+      router.push(orgPath(slug, '/dashboard'))
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An error occurred')
     } finally {
@@ -77,7 +75,7 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: `${window.location.origin}/dashboard` },
+        options: { emailRedirectTo: `${window.location.origin}/orgs` },
       })
       if (error) throw error
       setMagicLinkSent(true)

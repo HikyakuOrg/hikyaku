@@ -1,13 +1,14 @@
 import { expect, test } from "@playwright/test"
 
 import { CUSTOMER_ADDRESS_FIXTURES, randomCustomer } from "./helpers/test-data"
+import { d } from "./helpers/org-url"
 
 test.describe("Customer create", () => {
     for (const fixture of CUSTOMER_ADDRESS_FIXTURES) {
         test(`happy path — create customer at ${fixture.address}, ${fixture.suburb}`, async ({ page }) => {
             const customer = randomCustomer(fixture)
 
-            await page.goto("/dashboard/customers")
+            await page.goto(d('/customers'))
             await expect(page).toHaveURL(/\/dashboard\/customers/)
 
             await page.getByRole("link", { name: /add customer/i }).click()
@@ -37,7 +38,7 @@ test.describe("Customer create", () => {
                 timeout: 20_000,
             })
 
-            await page.goto("/dashboard/customers")
+            await page.goto(d('/customers'))
             await expect(page.getByRole("cell", { name: customer.name })).toBeVisible({
                 timeout: 10_000,
             })

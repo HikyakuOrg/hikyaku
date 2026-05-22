@@ -12,96 +12,60 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 import type { OrganisationSummary } from "@/lib/actions/organisations"
+import { orgPath } from "@/lib/subdomain"
 import { GearIcon, PersonIcon, BlueprintIcon, MapTrifoldIcon, PackageIcon, TruckIcon } from "@phosphor-icons/react"
 import { JwtPayload } from "@supabase/supabase-js"
 import { ClockIcon } from "lucide-react"
 
-const sidebarData = {
-  navMain: [
+function buildNavItems(slug: string) {
+  const p = (path: string) => orgPath(slug, path)
+  return [
     {
       title: "Dashboard",
-      url: "/dashboard",
-      icon: (
-        <BlueprintIcon
-        />
-      ),
+      url: p('/dashboard'),
+      icon: <BlueprintIcon />,
     },
     {
       title: "Packages",
-      url: "/dashboard/packages",
-      icon: (
-        <PackageIcon />
-      ),
+      url: p('/dashboard/packages'),
+      icon: <PackageIcon />,
     },
     {
       title: "Customers",
-      url: "/dashboard/customers",
-      icon: (
-        <PersonIcon />
-      ),
+      url: p('/dashboard/customers'),
+      icon: <PersonIcon />,
     },
     {
       title: "Driver Shifts",
-      url: "/dashboard/driver-shifts",
-      icon: (
-        <ClockIcon />
-      ),
+      url: p('/dashboard/driver-shifts'),
+      icon: <ClockIcon />,
     },
     {
       title: "Fleet",
       url: "",
-      icon: (
-        <TruckIcon />
-      ),
+      icon: <TruckIcon />,
       items: [
-        {
-          title: "Team Members",
-          url: "/dashboard/fleet/team-members",
-        },
-        {
-          title: "Vehicles",
-          url: "/dashboard/fleet/vehicles",
-        }
+        { title: "Team Members", url: p('/dashboard/fleet/team-members') },
+        { title: "Vehicles", url: p('/dashboard/fleet/vehicles') },
       ],
     },
     {
       title: "Service",
       url: "",
-      icon: (
-        <MapTrifoldIcon
-        />
-      ),
+      icon: <MapTrifoldIcon />,
       items: [
-        {
-          title: "Warehouse",
-          url: "/dashboard/service/warehouse",
-        },
-        {
-          title: "Areas",
-          url: "/dashboard/service/areas",
-        },
-        {
-          title: "Service Rates",
-          url: "/dashboard/service-rates",
-        }
+        { title: "Warehouse", url: p('/dashboard/service/warehouse') },
+        { title: "Areas", url: p('/dashboard/service/areas') },
+        { title: "Service Rates", url: p('/dashboard/service-rates') },
       ],
     },
     {
       title: "Settings",
       url: "#",
-      icon: (
-        <GearIcon
-        />
-      ),
+      icon: <GearIcon />,
       items: [
-        {
-          title: "Team",
-          url: "/dashboard/settings/team",
-        },
-        {
-          title: "Mobile",
-          url: "/dashboard/settings/mobile",
-        }
+        { title: "Team", url: p('/dashboard/settings/team') },
+        { title: "Mobile", url: p('/dashboard/settings/mobile') },
       ],
     },
   ]
@@ -114,13 +78,14 @@ type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
 }
 
 export function AppSidebar({ user, organisations, currentSlug, ...props }: AppSidebarProps) {
+  const navItems = currentSlug ? buildNavItems(currentSlug) : []
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <OrgSwitcher organisations={organisations} currentSlug={currentSlug} />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={sidebarData.navMain} />
+        <NavMain items={navItems} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} />

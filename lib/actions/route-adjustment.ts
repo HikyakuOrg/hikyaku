@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { headers } from "next/headers"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getSupabaseServerClaims } from "@/lib/supabase/server"
 import { createClient } from "@/lib/supabase/server"
@@ -216,6 +217,7 @@ export async function adjustRoute(params: AdjustRouteParams): Promise<AdjustRout
         return { success: false, error: message }
     }
 
-    revalidatePath(`/dashboard/driver-shifts/${routeId}`)
+    const slug = (await headers()).get('x-org-slug')
+    if (slug) revalidatePath(`/orgs/${slug}/dashboard/driver-shifts/${routeId}`)
     return { success: true }
 }

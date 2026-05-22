@@ -23,7 +23,7 @@ test.describe("Organisation create — duplicate from another user fails", () =>
 
         await pageA.locator("#org-name").fill(orgName)
         await pageA.getByRole("button", { name: /create organization/i }).click()
-        await expect(pageA).toHaveURL(/^https?:\/\/[a-z0-9-]+\.lvh\.me:3000\/dashboard\/?$/i, {
+        await expect(pageA).toHaveURL(/\/orgs\/[a-z0-9-]+\/dashboard\/?$/, {
             timeout: 20_000,
         })
 
@@ -42,8 +42,8 @@ test.describe("Organisation create — duplicate from another user fails", () =>
         await expect(errorParagraph).toBeVisible({ timeout: 10_000 })
         await expect(errorParagraph).toHaveText(/duplicate|already|unique|exist/i)
 
-        // URL must NOT have redirected to a tenant subdomain
-        await expect(pageB).toHaveURL(/\/dashboard\/new$/)
+        // URL must NOT have redirected to the org dashboard
+        await expect(pageB).toHaveURL(/\/orgs\/new$/)
 
         await contextB.close()
     })

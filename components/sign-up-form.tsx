@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
-import { tenantUrl } from '@/lib/subdomain'
+import { orgPath } from '@/lib/subdomain'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -44,7 +44,7 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          emailRedirectTo: `${window.location.origin}/orgs`,
           data: { display_name: displayName },
         },
       })
@@ -71,12 +71,11 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
       if (orgError) throw orgError
       const slug = org?.slug
       if (!slug) {
-        router.push('/dashboard/new')
+        router.push('/orgs/new')
         return
       }
 
-      // Cross-subdomain redirect — use window.location, not router.push.
-      window.location.href = tenantUrl(slug, '/dashboard')
+      router.push(orgPath(slug, '/dashboard'))
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An error occurred')
     } finally {

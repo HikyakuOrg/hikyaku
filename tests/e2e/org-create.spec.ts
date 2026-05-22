@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test"
 
 import { uniqueOrgName } from "./helpers/test-data"
+import { d } from "./helpers/org-url"
 
 test.describe("Organisation create — happy path + duplicate fail", () => {
     test.describe.configure({ mode: "serial" })
@@ -10,7 +11,7 @@ test.describe("Organisation create — happy path + duplicate fail", () => {
     test("create new org via sidebar dropdown", async ({ page }) => {
         orgName = uniqueOrgName()
 
-        await page.goto("/dashboard")
+        await page.goto(d())
 
         // The org switcher is the first SidebarMenuButton in the sidebar header.
         // It exposes the current org name and a "menu" haspopup. Open it.
@@ -22,13 +23,12 @@ test.describe("Organisation create — happy path + duplicate fail", () => {
         await expect(addItem).toBeVisible()
         await addItem.click()
 
-        await expect(page).toHaveURL(/\/dashboard\/new$/)
+        await expect(page).toHaveURL(/\/orgs\/new$/)
 
         await page.locator("#org-name").fill(orgName)
         await page.getByRole("button", { name: /create organization/i }).click()
 
-        // Cross-subdomain redirect to <slug>.lvh.me:3000/dashboard
-        await expect(page).toHaveURL(/^https?:\/\/[a-z0-9-]+\.lvh\.me:3000\/dashboard\/?$/i, {
+        await expect(page).toHaveURL(/\/orgs\/[a-z0-9-]+\/dashboard\/?$/, {
             timeout: 20_000,
         })
 
@@ -47,13 +47,12 @@ test.describe("Organisation create — happy path + duplicate fail", () => {
     test("duplicate org from same user fails", async ({ page }) => {
         test.skip(!orgName, "Depends on previous test creating an org name")
 
-        // Start from the apex (lvh.me:3000) so the org switcher loads against the
-        // user's full org list and we hit the same /dashboard/new server action.
-        await page.goto("/dashboard")
+        // Start from the dashboard so the org switcher loads against the user's full org list.
+        await page.goto(d())
 
         await page.locator('[aria-haspopup="menu"]').first().click()
         await page.getByRole("menuitem", { name: /new organisation/i }).click()
-        await expect(page).toHaveURL(/\/dashboard\/new$/)
+        await expect(page).toHaveURL(/\/orgs\/new$/)
 
         await page.locator("#org-name").fill(orgName)
         await page.getByRole("button", { name: /create organization/i }).click()
@@ -65,7 +64,7 @@ test.describe("Organisation create — happy path + duplicate fail", () => {
         await expect(errorParagraph).toHaveText(/duplicate|already|unique|exist/i)
 
         // URL must NOT have redirected to a tenant subdomain
-        await expect(page).toHaveURL(/\/dashboard\/new$/)
+        await expect(page).toHaveURL(/\/orgs\/new$/)
 
         // Open the switcher and assert there's exactly one menu item with `orgName`
         // (a duplicate would show two entries; an insert-failure shows one).

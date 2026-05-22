@@ -44,7 +44,13 @@ export function cookieDomain(): string | undefined {
   return `.${rootHostname}`
 }
 
-/** Absolute URL for a tenant, e.g. https://k7m2qp9x.hikyaku.org/dashboard */
+/** Org-scoped path on the apex domain, e.g. /orgs/k7m2qp9x/dashboard/customers */
+export function orgPath(slug: string, path = '/dashboard'): string {
+  return `/orgs/${slug}${path}`
+}
+
+/** Absolute URL for a tenant subdomain, used for booking links only.
+ *  e.g. https://k7m2qp9x.hikyaku.org/booking */
 export function tenantUrl(slug: string, path = '/dashboard'): string {
   const isLocal =
     ROOT_DOMAIN.startsWith('localhost') ||

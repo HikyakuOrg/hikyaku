@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
-export function DashboardHeader() {
+export function DashboardHeader({ slug }: { slug: string }) {
     return (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -12,7 +12,7 @@ export function DashboardHeader() {
             </div>
             <div className="flex items-center gap-2">
                 <Button>
-                    <Link href="/dashboard/packages/add">
+                    <Link href={`/orgs/${slug}/dashboard/packages/add`}>
                         Add Package
                     </Link>
                 </Button>

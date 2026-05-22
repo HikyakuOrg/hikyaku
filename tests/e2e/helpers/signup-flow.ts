@@ -63,8 +63,8 @@ export async function signUpAndConfirm(page: Page, options: SignupOptions = {}):
     await page.locator("#password").fill(credentials.password)
     await page.getByRole("button", { name: /^login$/i }).click()
 
-    // Fresh users have no org — the login-form redirects them to /dashboard/new.
-    await expect(page).toHaveURL(/\/dashboard\/new$/, { timeout: 15_000 })
+    // Fresh users have no org — the login-form redirects them to /orgs/new.
+    await expect(page).toHaveURL(/\/orgs\/new$/, { timeout: 15_000 })
 
     return credentials
 }

@@ -58,8 +58,13 @@ async function globalSetup(_config: FullConfig) {
     await context.storageState({ path: "playwright.storageState.json" });
 
     const authenticatedPage = await context.newPage();
-    await authenticatedPage.goto("/dashboard/service/areas/add");
-    await expect(authenticatedPage).toHaveURL(/\/dashboard\/service\/areas\/add$/);
+    await authenticatedPage.goto("/orgs");
+    await expect(authenticatedPage).toHaveURL(/\/orgs\/[^/]+\/dashboard/, { timeout: 15_000 });
+    const resolvedUrl = authenticatedPage.url();
+    const slugMatch = resolvedUrl.match(/\/orgs\/([^/]+)\/dashboard/);
+    if (slugMatch?.[1]) {
+        process.env.PLAYWRIGHT_ORG_SLUG = slugMatch[1];
+    }
     await authenticatedPage.close();
 
     await context.close();

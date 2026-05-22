@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test"
+import { d } from "./helpers/org-url"
 
 // ---------------------------------------------------------------------------
 // Shared state for the serial "creation + post-creation" group.
@@ -41,8 +42,8 @@ async function navigateToStep4(
     page: import("@playwright/test").Page,
     dayNumber: number
 ): Promise<void> {
-    await page.goto("/dashboard/driver-shifts/add")
-    await expect(page).toHaveURL("/dashboard/driver-shifts/add")
+    await page.goto(d('/driver-shifts/add'))
+    await expect(page).toHaveURL(d('/driver-shifts/add'))
 
     // ── Step 1: Warehouse ────────────────────────────────────────────────────
     const warehouseInput = page.getByRole("combobox")
@@ -75,14 +76,14 @@ async function navigateToStep4(
 // ===========================================================================
 test.describe("Driver Shifts — List page", () => {
     test("Add Shift button and info tooltip render on the list page", async ({ page }) => {
-        const response = await page.goto("/dashboard/driver-shifts")
+        const response = await page.goto(d('/driver-shifts'))
         expect(response?.ok()).toBeTruthy()
-        await expect(page).toHaveURL("/dashboard/driver-shifts")
+        await expect(page).toHaveURL(d('/driver-shifts'))
 
         // "Add Shift" link-button pointing to /add
         const addShiftLink = page.getByRole("link", { name: /add shift/i })
         await expect(addShiftLink).toBeVisible({ timeout: 15000 })
-        await expect(addShiftLink).toHaveAttribute("href", "/dashboard/driver-shifts/add")
+        await expect(addShiftLink).toHaveAttribute("href", d('/driver-shifts/add'))
 
         // Info icon (Lucide <Info>) is rendered as the tooltip trigger
         const infoIcon = page.locator("svg.lucide-info").first()
@@ -113,8 +114,8 @@ test.describe("Driver Shifts — Happy path creation and post-creation checks", 
         // Skipped in CI where seed data is typically absent; run locally against a seeded env.
         test.skip(!!process.env.CI, "Requires seed data — skipped in CI")
 
-        await page.goto("/dashboard/driver-shifts/add")
-        await expect(page).toHaveURL("/dashboard/driver-shifts/add")
+        await page.goto(d('/driver-shifts/add'))
+        await expect(page).toHaveURL(d('/driver-shifts/add'))
 
         // ── Step 1: Warehouse ────────────────────────────────────────────────
         const warehouseInput = page.getByRole("combobox")
@@ -202,8 +203,8 @@ test.describe("Driver Shifts — Happy path creation and post-creation checks", 
     test("driver-shifts calendar shows the newly created shift on the correct date", async ({ page }) => {
         test.skip(!createdShiftUrl, "Depends on the happy path test creating a shift first")
 
-        await page.goto("/dashboard/driver-shifts")
-        await expect(page).toHaveURL("/dashboard/driver-shifts")
+        await page.goto(d('/driver-shifts'))
+        await expect(page).toHaveURL(d('/driver-shifts'))
 
         // The DriverShiftsCalendar component should be on the page
         // (It is rendered without a data-testid by default; adjust locator if one is added)
@@ -282,8 +283,8 @@ test.describe("Driver Shifts — Validation and error handling", () => {
         // Requires: a driver-vehicle pair whose licenseExpiry is before today.
         test.skip(!!process.env.CI, "Requires an expired-license driver in seed data — skipped in CI")
 
-        await page.goto("/dashboard/driver-shifts/add")
-        await expect(page).toHaveURL("/dashboard/driver-shifts/add")
+        await page.goto(d('/driver-shifts/add'))
+        await expect(page).toHaveURL(d('/driver-shifts/add'))
 
         // Step 1: Warehouse
         const warehouseInput = page.getByRole("combobox")
@@ -336,7 +337,7 @@ test.describe("Driver Shifts — Validation and error handling", () => {
         const dayNumber = targetDate.getDate()
 
         async function submitFullForm(): Promise<void> {
-            await page.goto("/dashboard/driver-shifts/add")
+            await page.goto(d('/driver-shifts/add'))
 
             // Step 1
             const warehouseInput = page.getByRole("combobox")
@@ -383,7 +384,7 @@ test.describe("Driver Shifts — Validation and error handling", () => {
         // Second submission with the same driver and date should fail.
         // Because fetchAvailableDriverVehiclePairs excludes the already-scheduled
         // driver, step 3 may show no available pairs — which is itself an error state.
-        await page.goto("/dashboard/driver-shifts/add")
+        await page.goto(d('/driver-shifts/add'))
 
         // Step 1
         const warehouseInput2 = page.getByRole("combobox")

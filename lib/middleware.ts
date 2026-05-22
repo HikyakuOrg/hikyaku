@@ -1,14 +1,20 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { cookieDomain, getSlugFromHost } from '@/lib/subdomain'
+import { cookieDomain, getSlugFromHost, ROOT_DOMAIN } from '@/lib/subdomain'
 
 export async function updateSession(request: NextRequest) {
-  // Resolve the tenant from the host and forward it to server components /
-  // route handlers as a request header. Done before createServerClient so no
-  // code runs between createServerClient and getClaims (see Supabase note).
-  const slug = getSlugFromHost(request.headers.get('host'))
+  const host = request.headers.get('host')
+  const { pathname } = request.nextUrl
+
+  // Derive the active org slug. Path-based slug (/orgs/<slug>/…) takes
+  // precedence over host-based (subdomains serve booking only).
+  const hostSlug = getSlugFromHost(host)
+  const m = pathname.match(/^\/orgs\/([^/]+)/)
+  const pathSlug = m && m[1] !== 'new' ? m[1] : null
+  const slug = pathSlug ?? hostSlug
+
   const requestHeaders = new Headers(request.headers)
-  requestHeaders.set('x-pathname', request.nextUrl.pathname)
+  requestHeaders.set('x-pathname', pathname)
   if (slug) {
     requestHeaders.set('x-org-slug', slug)
   } else {
@@ -52,24 +58,28 @@ export async function updateSession(request: NextRequest) {
   const { data } = await supabase.auth.getClaims()
   const user = data?.claims
 
-  const { pathname } = request.nextUrl
   const isAuthRoute = pathname.startsWith('/auth')
+  const isBookingRoute = pathname.startsWith('/booking')
 
-  if (slug) {
-    // Tenant host: everything requires auth except the auth pages.
-    if (!user && !isAuthRoute) {
+  if (hostSlug) {
+    // Subdomain host — booking is public, nothing else is served here.
+    if (isBookingRoute) return supabaseResponse
+
+    // Non-booking subdomain traffic: redirect to the apex root.
+    const isLocal =
+      ROOT_DOMAIN.startsWith('localhost') ||
+      ROOT_DOMAIN.includes('lvh.me') ||
+      ROOT_DOMAIN.includes('.localhost')
+    const protocol = isLocal ? 'http' : 'https'
+    return NextResponse.redirect(`${protocol}://${ROOT_DOMAIN}/`)
+  }
+
+  // Apex host — protect dashboard and org routes.
+  if (!user) {
+    if (pathname.startsWith('/orgs') || (!isAuthRoute && pathname !== '/')) {
       const url = request.nextUrl.clone()
       url.pathname = '/auth/login'
       return NextResponse.redirect(url)
-    }
-  } else {
-    // Apex / www host: signup, login and org selection only.
-    if (!user) {
-      if (!isAuthRoute && pathname !== '/') {
-        const url = request.nextUrl.clone()
-        url.pathname = '/auth/login'
-        return NextResponse.redirect(url)
-      }
     }
   }
 
