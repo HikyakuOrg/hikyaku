@@ -53,11 +53,6 @@ export function WarehouseTable({
 
     return (
         <div className="space-y-6 w-full">
-            <div className="flex items-center justify-end">
-                <Button onClick={() => router.push(`/orgs/${slug}/dashboard/service/warehouse/add`)}>
-                    Add Warehouse
-                </Button>
-            </div>
             <TableLayout
                 data={initialData}
                 columns={columns}

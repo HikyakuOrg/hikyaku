@@ -1,37 +1,47 @@
-import { getWarehousesPaginated } from "@/lib/supabase/db-server";
-import { WarehouseTable } from "./warehouse-table";
+import { getWarehouseLocations, getWarehousesPaginated, WAREHOUSE_PAGE_SIZE } from "@/lib/supabase/db-server";
+import { WarehouseExplorer } from "./warehouse-explorer";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 interface PageProps {
-    searchParams: Promise<{
-        page?: string;
-    }>;
+    params: Promise<{ slug: string }>
 }
 
-export default async function WarehousePage({ searchParams }: PageProps) {
-    const params = await searchParams;
-    const currentPage = Number(params.page) || 1;
-    const PAGE_SIZE = 20;
+export default async function WarehousePage({ params: routeParams }: PageProps) {
+    const { slug } = await routeParams
 
-    const { data: warehouse, total: totalWarehouses } = await getWarehousesPaginated(
-        currentPage,
-        PAGE_SIZE
-    );
+    // All pins (lightweight, for the map) + the first page of cards, in parallel.
+    const [pins, firstPage] = await Promise.all([
+        getWarehouseLocations(),
+        getWarehousesPaginated(1, WAREHOUSE_PAGE_SIZE),
+    ]);
 
-    const totalPages = Math.ceil(totalWarehouses / PAGE_SIZE);
+    const initialItems = firstPage.data.map((warehouse) => ({
+        id: warehouse.id,
+        warehouse_name: warehouse.warehouse_name,
+        warehouse_address: warehouse.warehouse_address,
+    }));
 
     return (
         <div className="space-y-6 p-6">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight mb-2">Warehouses</h1>
-                <p className="text-muted-foreground">
-                    Manage your warehouses.
-                </p>
+            <div className="flex items-end justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight mb-2">Warehouses</h1>
+                    <p className="text-muted-foreground">
+                        Manage your warehouses.
+                    </p>
+                </div>
+                <Button>
+                    <Link href={`/orgs/${slug}/dashboard/warehouses/add`}>
+                        Add Warehouse
+                    </Link>
+                </Button>
             </div>
 
-            <WarehouseTable
-                initialData={warehouse}
-                initialPage={currentPage}
-                initialTotalPages={totalPages}
+            <WarehouseExplorer
+                initialPins={pins}
+                initialItems={initialItems}
+                initialTotal={firstPage.total}
             />
         </div>
     );

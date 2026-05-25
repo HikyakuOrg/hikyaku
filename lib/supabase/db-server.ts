@@ -134,6 +134,8 @@ export async function getWarehousesPaginated(page: number, pageSize: number) {
     const { data, error, count } = await supabase
         .from('warehouse')
         .select('*', { count: 'exact' })
+        .order('warehouse_name', { ascending: true })
+        .order('id', { ascending: true })
         .range(from, to)
 
     if (error) {
@@ -142,6 +144,55 @@ export async function getWarehousesPaginated(page: number, pageSize: number) {
     }
 
     return { data: data as Tables<'warehouse'>[] ?? [], total: count ?? 0 }
+}
+
+// Page size for the warehouse list (SSR first page + client endless scroll).
+export const WAREHOUSE_PAGE_SIZE = 15
+
+// Fields the warehouse list cards need — kept narrow so the load-more action
+// ships only what it renders (no PostGIS geometry over the wire).
+export type WarehouseCardData = Pick<
+    Tables<'warehouse'>,
+    'id' | 'warehouse_name' | 'warehouse_address'
+>
+
+export type WarehousePin = {
+    id: string
+    warehouse_name: string
+    warehouse_address: string
+    lng: number
+    lat: number
+}
+
+// All warehouses the caller can see, as lightweight pins for the map.
+// warehouse_location comes back as a GeoJSON Point ({ coordinates: [lng, lat] }),
+// matching how it's read elsewhere (warehouse detail page, package locations).
+// Org isolation is enforced by RLS.
+export async function getWarehouseLocations(): Promise<WarehousePin[]> {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+        .from('warehouse')
+        .select('id, warehouse_name, warehouse_address, warehouse_location')
+        .order('warehouse_name', { ascending: true })
+
+    if (error) {
+        console.error(error)
+        return []
+    }
+
+    return (data ?? []).flatMap((warehouse) => {
+        const coordinates = (warehouse.warehouse_location as Point | null)?.coordinates
+        if (!coordinates || coordinates.length < 2) {
+            return []
+        }
+        return [{
+            id: warehouse.id,
+            warehouse_name: warehouse.warehouse_name,
+            warehouse_address: warehouse.warehouse_address,
+            lng: coordinates[0],
+            lat: coordinates[1],
+        }]
+    })
 }
 
 export async function getServiceAreas() {
