@@ -1,9 +1,9 @@
+import { FleetOverview } from "@/components/overview/fleet-overview"
 import {
     getPackagesCountInWarehouse,
     getWarehouseDriversCount,
     getWarehouseVehicleCount
 } from "@/lib/supabase/db-server"
-import { FleetOverview } from "../../../../../components/overview/fleet-overview"
 
 export async function WarehouseOverviewWrapper({ warehouseId }: { warehouseId: string }) {
     const [pendingPackagesCount, driversCount, vehicleCount] = await Promise.all([
