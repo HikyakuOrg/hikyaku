@@ -47,6 +47,7 @@ function buildNavItems(slug: string) {
       items: [
         { title: "Team Members", url: p('/dashboard/fleet/team-members') },
         { title: "Vehicles", url: p('/dashboard/fleet/vehicles') },
+        { title: "Fuel Cards", url: p('/dashboard/fleet/fuel-cards') },
       ],
     },
     {
