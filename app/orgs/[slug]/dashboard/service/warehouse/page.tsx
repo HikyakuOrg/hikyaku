@@ -32,7 +32,7 @@ export default async function WarehousePage({ params: routeParams }: PageProps) 
                     </p>
                 </div>
                 <Button>
-                    <Link href={`/orgs/${slug}/dashboard/warehouses/add`}>
+                    <Link href={`/orgs/${slug}/dashboard/service/warehouse/add`}>
                         Add Warehouse
                     </Link>
                 </Button>

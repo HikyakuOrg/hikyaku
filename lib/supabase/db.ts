@@ -494,6 +494,25 @@ export async function searchWarehouse(search: string) {
     return data
 }
 
+export async function createWarehouse(warehouse: {
+    organisation_id: string
+    warehouse_name: string
+    warehouse_address: string
+    warehouse_location: unknown
+    warehouse_country: string
+    warehouse_zipcode: string
+    warehouse_state: string
+    warehouse_city: string
+}) {
+    const { data, error } = await supabase
+        .from("warehouse")
+        .insert(warehouse)
+        .select()
+        .single()
+    if (error) throw error
+    return data
+}
+
 export async function searchServiceArea(search: string) {
     const { data, error } = await supabase
         .from("service_areas")
