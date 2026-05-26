@@ -21,6 +21,8 @@
     "@hookform/resolvers": "^5.2.2",
     "@phosphor-icons/react": "^2.1.10",
     "@stepperize/react": "^6.1.0",
+    "@stripe/connect-js": "^3.4.4",
+    "@stripe/react-connect-js": "^3.4.2",
     "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.102.1",
     "@tanstack/react-table": "^8.21.3",

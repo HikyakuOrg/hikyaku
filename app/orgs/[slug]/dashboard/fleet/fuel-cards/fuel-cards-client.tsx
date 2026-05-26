@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState, useTransition } from "react"
+import Link from "next/link"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import {
     Dialog,
     DialogContent,
@@ -52,6 +54,8 @@ import {
 import { getTeamMembers, type ListTeamMemberDto } from "@/lib/supabase/team-rpc"
 import { getVehiclesByType } from "@/lib/supabase/db"
 import { formatCurrency } from "@/lib/currency"
+import { getConnectStatus } from "@/lib/actions/connect"
+import { useOrgPath } from "@/lib/use-org"
 
 interface VehicleOption {
     id: string
@@ -349,6 +353,8 @@ export function FuelCardsClient() {
     const [loading, setLoading] = useState(true)
     const [dialogOpen, setDialogOpen] = useState(false)
     const [statusPending, startStatusTransition] = useTransition()
+    const [issuingActive, setIssuingActive] = useState(true)
+    const paymentsPath = useOrgPath("/dashboard/settings/payments")
 
     const fetchCards = useCallback(async () => {
         const [cardsResult, txnResult] = await Promise.all([
@@ -368,6 +374,9 @@ export function FuelCardsClient() {
                 setDrivers(members.filter((m) => m.role === "Driver")),
             ),
             getVehiclesByType([], 1, 200).then((res) => setVehicles(res.data as VehicleOption[])),
+            getConnectStatus().then((res) => {
+                if (res.success) setIssuingActive(res.data.cardIssuingStatus === "active")
+            }),
         ]).finally(() => setLoading(false))
     }, [fetchCards])
 
@@ -400,8 +409,22 @@ export function FuelCardsClient() {
 
     return (
         <div className="space-y-4">
+            {!issuingActive && (
+                <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Card issuing isn&apos;t set up yet</AlertTitle>
+                    <AlertDescription>
+                        Set up your organisation&apos;s Stripe account to issue and fund
+                        fuel cards.{" "}
+                        <Link href={paymentsPath} className="font-medium underline">
+                            Go to Payments settings
+                        </Link>
+                    </AlertDescription>
+                </Alert>
+            )}
+
             <div className="flex justify-end">
-                <Button onClick={() => setDialogOpen(true)}>
+                <Button onClick={() => setDialogOpen(true)} disabled={!issuingActive}>
                     <CreditCard className="w-4 h-4 mr-2" />
                     Issue card
                 </Button>

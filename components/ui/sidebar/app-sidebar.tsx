@@ -66,6 +66,7 @@ function buildNavItems(slug: string) {
       icon: <GearIcon />,
       items: [
         { title: "Team", url: p('/dashboard/settings/team') },
+        { title: "Payments", url: p('/dashboard/settings/payments') },
         { title: "Mobile", url: p('/dashboard/settings/mobile') },
       ],
     },
