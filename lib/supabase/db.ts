@@ -332,6 +332,32 @@ export async function createVehicle(vehicle: Tables<'vehicles'>) {
     return data
 }
 
+export async function getVehicles() {
+    const { data, error } = await supabase
+        .from("vehicles")
+        .select("id, vehicle_plate, vehicle_make, vehicle_model, vehicle_year")
+        .eq("is_deleted", false)
+    if (error) throw error
+    return data
+}
+
+export async function createMaintenanceRecord(record: {
+    organisation_id: string
+    vehicle_id: string
+    user_id: string | null
+    odometer: number
+    description: string
+    date_serviced: string
+}) {
+    const { data, error } = await supabase
+        .from("vehicle_maintenance")
+        .insert(record)
+        .select()
+        .single()
+    if (error) throw error
+    return data
+}
+
 export async function updateVehicle(id: string, vehicle: Partial<Tables<'vehicles'>>) {
     const { data, error } = await supabase.from("vehicles").update(vehicle).eq("id", id).select().single()
     if (error) throw error
