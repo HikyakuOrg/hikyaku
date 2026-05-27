@@ -40,21 +40,21 @@ import {
 } from "@/lib/actions/connect"
 import { formatCurrency } from "@/lib/currency"
 
-// Currencies Stripe Issuing self-funding supports via push bank transfers.
-const CURRENCIES = [
-    { code: "usd", label: "USD — US Dollar", country: "US" },
-    { code: "gbp", label: "GBP — British Pound", country: "GB" },
-    { code: "eur", label: "EUR — Euro", country: "DE" },
+// Countries supported by Stripe Issuing self-funding via push bank transfers.
+const COUNTRIES = [
+    { code: "US", label: "United States", currency: "usd" },
+    { code: "GB", label: "United Kingdom", currency: "gbp" },
+    { code: "DE", label: "Germany", currency: "eur" },
+    { code: "FR", label: "France", currency: "eur" },
+    { code: "IE", label: "Ireland", currency: "eur" },
+    { code: "NL", label: "Netherlands", currency: "eur" },
+    { code: "ES", label: "Spain", currency: "eur" },
+    { code: "IT", label: "Italy", currency: "eur" },
 ]
 
-const EU_COUNTRIES = [
-    { code: "DE", label: "Germany" },
-    { code: "FR", label: "France" },
-    { code: "IE", label: "Ireland" },
-    { code: "NL", label: "Netherlands" },
-    { code: "ES", label: "Spain" },
-    { code: "IT", label: "Italy" },
-]
+function currencyForCountry(countryCode: string): string {
+    return COUNTRIES.find((c) => c.code === countryCode)?.currency ?? "usd"
+}
 
 function isOnboarded(status: ConnectStatus): boolean {
     return status.cardIssuingStatus === "active"
@@ -68,7 +68,6 @@ export function PaymentsClient() {
     const [starting, startStartTransition] = useTransition()
 
     // Onboarding-country form (only used before an account exists).
-    const [currency, setCurrency] = useState("usd")
     const [country, setCountry] = useState("US")
 
     const refreshStatus = useCallback(async () => {
@@ -118,13 +117,10 @@ export function PaymentsClient() {
                 }
                 setStatus(result.data)
                 if (result.data.country) setCountry(result.data.country)
-                if (result.data.currency) setCurrency(result.data.currency)
                 // An account exists but onboarding is unfinished → resume inline.
                 if (result.data.accountId && !isOnboarded(result.data)) {
-                    beginOnboarding(
-                        result.data.country ?? "US",
-                        result.data.currency ?? "usd",
-                    )
+                    const c = result.data.country ?? "US"
+                    beginOnboarding(c, result.data.currency ?? currencyForCountry(c))
                 }
             })
             .finally(() => {
@@ -177,61 +173,37 @@ export function PaymentsClient() {
         )
     }
 
-    // No account yet → pick onboarding country + currency.
-    const onCurrencyChange = (cur: string | null) => {
-        if (!cur) return
-        setCurrency(cur)
-        const preset = CURRENCIES.find((c) => c.code === cur)
-        if (preset && cur !== "eur") setCountry(preset.country)
-    }
+    // No account yet → pick onboarding country (currency is derived automatically).
+    const detectedCurrency = currencyForCountry(country)
 
     return (
         <Card className="max-w">
             <CardContent className="space-y-4">
                 <div className="space-y-2">
-                    <Label htmlFor="currency">Currency</Label>
-                    <Select value={currency} onValueChange={onCurrencyChange}>
-                        <SelectTrigger id="currency">
+                    <Label htmlFor="country">Country</Label>
+                    <Select value={country} onValueChange={(v) => v && setCountry(v)}>
+                        <SelectTrigger id="country">
                             <SelectValue>
                                 {(v: string | null) =>
-                                    CURRENCIES.find((c) => c.code === v)?.label ?? "Select currency"
+                                    COUNTRIES.find((c) => c.code === v)?.label ?? "Select country"
                                 }
                             </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                            {CURRENCIES.map((c) => (
+                            {COUNTRIES.map((c) => (
                                 <SelectItem key={c.code} value={c.code}>
                                     {c.label}
                                 </SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
+                    <p className="text-xs text-muted-foreground">
+                        Currency: {detectedCurrency.toUpperCase()}
+                    </p>
                 </div>
 
-                {currency === "eur" && (
-                    <div className="space-y-2">
-                        <Label htmlFor="country">Country</Label>
-                        <Select value={country} onValueChange={(v) => v && setCountry(v)}>
-                            <SelectTrigger id="country">
-                                <SelectValue>
-                                    {(v: string | null) =>
-                                        EU_COUNTRIES.find((c) => c.code === v)?.label ?? "Select country"
-                                    }
-                                </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                                {EU_COUNTRIES.map((c) => (
-                                    <SelectItem key={c.code} value={c.code}>
-                                        {c.label}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                )}
-
                 <Button
-                    onClick={() => beginOnboarding(country, currency)}
+                    onClick={() => beginOnboarding(country, detectedCurrency)}
                     disabled={starting}
                 >
                     {starting ? (
