@@ -1,29 +1,79 @@
 'use server'
 
-import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
 export interface OrganisationSummary {
   id: string
   slug: string
-  name: string
+  /** NULL for personal orgs — UI renders these as "Personal". */
+  name: string | null
+  orgType: string
+  cardIssuingStatus: string | null
+  detailsSubmitted: boolean
 }
 
 /**
- * Creates a new organisation for an already-authenticated user via the
- * create_new_organisation Supabase RPC. Returns the new org's slug, or an
- * error string on failure.
+ * Create or look up the caller's org. Personal orgs are unique per user
+ * (enforced by the partial unique index in migration 0010): if the caller
+ * already has a personal org — usually the one auto-created at signup by
+ * handle_new_user() — we return its slug instead of inserting a duplicate.
  */
-export async function createOrganisation(name: string): Promise<{ slug: string } | string> {
+export async function createOrganisation(
+  name: string | null,
+  orgType: 'personal' | 'company',
+): Promise<{ slug: string } | string> {
   const supabase = await createClient()
+
+  if (orgType === 'personal') {
+    // Reuse the user's existing personal org (almost always the signup one).
+    const { data: userData } = await supabase.auth.getUser()
+    if (!userData.user) return 'Not authenticated.'
+
+    const { data: existing } = await supabase
+      .from('organisations')
+      .select('slug')
+      .eq('created_by', userData.user.id)
+      .eq('org_type', 'personal')
+      .maybeSingle()
+    if (existing?.slug) return { slug: existing.slug }
+
+    // Defensive — the signup trigger should already have created one.
+    const { data, error } = await supabase
+      .from('organisations')
+      .insert({ name: null, org_type: 'personal' })
+      .select('slug')
+      .maybeSingle()
+    if (error) return error.message
+    return { slug: data?.slug || '' }
+  }
+
+  if (!name || !name.trim()) return 'Company name is required.'
   const { data, error } = await supabase
     .from('organisations')
-    .insert({ name })
-    .select()
+    .insert({ name: name.trim(), org_type: 'company' })
+    .select('slug')
     .maybeSingle()
-
   if (error) return error.message
-  return { slug: data?.id || '' }
+  return { slug: data?.slug || '' }
+}
+
+/**
+ * Change an existing org's type. Used by the Business Information page when a
+ * personal org upgrades in place to a company (or vice versa). The DB partial
+ * unique index will reject downgrading to personal if the caller already has
+ * another personal org — that error is surfaced verbatim.
+ */
+export async function setOrgType(
+  slug: string,
+  orgType: 'personal' | 'company',
+): Promise<{ ok: true } | string> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('organisations')
+    .update({ org_type: orgType })
+    .eq('slug', slug)
+  if (error) return error.message
+  return { ok: true }
 }
 
 /** Organisations the signed-in user belongs to — powers the org switcher. */
@@ -34,10 +84,17 @@ export async function listMyOrganisations(): Promise<OrganisationSummary[]> {
 
   const { data, error } = await supabase
     .from('organisations')
-    .select('id, slug, name, user_permission!inner(user_id)')
+    .select('id, slug, name, org_type, card_issuing_status, details_submitted, user_permission!inner(user_id)')
     .eq('user_permission.user_id', userData.user.id)
 
   if (error || !data) return []
-  return data.map(({ id, slug, name }) => ({ id, slug, name }))
-
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data as any[]).map(({ id, slug, name, org_type, card_issuing_status, details_submitted }) => ({
+    id,
+    slug,
+    name: name ?? null,
+    orgType: org_type ?? 'personal',
+    cardIssuingStatus: card_issuing_status ?? null,
+    detailsSubmitted: details_submitted ?? false,
+  }))
 }

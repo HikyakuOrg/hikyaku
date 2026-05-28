@@ -1,18 +1,24 @@
 "use client"
 
 import { useCallback, useEffect, useState, useTransition } from "react"
-import Link from "next/link"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { toast } from "sonner"
-import { Loader2, AlertCircle, CreditCard, Fuel } from "lucide-react"
+import { Loader2, AlertCircle, CreditCard, Fuel, Banknote, CheckCircle2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card"
 import {
     Dialog,
     DialogContent,
@@ -54,8 +60,13 @@ import {
 import { getTeamMembers, type ListTeamMemberDto } from "@/lib/supabase/team-rpc"
 import { getVehiclesByType } from "@/lib/supabase/db"
 import { formatCurrency } from "@/lib/currency"
-import { getConnectStatus } from "@/lib/actions/connect"
-import { useOrgPath } from "@/lib/use-org"
+import {
+    getConnectStatus,
+    getFundingInstructions,
+    getIssuingBalance,
+    type FundingInstructions,
+    type IssuingBalance,
+} from "@/lib/actions/connect"
 
 interface VehicleOption {
     id: string
@@ -354,7 +365,9 @@ export function FuelCardsClient() {
     const [dialogOpen, setDialogOpen] = useState(false)
     const [statusPending, startStatusTransition] = useTransition()
     const [issuingActive, setIssuingActive] = useState(true)
-    const paymentsPath = useOrgPath("/dashboard/settings/payments")
+    const [balance, setBalance] = useState<IssuingBalance[] | null>(null)
+    const [funding, setFunding] = useState<FundingInstructions | null>(null)
+    const [fundingPending, startFundingTransition] = useTransition()
 
     const fetchCards = useCallback(async () => {
         const [cardsResult, txnResult] = await Promise.all([
@@ -375,10 +388,29 @@ export function FuelCardsClient() {
             ),
             getVehiclesByType([], 1, 200).then((res) => setVehicles(res.data as VehicleOption[])),
             getConnectStatus().then((res) => {
-                if (res.success) setIssuingActive(res.data.cardIssuingStatus === "active")
+                if (res.success) {
+                    const active = res.data.cardIssuingStatus === "active"
+                    setIssuingActive(active)
+                    if (active) {
+                        getIssuingBalance().then((r) => {
+                            if (r.success) setBalance(r.data)
+                        })
+                    }
+                }
             }),
         ]).finally(() => setLoading(false))
     }, [fetchCards])
+
+    const showFunding = () => {
+        startFundingTransition(async () => {
+            const r = await getFundingInstructions()
+            if (!r.success) {
+                toast.error(r.error)
+                return
+            }
+            setFunding(r.data)
+        })
+    }
 
     const handleSetStatus = (card: IssuingCard, status: "active" | "inactive" | "canceled") => {
         startStatusTransition(async () => {
@@ -412,13 +444,10 @@ export function FuelCardsClient() {
             {!issuingActive && (
                 <Alert>
                     <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Card issuing isn&apos;t set up yet</AlertTitle>
+                    <AlertTitle>Card issuing isn&apos;t active</AlertTitle>
                     <AlertDescription>
-                        Set up your organisation&apos;s Stripe account to issue and fund
-                        fuel cards.{" "}
-                        <Link href={paymentsPath} className="font-medium underline">
-                            Go to Payments settings
-                        </Link>
+                        Card issuing for your organisation is not yet active. This
+                        activates automatically once Stripe has verified your account.
                     </AlertDescription>
                 </Alert>
             )}
@@ -587,6 +616,82 @@ export function FuelCardsClient() {
                     fetchCards()
                 }}
             />
+
+            {issuingActive && (
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center gap-2">
+                            <CheckCircle2 className="h-5 w-5 text-green-600" />
+                            <CardTitle>Issuing balance</CardTitle>
+                        </div>
+                        <CardDescription>
+                            Funds available to spend on cards. Top up from your organisation&apos;s
+                            bank account using the instructions below.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {balance === null ? (
+                            <div className="text-muted-foreground text-sm flex items-center gap-2">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Loading balance…
+                            </div>
+                        ) : balance.length === 0 ? (
+                            <p className="text-muted-foreground text-sm">
+                                No balance yet. Add funds to start spending.
+                            </p>
+                        ) : (
+                            <div className="flex flex-wrap gap-4">
+                                {balance.map((b) => (
+                                    <div key={b.currency} className="text-2xl font-semibold">
+                                        {formatCurrency(b.amount / 100, b.currency.toUpperCase())}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        <Button variant="outline" onClick={showFunding} disabled={fundingPending}>
+                            <Banknote className="mr-2 h-4 w-4" />
+                            {fundingPending ? "Loading…" : "Show funding instructions"}
+                        </Button>
+
+                        {funding && <FundingDetails funding={funding} />}
+                    </CardContent>
+                </Card>
+            )}
+        </div>
+    )
+}
+
+function FundingDetails({ funding }: { funding: FundingInstructions }) {
+    return (
+        <div className="rounded-md border p-4 space-y-4 text-sm">
+            <p className="text-muted-foreground">
+                Send a bank transfer from your organisation&apos;s bank account to the
+                details below. Funds appear in your Issuing balance once received.
+            </p>
+            {funding.bank_transfer.financial_addresses.map((addr, i) => {
+                const type = String(addr.type ?? "")
+                const detail = (addr[type] ?? {}) as Record<string, unknown>
+                return (
+                    <div key={i} className="space-y-1">
+                        <div className="font-medium uppercase text-xs text-muted-foreground">
+                            {type.replace(/_/g, " ")}
+                        </div>
+                        <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-0.5">
+                            {Object.entries(detail)
+                                .filter(([, v]) => typeof v === "string" || typeof v === "number")
+                                .map(([k, v]) => (
+                                    <div key={k} className="contents">
+                                        <dt className="text-muted-foreground">
+                                            {k.replace(/_/g, " ")}
+                                        </dt>
+                                        <dd className="font-mono">{String(v)}</dd>
+                                    </div>
+                                ))}
+                        </dl>
+                    </div>
+                )
+            })}
         </div>
     )
 }

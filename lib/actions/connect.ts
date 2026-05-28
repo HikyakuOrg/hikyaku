@@ -44,7 +44,7 @@ async function getAuthHeaders(): Promise<{ accessToken: string } | { error: stri
 }
 
 function getApiUrl(): string | null {
-    return process.env.WHENDAN_API_URL ?? null
+    return process.env.NEXT_PUBLIC_HIKYAKU_API_URL ?? null
 }
 
 async function getOrgSlug(): Promise<string | null> {
@@ -105,7 +105,6 @@ export async function getConnectStatus(): Promise<
 
 export async function createAccountSession(
     country: string,
-    currency: string,
 ): Promise<{ success: true; data: AccountSession } | ActionError> {
     const hResult = await buildHeaders()
     if ("error" in hResult) return { success: false, error: hResult.error }
@@ -118,7 +117,7 @@ export async function createAccountSession(
         res = await fetch(`${apiUrl}/api/v1/connect/account-session`, {
             method: "POST",
             headers: hResult.headers,
-            body: JSON.stringify({ country, currency }),
+            body: JSON.stringify({ country }),
         })
     } catch {
         return { success: false, error: "Could not reach the server. Check your connection." }

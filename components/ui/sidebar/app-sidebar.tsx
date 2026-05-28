@@ -17,8 +17,15 @@ import { GearIcon, PersonIcon, BlueprintIcon, MapTrifoldIcon, PackageIcon, Truck
 import { JwtPayload } from "@supabase/supabase-js"
 import { ClockIcon } from "lucide-react"
 
-function buildNavItems(slug: string) {
+function buildNavItems(slug: string, cardIssuingActive: boolean) {
   const p = (path: string) => orgPath(slug, path)
+  const fleetItems: { title: string; url: string }[] = [
+    { title: "Team Members", url: p('/dashboard/fleet/team-members') },
+    { title: "Vehicles", url: p('/dashboard/fleet/vehicles') },
+  ]
+  if (cardIssuingActive) {
+    fleetItems.push({ title: "Fuel Cards", url: p('/dashboard/fleet/fuel-cards') })
+  }
   return [
     {
       title: "Dashboard",
@@ -44,11 +51,7 @@ function buildNavItems(slug: string) {
       title: "Fleet",
       url: "",
       icon: <TruckIcon />,
-      items: [
-        { title: "Team Members", url: p('/dashboard/fleet/team-members') },
-        { title: "Vehicles", url: p('/dashboard/fleet/vehicles') },
-        { title: "Fuel Cards", url: p('/dashboard/fleet/fuel-cards') },
-      ],
+      items: fleetItems,
     },
     {
       title: "Service",
@@ -66,7 +69,6 @@ function buildNavItems(slug: string) {
       icon: <GearIcon />,
       items: [
         { title: "Team", url: p('/dashboard/settings/team') },
-        { title: "Payments", url: p('/dashboard/settings/payments') },
         { title: "Mobile", url: p('/dashboard/settings/mobile') },
       ],
     },
@@ -77,10 +79,11 @@ type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
   user: JwtPayload
   organisations: OrganisationSummary[]
   currentSlug: string | null
+  cardIssuingActive?: boolean
 }
 
-export function AppSidebar({ user, organisations, currentSlug, ...props }: AppSidebarProps) {
-  const navItems = currentSlug ? buildNavItems(currentSlug) : []
+export function AppSidebar({ user, organisations, currentSlug, cardIssuingActive = false, ...props }: AppSidebarProps) {
+  const navItems = currentSlug ? buildNavItems(currentSlug, cardIssuingActive) : []
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>

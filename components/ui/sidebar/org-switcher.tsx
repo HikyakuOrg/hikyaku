@@ -30,6 +30,10 @@ export function OrgSwitcher({
   const current =
     organisations.find((o) => o.slug === currentSlug) ?? organisations[0] ?? null
 
+  // Personal orgs have no display name — they're stored with name=NULL and
+  // surfaced as "Personal" everywhere they appear.
+  const display = (o: OrganisationSummary) => o.name ?? 'Personal'
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -44,7 +48,7 @@ export function OrgSwitcher({
             </div>
             <div className="grid flex-1 text-start text-sm leading-tight">
               <span className="truncate font-medium">
-                {current.name}
+                {current ? display(current) : ''}
               </span>
             </div>
             <CaretUpDownIcon className="ms-auto size-4" />
@@ -64,7 +68,7 @@ export function OrgSwitcher({
                   }
                 }}
               >
-                <span className="truncate">{org.name}</span>
+                <span className="truncate">{display(org)}</span>
                 {org.slug === currentSlug && (
                   <CheckIcon className="ms-auto size-4" />
                 )}
