@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache"
 import { headers } from "next/headers"
-import { createAdminClient } from "@/lib/supabase/admin"
 import { getSupabaseServerClaims } from "@/lib/supabase/server"
 import { createClient } from "@/lib/supabase/server"
 
@@ -148,15 +147,15 @@ export async function adjustRoute(params: AdjustRouteParams): Promise<AdjustRout
         }
     }
 
-    // 6. Execute changes with admin client (service role bypasses RLS for writes)
-    const admin = createAdminClient()
-
+    // 6. Execute changes with the authenticated client.
+    // RLS policies grant packages.edit users UPDATE/DELETE on vrp_route_step,
+    // DELETE on package_assignment, and INSERT on package_timeline.
     try {
         // 6a. Delete removed steps and their package assignments
         for (const stepId of deletedStepIds) {
             const step = currentSteps.find(s => s.id === stepId)!
 
-            const { error: deleteStepError } = await admin
+            const { error: deleteStepError } = await supabase
                 .from("vrp_route_step")
                 .delete()
                 .eq("id", stepId)
@@ -166,7 +165,7 @@ export async function adjustRoute(params: AdjustRouteParams): Promise<AdjustRout
 
             // Unassign the package and reset its status to PENDING
             if (step.package_id) {
-                const { error: deleteAssignError } = await admin
+                const { error: deleteAssignError } = await supabase
                     .from("package_assignment")
                     .delete()
                     .eq("package_id", step.package_id)
@@ -176,7 +175,7 @@ export async function adjustRoute(params: AdjustRouteParams): Promise<AdjustRout
                     )
                 }
 
-                const { error: timelineError } = await admin.rpc("insert_package_timeline", {
+                const { error: timelineError } = await supabase.rpc("insert_package_timeline", {
                     p_package_id: step.package_id,
                     p_status_enum: "PENDING",
                 })
@@ -192,7 +191,7 @@ export async function adjustRoute(params: AdjustRouteParams): Promise<AdjustRout
         // Phase 1: set all step_indexes to -(id) to avoid the UNIQUE(route_id, step_index) constraint
         const remainingSteps = currentSteps.filter(s => !deletedStepIds.includes(s.id))
         for (const step of remainingSteps) {
-            const { error } = await admin
+            const { error } = await supabase
                 .from("vrp_route_step")
                 .update({ step_index: -step.id })
                 .eq("id", step.id)
@@ -204,7 +203,7 @@ export async function adjustRoute(params: AdjustRouteParams): Promise<AdjustRout
         // Phase 2: apply the new step_index values
         for (let newIndex = 0; newIndex < orderedStepIds.length; newIndex++) {
             const stepId = orderedStepIds[newIndex]
-            const { error } = await admin
+            const { error } = await supabase
                 .from("vrp_route_step")
                 .update({ step_index: newIndex })
                 .eq("id", stepId)
