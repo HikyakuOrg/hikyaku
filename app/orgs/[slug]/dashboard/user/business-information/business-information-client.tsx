@@ -333,7 +333,9 @@ function CompanySection() {
                         onValueChange={(v) => v && setCountry(v)}
                     >
                         <SelectTrigger id="country">
-                            <SelectValue placeholder="Select country" />
+                            <SelectValue placeholder="Select country">
+                                {STRIPE_COUNTRIES.find(c => c.code === country)?.label ?? country}
+                            </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                             {STRIPE_COUNTRIES.map((c) => (
