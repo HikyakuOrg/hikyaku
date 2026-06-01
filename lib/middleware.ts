@@ -74,9 +74,11 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(`${protocol}://${ROOT_DOMAIN}/`)
   }
 
-  // Apex host — protect dashboard and org routes.
+  // Apex host — protect dashboard and org routes. Booking is per-organisation
+  // (served on a tenant subdomain) and stays public: let the apex /booking
+  // request reach the page so it can render a 404 (no org slug to book with).
   if (!user) {
-    if (pathname.startsWith('/orgs') || (!isAuthRoute && pathname !== '/')) {
+    if (pathname.startsWith('/orgs') || (!isAuthRoute && !isBookingRoute && pathname !== '/')) {
       const url = request.nextUrl.clone()
       url.pathname = '/auth/login'
       return NextResponse.redirect(url)

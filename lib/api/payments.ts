@@ -21,6 +21,7 @@ function toKg(weight: number, unit: string): number {
 export async function createCheckout(
     formData: BookingFormData,
     serviceRateId: string,
+    orgSlug: string,
 ): Promise<CreateCheckoutResult> {
     const { package: pkg, addresses, schedule } = formData
 
@@ -72,6 +73,7 @@ export async function createCheckout(
         method: "POST",
         headers: {
             "Content-Type": "application/json",
+            "x-org-slug": orgSlug,
             ...(token ? { "x-whendan": `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(body),

@@ -56,8 +56,10 @@ const { Stepper } = defineStepper(
 
 export function BookingStepper({
     serviceRates,
+    orgSlug,
 }: {
     serviceRates: ServiceRateOption[]
+    orgSlug: string
 }) {
     const [serviceFee, setServiceFee] = useState<ServiceFeeResult | null>(null)
     const [isCalculatingFee, setIsCalculatingFee] = useState(false)
@@ -227,7 +229,8 @@ export function BookingStepper({
                                             try {
                                                 const result = await calculateServiceFee(
                                                     updated,
-                                                    formData.package?.serviceRateId ?? ""
+                                                    formData.package?.serviceRateId ?? "",
+                                                    orgSlug
                                                 )
                                                 setServiceFee(result)
                                                 stepper.navigation.next()
@@ -258,7 +261,8 @@ export function BookingStepper({
                                                     await createCheckout(
                                                         formData,
                                                         formData.package
-                                                            ?.serviceRateId ?? ""
+                                                            ?.serviceRateId ?? "",
+                                                        orgSlug
                                                     )
                                                 // Redirect to Stripe-hosted
                                                 // Checkout. Fulfillment happens

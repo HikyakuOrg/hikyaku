@@ -1,8 +1,31 @@
+import { headers } from "next/headers"
+import { notFound } from "next/navigation"
 import { BookingStepper } from "./booking-stepper"
-import { getServiceRates } from "@/lib/supabase/db-server"
+import { getOrganisationBySlug, getServiceRates } from "@/lib/supabase/db-server"
 
 export default async function BookingPage() {
-    const serviceRates = await getServiceRates()
+    // The active tenant is resolved by middleware from the subdomain
+    // (<slug>.hikyaku.org) and exposed as the x-org-slug request header. Booking
+    // is per-organisation only — without a slug (e.g. the apex domain) there is
+    // no store to book with.
+    const slug = (await headers()).get("x-org-slug")
+    if (!slug) notFound()
+
+    const organisation = await getOrganisationBySlug(slug)
+    if (!organisation) notFound()
+
+    const serviceRates = await getServiceRates(organisation.id)
+    const orgName = organisation.name ?? "This store"
+
+    if (serviceRates.length === 0) {
+        return (
+            <div className="flex min-h-[70svh] flex-col items-center justify-center px-4 text-center">
+                <h1 className="scroll-m-20 text-2xl font-semibold tracking-tight text-balance">
+                    {orgName} is not accepting any services now
+                </h1>
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-6">
@@ -14,7 +37,7 @@ export default async function BookingPage() {
                     Fill in your package and delivery details to get started.
                 </p>
             </div>
-            <BookingStepper serviceRates={serviceRates} />
+            <BookingStepper serviceRates={serviceRates} orgSlug={organisation.slug} />
         </div>
     )
 }

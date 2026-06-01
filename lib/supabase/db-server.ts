@@ -210,11 +210,39 @@ export async function getServiceAreas() {
     return createServiceAreaFeatureCollection(data ?? [])
 }
 
-export async function getServiceRates(): Promise<ServiceRateOption[]> {
+// Minimal organisation shape the public booking page needs (id to scope rates,
+// name for headings/empty state, slug to forward to the payments API).
+export type BookingOrganisation = {
+    id: string
+    name: string | null
+    slug: string
+}
+
+// Resolve an organisation by its public slug. Used by the unauthenticated
+// booking page (<slug>.hikyaku.org/booking), so it runs under the anon client —
+// organisations has no RLS and anon holds the table grant. Returns null when no
+// org matches the slug.
+export async function getOrganisationBySlug(slug: string): Promise<BookingOrganisation | null> {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+        .from("organisations")
+        .select("id, name, slug")
+        .eq("slug", slug)
+        .maybeSingle()
+
+    if (error) {
+        console.error(error)
+        return null
+    }
+    return data
+}
+
+export async function getServiceRates(organisationId: string): Promise<ServiceRateOption[]> {
     const supabase = await createClient()
     const { data, error } = await supabase
         .from("service_rates")
         .select("id, name, delivery_type, distance_unit")
+        .eq("organisation_id", organisationId)
         .order("name", { ascending: true })
 
     if (error) {

@@ -37,6 +37,7 @@ function toKg(weight: number, unit: string): number {
 export async function calculateServiceFee(
     formData: BookingFormData,
     serviceRateId: string,
+    orgSlug: string,
 ): Promise<ServiceFeeResult> {
     const { package: pkg, addresses, schedule } = formData
 
@@ -87,6 +88,7 @@ export async function calculateServiceFee(
         method: "POST",
         headers: {
             "Content-Type": "application/json",
+            "x-org-slug": orgSlug,
             ...(token ? { "x-whendan": `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(body),
