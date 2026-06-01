@@ -252,26 +252,107 @@ export type Database = {
           },
         ]
       }
+      organisation_invitation_permissions: {
+        Row: {
+          invitation_id: string
+          permission_id: number
+        }
+        Insert: {
+          invitation_id: string
+          permission_id: number
+        }
+        Update: {
+          invitation_id?: string
+          permission_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organisation_invitation_permissions_invitation_id_fkey"
+            columns: ["invitation_id"]
+            isOneToOne: false
+            referencedRelation: "organisation_invitations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organisation_invitation_permissions_permission_id_fkey"
+            columns: ["permission_id"]
+            isOneToOne: false
+            referencedRelation: "app_permission"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organisation_invitations: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          email: string
+          id: string
+          invited_by_user_id: string
+          organisation_id: string
+          role_id: number
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          email: string
+          id?: string
+          invited_by_user_id: string
+          organisation_id: string
+          role_id: number
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          email?: string
+          id?: string
+          invited_by_user_id?: string
+          organisation_id?: string
+          role_id?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organisation_invitations_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organisation_invitations_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "app_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organisations: {
         Row: {
           created_at: string
           created_by: string
           id: string
-          name: string
+          name: string | null
+          org_type: string
           slug: string
         }
         Insert: {
           created_at?: string
           created_by?: string
           id?: string
-          name: string
+          name?: string | null
+          org_type?: string
           slug?: string
         }
         Update: {
           created_at?: string
           created_by?: string
           id?: string
-          name?: string
+          name?: string | null
+          org_type?: string
           slug?: string
         }
         Relationships: []
@@ -995,54 +1076,6 @@ export type Database = {
             columns: ["warehouse_id"]
             isOneToOne: false
             referencedRelation: "warehouse"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      vehicle_maintenance: {
-        Row: {
-          created_at: string
-          date_serviced: string
-          description: string
-          id: string
-          odometer: number
-          organisation_id: string
-          user_id: string | null
-          vehicle_id: string
-        }
-        Insert: {
-          created_at?: string
-          date_serviced: string
-          description: string
-          id?: string
-          odometer: number
-          organisation_id: string
-          user_id?: string | null
-          vehicle_id: string
-        }
-        Update: {
-          created_at?: string
-          date_serviced?: string
-          description?: string
-          id?: string
-          odometer?: number
-          organisation_id?: string
-          user_id?: string | null
-          vehicle_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "vehicle_maintenance_organisation_id_fkey"
-            columns: ["organisation_id"]
-            isOneToOne: false
-            referencedRelation: "organisations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "vehicle_maintenance_vehicle_id_fkey"
-            columns: ["vehicle_id"]
-            isOneToOne: false
-            referencedRelation: "vehicles"
             referencedColumns: ["id"]
           },
         ]
