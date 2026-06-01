@@ -33,6 +33,12 @@ export interface IssuingBalance {
     currency: string
 }
 
+export interface OrgIssuingStatus {
+    slug: string
+    cardIssuingStatus: string | null
+    detailsSubmitted: boolean
+}
+
 type ActionError = { success: false; error: string }
 
 async function getAuthHeaders(): Promise<{ accessToken: string } | { error: string }> {
@@ -171,4 +177,29 @@ export async function getIssuingBalance(): Promise<
 
     if (!res.ok) return { success: false, error: await parseError(res) }
     return { success: true, data: await res.json() }
+}
+
+/**
+ * Issuing-status flags for all orgs the caller belongs to.
+ * Used by the org switcher — no active-org context needed, only a valid JWT.
+ */
+export async function getIssuingStatuses(): Promise<OrgIssuingStatus[]> {
+    const auth = await getAuthHeaders()
+    if ("error" in auth) return []
+
+    const apiUrl = getApiUrl()
+    if (!apiUrl) return []
+
+    try {
+        const res = await fetch(`${apiUrl}/api/v1/connect/issuing-statuses`, {
+            headers: {
+                Authorization: `Bearer ${auth.accessToken}`,
+            },
+            cache: "no-store",
+        })
+        if (!res.ok) return []
+        return res.json()
+    } catch {
+        return []
+    }
 }

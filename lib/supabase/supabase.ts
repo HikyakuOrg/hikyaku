@@ -82,7 +82,6 @@ export type Database = {
           customer_suburb: string
           id: string
           organisation_id: string
-          stripe_customer_id: string | null
         }
         Insert: {
           created_at?: string
@@ -96,7 +95,6 @@ export type Database = {
           customer_suburb: string
           id?: string
           organisation_id: string
-          stripe_customer_id?: string | null
         }
         Update: {
           created_at?: string
@@ -110,7 +108,6 @@ export type Database = {
           customer_suburb?: string
           id?: string
           organisation_id?: string
-          stripe_customer_id?: string | null
         }
         Relationships: [
           {
@@ -624,58 +621,6 @@ export type Database = {
             columns: ["warehouse_id"]
             isOneToOne: false
             referencedRelation: "warehouse"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      payments: {
-        Row: {
-          created_at: string
-          id: string
-          organisation_id: string
-          package_id: string | null
-          status: string
-          stripe_checkout_session_id: string | null
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          organisation_id: string
-          package_id?: string | null
-          status?: string
-          stripe_checkout_session_id?: string | null
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          organisation_id?: string
-          package_id?: string | null
-          status?: string
-          stripe_checkout_session_id?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payments_organisation_id_fkey"
-            columns: ["organisation_id"]
-            isOneToOne: false
-            referencedRelation: "organisations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payments_package_id_fkey"
-            columns: ["package_id"]
-            isOneToOne: false
-            referencedRelation: "packages"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payments_package_id_fkey"
-            columns: ["package_id"]
-            isOneToOne: false
-            referencedRelation: "packages_with_latest_status"
             referencedColumns: ["id"]
           },
         ]

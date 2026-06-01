@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { getIssuingStatuses } from '@/lib/actions/connect'
 
 export interface OrganisationSummary {
   id: string
@@ -82,19 +83,30 @@ export async function listMyOrganisations(): Promise<OrganisationSummary[]> {
   const { data: userData } = await supabase.auth.getUser()
   if (!userData.user) return []
 
-  const { data, error } = await supabase
-    .from('organisations')
-    .select('id, slug, name, org_type, card_issuing_status, details_submitted, user_permission!inner(user_id)')
-    .eq('user_permission.user_id', userData.user.id)
+  const [orgsResult, issuingStatuses] = await Promise.all([
+    supabase
+      .from('organisations')
+      .select('id, slug, name, org_type, user_permission!inner(user_id)')
+      .eq('user_permission.user_id', userData.user.id),
+    getIssuingStatuses(),
+  ])
 
-  if (error || !data) return []
+  if (orgsResult.error || !orgsResult.data) return []
+
+  const statusBySlug = new Map(
+    issuingStatuses.map((s) => [s.slug, s]),
+  )
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data as any[]).map(({ id, slug, name, org_type, card_issuing_status, details_submitted }) => ({
-    id,
-    slug,
-    name: name ?? null,
-    orgType: org_type ?? 'personal',
-    cardIssuingStatus: card_issuing_status ?? null,
-    detailsSubmitted: details_submitted ?? false,
-  }))
+  return (orgsResult.data as any[]).map(({ id, slug, name, org_type }) => {
+    const stripe = statusBySlug.get(slug)
+    return {
+      id,
+      slug,
+      name: name ?? null,
+      orgType: org_type ?? 'personal',
+      cardIssuingStatus: stripe?.cardIssuingStatus ?? null,
+      detailsSubmitted: stripe?.detailsSubmitted ?? false,
+    }
+  })
 }

@@ -53,7 +53,6 @@ export async function prepareCustomerFromForm(
         customer_state: values.customerState,
         customer_postcode: values.customerPostcode,
         customer_location: location,
-        stripe_customer_id: null,
     }
 
     const serviceAreas = await getServiceAreas()

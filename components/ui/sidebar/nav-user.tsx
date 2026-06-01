@@ -19,7 +19,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { CaretUpDownIcon, SparkleIcon, CheckCircleIcon, CreditCardIcon, BellIcon, SignOutIcon, BuildingsIcon } from "@phosphor-icons/react"
+import { CaretUpDownIcon, SparkleIcon, CheckCircleIcon, CreditCardIcon, BellIcon, SignOutIcon } from "@phosphor-icons/react"
 import { JwtPayload } from "@supabase/supabase-js"
 import { createClient } from '@/lib/supabase/client'
 import { useOrgPath } from "@/lib/use-org"
@@ -34,7 +34,6 @@ export function NavUser({
   const { isMobile } = useSidebar()
   const router = useRouter()
   const accountPath = useOrgPath('/dashboard/user/account')
-  const businessInfoPath = useOrgPath('/dashboard/user/business-information')
 
   const [displayName, setDisplayName] = useState<string>(
     user?.user_metadata?.display_name ?? ""
@@ -91,11 +90,6 @@ export function NavUser({
                 <CheckCircleIcon
                 />
                 Account
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push(businessInfoPath)}>
-                <BuildingsIcon
-                />
-                Business Information
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
