@@ -9,7 +9,7 @@ import { UserRoundPlus, UserRoundSearch } from 'lucide-react';
 import { CustomerCard } from "./customer-card";
 import { Badge } from "@/components/ui/badge";
 import { AddCustomerDialog } from "./add-customer-dialog";
-import { getCustomersByIds } from "@/lib/supabase/db";
+import { getCustomersByIdsAction } from "@/lib/actions/customers";
 
 export function CustomerInfo({ onNext, onPrev, defaultValues }: {
     onNext: (data: CustomerFormValues & { sender?: Customer; receiver?: Customer }) => void;
@@ -34,7 +34,7 @@ export function CustomerInfo({ onNext, onPrev, defaultValues }: {
 
             if (customerIds.length > 0) {
                 try {
-                    const customers = await getCustomersByIds(customerIds);
+                    const customers = await getCustomersByIdsAction(customerIds);
                     const sender = customers.find(c => c.id === defaultValues?.senderId);
                     const receiver = customers.find(c => c.id === defaultValues?.receiverId);
 

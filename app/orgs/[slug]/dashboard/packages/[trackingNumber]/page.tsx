@@ -1,6 +1,7 @@
 "use client"
 
-import { getCustomersByIds, getPackage, getPackageAssignment, getPackageByTrackingNumber, getPackageDeliveryWindow, getPackageDimension, getPackageTimeline, getWarehouse, getPackageFailure } from "@/lib/supabase/db"
+import { getPackage, getPackageAssignment, getPackageByTrackingNumber, getPackageDeliveryWindow, getPackageDimension, getPackageTimeline, getWarehouse, getPackageFailure } from "@/lib/supabase/db"
+import { getCustomersByIdsAction } from "@/lib/actions/customers"
 import { getDriversByIds } from "@/lib/supabase/supabase-rpc"
 import { useParams } from "next/navigation"
 import { useEffect, useState, useRef } from "react"
@@ -29,8 +30,8 @@ export default function PackageDetails() {
     const [driver, setDriver] = useState<ListDriverDto | null>(null)
     const [fromCustomerId, setFromCustomerId] = useState<string | null>("")
     const [toCustomerId, setToCustomerId] = useState<string | null>("")
-    const [fromCustomer, setFromCustomer] = useState<Tables<'customer'> | null>(null)
-    const [toCustomer, setToCustomer] = useState<Tables<'customer'> | null>(null)
+    const [fromCustomer, setFromCustomer] = useState<Customer | null>(null)
+    const [toCustomer, setToCustomer] = useState<Customer | null>(null)
     const [packageStatusTimeline, setPackageStatusTimeline] = useState<PackageStatusTimeline[]>([])
     const [packageDimension, setPackageDimension] = useState<Tables<"package_dimensions"> | null>(null)
     const [packageDeliveryWindow, setPackageDeliveryWindow] = useState<Tables<"package_delivery_window"> | null>(null)
@@ -103,7 +104,7 @@ export default function PackageDetails() {
     }
 
     async function fetchCustomer(customerIds: string[]) {
-        const customers = await getCustomersByIds(customerIds)
+        const customers = await getCustomersByIdsAction(customerIds)
         const fromCust = customers.find((item) => item.id === fromCustomerId)
         const toCust = customers.find((item) => item.id === toCustomerId)
         if (fromCust) setFromCustomer(fromCust)

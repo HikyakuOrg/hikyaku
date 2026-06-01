@@ -72,42 +72,24 @@ export type Database = {
       customer: {
         Row: {
           created_at: string
-          customer_address: string
-          customer_country: string
           customer_location: unknown
-          customer_name: string
-          customer_phone: string
-          customer_postcode: string
-          customer_state: string
-          customer_suburb: string
           id: string
           organisation_id: string
+          stripe_customer_id: string | null
         }
         Insert: {
           created_at?: string
-          customer_address: string
-          customer_country: string
           customer_location: unknown
-          customer_name: string
-          customer_phone: string
-          customer_postcode: string
-          customer_state?: string
-          customer_suburb: string
           id?: string
           organisation_id: string
+          stripe_customer_id?: string | null
         }
         Update: {
           created_at?: string
-          customer_address?: string
-          customer_country?: string
           customer_location?: unknown
-          customer_name?: string
-          customer_phone?: string
-          customer_postcode?: string
-          customer_state?: string
-          customer_suburb?: string
           id?: string
           organisation_id?: string
+          stripe_customer_id?: string | null
         }
         Relationships: [
           {

@@ -99,17 +99,6 @@ export function subscribeToDriverLocationUpdates(driverId: string, onUpdate: (pa
 }
 
 
-export async function getCustomersByIds(customerIds: string[]) {
-    const { data, error } = await supabase.from("customer").select("*").in("id", customerIds)
-    if (error) throw error
-    return data
-}
-
-export async function getCustomer(customerId: string) {
-    const { data, error } = await supabase.from("customer").select("*").eq("id", customerId).single()
-    if (error) throw error
-    return data
-}
 
 export async function getPackageDimension(packageId: string) {
     const { data, error } = await supabase.from("package_dimensions").select("*").eq("package_id", packageId).single()
@@ -456,16 +445,6 @@ export async function assignVehicleToDriver(vehicleId: string, driverId: string)
 }
 
 
-export async function getCustomerDetails(details: string) {
-    const { data, error } = await supabase
-        .from('customer')
-        .select('*')
-        .or(`customer_name.ilike.%${details}%,customer_phone.ilike.%${details}%`)
-        .limit(20)
-    return data
-}
-
-
 export async function getOrganisationIdBySlug(slug: string) {
     const { data, error } = await supabase
         .from("organisations")
@@ -476,40 +455,6 @@ export async function getOrganisationIdBySlug(slug: string) {
     return data.id
 }
 
-export async function createCustomer(customer: Customer) {
-    const { data, error } = await supabase.from("customer").insert({
-        organisation_id: customer.organisation_id,
-        customer_name: customer.customer_name,
-        customer_phone: customer.customer_phone,
-        customer_address: customer.customer_address,
-        customer_suburb: customer.customer_suburb,
-        customer_postcode: customer.customer_postcode,
-        customer_country: customer.customer_country,
-        customer_state: customer.customer_state,
-        customer_location: customer.customer_location,
-    }).select().single()
-
-    if (error) throw error
-
-    return data as Customer
-}
-
-export async function updateCustomer(customerId: string, customer: Customer) {
-    const { data, error } = await supabase.from("customer").update({
-        customer_name: customer.customer_name,
-        customer_phone: customer.customer_phone,
-        customer_address: customer.customer_address,
-        customer_suburb: customer.customer_suburb,
-        customer_postcode: customer.customer_postcode,
-        customer_country: customer.customer_country,
-        customer_state: customer.customer_state,
-        customer_location: customer.customer_location,
-    }).eq("id", customerId).select().single()
-
-    if (error) throw error
-
-    return data as Customer
-}
 
 
 export async function searchWarehouse(search: string) {

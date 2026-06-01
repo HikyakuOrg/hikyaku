@@ -9,7 +9,7 @@ import {
     ComboboxList,
 } from "@/components/ui/combobox"
 import { Item, ItemContent, ItemTitle, ItemDescription } from "@/components/ui/item"
-import { getCustomerDetails } from "@/lib/supabase/db"
+import { searchCustomersAction } from "@/lib/actions/customers"
 
 
 type Props<T extends FieldValues> = {
@@ -41,14 +41,8 @@ export function CustomerSelector<T extends FieldValues = any>({ name, control, c
             }
 
             setIsLoading(true)
-            const data = await getCustomerDetails(searchTerm)
-            const typedData: Customer[] =
-                data?.map((item) => ({
-                    ...item,
-                    customer_location: item.customer_location as Point,
-                })) ?? [];
-
-            setResults(typedData);
+            const data = await searchCustomersAction(searchTerm)
+            setResults(data);
             setIsLoading(false)
         }, 300)
 

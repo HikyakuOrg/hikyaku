@@ -11,6 +11,7 @@ interface Customer {
     customer_suburb: string;
     customer_state: string;
     customer_location: Point;
+    stripe_customer_id?: string | null;
     created_at: string;
     id: string;
 }

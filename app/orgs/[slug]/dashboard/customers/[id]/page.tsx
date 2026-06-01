@@ -27,7 +27,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { getCustomer } from "@/lib/supabase/db"
+import { getCustomerAction } from "@/lib/actions/customers"
 import { Calendar, Globe, Hash, Loader2, MoreVertical, Phone } from "lucide-react"
 import { CustomerPackagesTable } from "./customer-packages-table"
 
@@ -60,7 +60,7 @@ export default function CustomerDetailPage({ params }: CustomerDetailPageProps) 
 
         async function loadCustomer() {
             try {
-                const nextCustomer = await getCustomer(id)
+                const nextCustomer = await getCustomerAction(id)
 
                 if (!active) {
                     return

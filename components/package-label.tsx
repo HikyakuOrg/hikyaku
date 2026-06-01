@@ -3,12 +3,10 @@
 import { useEffect, useRef } from "react";
 import { QRCodeCanvas } from 'qrcode.react';
 import JsBarcode from "jsbarcode";
-import { Tables } from "@/lib/supabase/supabase";
-
 interface PackageLabelProps {
     packageId: string;
     trackingNumber: string;
-    receiver: Tables<'customer'>;
+    receiver: Customer | null;
     canvasRef: React.RefObject<HTMLCanvasElement | null>;
 }
 
@@ -17,7 +15,7 @@ export function PackageLabel({ packageId, trackingNumber, receiver, canvasRef }:
 
     useEffect(() => {
         const canvas = canvasRef.current;
-        if (!canvas) return;
+        if (!canvas || !receiver) return;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 

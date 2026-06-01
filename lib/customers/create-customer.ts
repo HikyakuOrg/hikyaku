@@ -1,7 +1,7 @@
 import type { CustomerFormValues } from "@/components/customers/customer-schema"
 import { isPointWithinServiceAreas } from "@/lib/maps/service-area-geometry"
 import { createClient } from "@/lib/supabase/client"
-import { createCustomer, getOrganisationIdBySlug, updateCustomer } from "@/lib/supabase/db"
+import { createCustomerAction, updateCustomerAction } from "@/lib/actions/customers"
 
 type ServiceAreaRecord = {
     id: string
@@ -30,20 +30,16 @@ export function customerToFormValues(customer: Customer): CustomerFormValues {
 
 export async function prepareCustomerFromForm(
     values: CustomerFormValues,
-    slug: string,
     customerId = ""
 ): Promise<PreparedCustomerCreation> {
-
     const location: Point = {
         type: "Point",
         coordinates: [values.customerLon, values.customerLat],
     }
 
-    const organisationId = await getOrganisationIdBySlug(slug)
-
     const customer: Customer = {
         id: customerId,
-        organisation_id: organisationId,
+        organisation_id: "",
         created_at: "",
         customer_name: values.customerName,
         customer_phone: values.customerPhone,
@@ -63,20 +59,18 @@ export async function prepareCustomerFromForm(
     }
 }
 
-export async function createCustomerFromForm(values: CustomerFormValues, slug: string) {
-    const prepared = await prepareCustomerFromForm(values, slug)
-    return createPreparedCustomer(prepared)
-}
 
 export async function createPreparedCustomer(prepared: PreparedCustomerCreation) {
-    return createCustomer(prepared.customer)
+    const values = customerToFormValues(prepared.customer)
+    return createCustomerAction(values)
 }
 
 export async function updatePreparedCustomer(
     customerId: string,
     prepared: PreparedCustomerCreation
 ) {
-    return updateCustomer(customerId, prepared.customer)
+    const values = customerToFormValues(prepared.customer)
+    return updateCustomerAction(customerId, values)
 }
 
 async function getServiceAreas(): Promise<ServiceAreaRecord[]> {

@@ -26,7 +26,7 @@ import {
     type PreparedCustomerCreation,
     updatePreparedCustomer,
 } from "@/lib/customers/create-customer"
-import { getCustomer } from "@/lib/supabase/db"
+import { getCustomerAction } from "@/lib/actions/customers"
 import { useOrgSlug } from "@/lib/use-org"
 
 type CustomerEditorPageProps = {
@@ -59,7 +59,7 @@ export function CustomerEditorPage({ mode, customerId }: CustomerEditorPageProps
 
         async function loadCustomer() {
             try {
-                const customer = await getCustomer(customerId!)
+                const customer = await getCustomerAction(customerId!)
 
                 if (!active) {
                     return
@@ -99,7 +99,7 @@ export function CustomerEditorPage({ mode, customerId }: CustomerEditorPageProps
         setIsSubmitting(true)
 
         try {
-            const prepared = await prepareCustomerFromForm(values, slug, customerId ?? "")
+            const prepared = await prepareCustomerFromForm(values, customerId ?? "")
 
             if (!prepared.isWithinServiceArea) {
                 setPendingSubmission(prepared)

@@ -108,14 +108,6 @@ type CustomerPackageStatusRow = Pick<
 type CustomerPackageDetailsRow = {
     id: string
     tracking_number: string
-    from_customer_details:
-    | { customer_address: string | null }
-    | { customer_address: string | null }[]
-    | null
-    to_customer_details:
-    | { customer_address: string | null }
-    | { customer_address: string | null }[]
-    | null
     package_assignment:
     | { driver_id: string }
     | { driver_id: string }[]
@@ -134,21 +126,6 @@ export type CustomerPackageListItem = {
 
 function getCustomerPackageColumn(direction: CustomerPackageDirection) {
     return direction === "shipped" ? "from_customer" : "to_customer"
-}
-
-function getNestedAddress(
-    relation:
-        | { customer_address: string | null }
-        | { customer_address: string | null }[]
-        | null
-) {
-    if (!relation) {
-        return ""
-    }
-
-    return Array.isArray(relation)
-        ? relation[0]?.customer_address ?? ""
-        : relation.customer_address ?? ""
 }
 
 function getAssignedDriverId(
@@ -211,7 +188,7 @@ export async function getCustomerPackages(
         client
     )
 
-    const packageIds = packageStatuses.map((item) => item.id)
+    const packageIds = packageStatuses.map((item) => item.id).filter((id): id is string => id != null)
 
     if (!packageIds.length) {
         return []
@@ -222,8 +199,6 @@ export async function getCustomerPackages(
         .select(`
             id,
             tracking_number,
-            from_customer_details:customer!packages_from_customer_fkey(customer_address),
-            to_customer_details:customer!packages_to_customer_fkey(customer_address),
             package_assignment(driver_id)
         `)
         .in("id", packageIds)
@@ -233,11 +208,11 @@ export async function getCustomerPackages(
     }
 
     const packageRows = (data ?? []) as CustomerPackageDetailsRow[]
-    const driverIds = Array.from(
+    const driverIds: string[] = Array.from(
         new Set(
             packageRows
                 .map((item) => getAssignedDriverId(item.package_assignment))
-                .filter(Boolean)
+                .filter((id): id is string => Boolean(id))
         )
     )
 
@@ -258,8 +233,8 @@ export async function getCustomerPackages(
             return {
                 id: item.id,
                 tracking_number: item.tracking_number,
-                from_customer_address: getNestedAddress(item.from_customer_details),
-                to_customer_address: getNestedAddress(item.to_customer_details),
+                from_customer_address: "",
+                to_customer_address: "",
                 latest_package_status_text: statusByPackageId.get(item.id) ?? "Pending",
                 driver_id: driverId,
                 driver_name: driversById.get(driverId) ?? "",
