@@ -60,6 +60,8 @@ export async function updateSession(request: NextRequest) {
 
   const isAuthRoute = pathname.startsWith('/auth')
   const isBookingRoute = pathname.startsWith('/booking')
+  // Public marketing pages: the landing page and feature pages under /features.
+  const isMarketingRoute = pathname === '/' || pathname.startsWith('/features')
 
   if (hostSlug) {
     // Subdomain host — booking is public, nothing else is served here.
@@ -78,7 +80,7 @@ export async function updateSession(request: NextRequest) {
   // (served on a tenant subdomain) and stays public: let the apex /booking
   // request reach the page so it can render a 404 (no org slug to book with).
   if (!user) {
-    if (pathname.startsWith('/orgs') || (!isAuthRoute && !isBookingRoute && pathname !== '/')) {
+    if (pathname.startsWith('/orgs') || (!isAuthRoute && !isBookingRoute && !isMarketingRoute)) {
       const url = request.nextUrl.clone()
       url.pathname = '/auth/login'
       return NextResponse.redirect(url)

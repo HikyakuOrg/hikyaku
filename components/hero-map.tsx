@@ -28,8 +28,8 @@ const CUMULATIVE_DISTS: number[] = (() => {
 })()
 const TOTAL_DIST = CUMULATIVE_DISTS[CUMULATIVE_DISTS.length - 1]
 
-/** Returns position and forward bearing at proportion t ∈ [0, 1] along the route */
-function getPositionAtT(t: number): { lng: number; lat: number; bearing: number } {
+/** Returns the position at proportion t ∈ [0, 1] along the route */
+function getPositionAtT(t: number): { lng: number; lat: number } {
     const target = t * TOTAL_DIST
     let i = 0
     while (i < CUMULATIVE_DISTS.length - 2 && CUMULATIVE_DISTS[i + 1] < target) i++
@@ -40,7 +40,6 @@ function getPositionAtT(t: number): { lng: number; lat: number; bearing: number 
     return {
         lng: a[0] + (b[0] - a[0]) * segT,
         lat: a[1] + (b[1] - a[1]) * segT,
-        bearing: Math.atan2(b[0] - a[0], b[1] - a[1]),
     }
 }
 
@@ -54,7 +53,7 @@ export function HeroMap() {
 
         const map = new maplibregl.Map({
             container: containerRef.current,
-            style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+            style: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
             center: [CENTER_LNG, CENTER_LAT],
             zoom: 13,
             interactive: false,
@@ -65,22 +64,6 @@ export function HeroMap() {
         let startTime: number | null = null
 
         map.on("style.load", () => {
-            // ── canvas arrow icon ─────────────────────────────────────
-            const size = 48
-            const canvas = document.createElement("canvas")
-            canvas.width = size
-            canvas.height = size
-            const ctx = canvas.getContext("2d")!
-            ctx.fillStyle = "#3b82f6"
-            ctx.beginPath()
-            ctx.moveTo(size / 2, 2)          // tip
-            ctx.lineTo(size - 6, size - 4)   // bottom-right
-            ctx.lineTo(size / 2, size - 12)  // tail notch
-            ctx.lineTo(6, size - 4)          // bottom-left
-            ctx.closePath()
-            ctx.fill()
-            map.addImage("arrow-icon", ctx.getImageData(0, 0, size, size))
-
             // ── route linestring ──────────────────────────────────────
             map.addSource("route", {
                 type: "geojson",
@@ -116,39 +99,38 @@ export function HeroMap() {
                 },
             })
 
-            // ── arrow position source + symbol layer ──────────────────
+            // ── dot position source + circle layer ────────────────────
             const initialPos = getPositionAtT(0)
-            map.addSource("arrow-pos", {
+            map.addSource("marker-pos", {
                 type: "geojson",
                 data: {
                     type: "Feature",
+                    properties: {},
                     geometry: { type: "Point", coordinates: [initialPos.lng, initialPos.lat] },
-                    properties: { bearing: initialPos.bearing * (180 / Math.PI) },
                 },
             })
 
             map.addLayer({
-                id: "arrow-layer",
-                type: "symbol",
-                source: "arrow-pos",
-                layout: {
-                    "icon-image": "arrow-icon",
-                    "icon-size": 0.8,
-                    "icon-rotate": ["get", "bearing"],
-                    "icon-rotation-alignment": "map",
-                    "icon-allow-overlap": true,
+                id: "marker-layer",
+                type: "circle",
+                source: "marker-pos",
+                paint: {
+                    "circle-radius": 7,
+                    "circle-color": "#3b82f6",
+                    "circle-stroke-width": 2,
+                    "circle-stroke-color": "#fff",
                 },
             })
 
-            // ── animate arrow position along the route ────────────────
+            // ── animate dot position along the route ──────────────────
             function animate(time: number) {
                 if (startTime === null) startTime = time
                 const t = ((time - startTime) % ROUTE_DURATION_MS) / ROUTE_DURATION_MS
                 const pos = getPositionAtT(t)
-                    ; (map.getSource("arrow-pos") as maplibregl.GeoJSONSource).setData({
+                    ; (map.getSource("marker-pos") as maplibregl.GeoJSONSource).setData({
                         type: "Feature",
+                        properties: {},
                         geometry: { type: "Point", coordinates: [pos.lng, pos.lat] },
-                        properties: { bearing: pos.bearing * (180 / Math.PI) },
                     })
                 animFrame = requestAnimationFrame(animate)
             }
