@@ -10,6 +10,7 @@ import {
 import {
     ConnectComponentsProvider,
     ConnectAccountOnboarding,
+    ConnectAccountManagement,
 } from "@stripe/react-connect-js"
 import { Loader2, CheckCircle2, Banknote } from "lucide-react"
 
@@ -369,6 +370,9 @@ function OnboardedView({ status }: { status: ConnectStatus }) {
     const [balance, setBalance] = useState<IssuingBalance[] | null>(null)
     const [funding, setFunding] = useState<FundingInstructions | null>(null)
     const [fundingPending, startFundingTransition] = useTransition()
+    const [connectInstance, setConnectInstance] =
+        useState<StripeConnectInstance | null>(null)
+    const [instanceLoading, setInstanceLoading] = useState(true)
 
     const issuingActive = status.cardIssuingStatus === "active"
 
@@ -378,6 +382,33 @@ function OnboardedView({ status }: { status: ConnectStatus }) {
             if (r.success) setBalance(r.data)
         })
     }, [issuingActive])
+
+    useEffect(() => {
+        let active = true
+        const country = status.country ?? "US"
+        createAccountSession(country).then((r) => {
+            if (!active) return
+            if (!r.success) {
+                toast.error(r.error)
+                setInstanceLoading(false)
+                return
+            }
+            const { publishableKey } = r.data
+            const instance = loadConnectAndInitialize({
+                publishableKey,
+                fetchClientSecret: async () => {
+                    const next = await createAccountSession(country)
+                    if (!next.success) throw new Error(next.error)
+                    return next.data.clientSecret
+                },
+            })
+            setConnectInstance(instance)
+            setInstanceLoading(false)
+        })
+        return () => {
+            active = false
+        }
+    }, [status.country])
 
     const showFunding = () => {
         startFundingTransition(async () => {
@@ -413,6 +444,28 @@ function OnboardedView({ status }: { status: ConnectStatus }) {
                     <Badge variant={issuingActive ? "default" : "secondary"}>
                         Issuing {issuingActive ? "active" : "pending"}
                     </Badge>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Manage business details</CardTitle>
+                    <CardDescription>
+                        Update your business information, bank account, and identity
+                        documents.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {instanceLoading ? (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Loading…
+                        </div>
+                    ) : connectInstance ? (
+                        <ConnectComponentsProvider connectInstance={connectInstance}>
+                            <ConnectAccountManagement />
+                        </ConnectComponentsProvider>
+                    ) : null}
                 </CardContent>
             </Card>
 
