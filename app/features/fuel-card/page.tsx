@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Image from "next/image"
 import Link from "next/link"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
@@ -123,21 +124,34 @@ export default function Page() {
 
                 {/* Visibility — the software */}
                 <section className="px-6 py-20 md:py-24">
-                    <div className="mx-auto max-w-3xl text-center">
-                        <Eyebrow>Visibility</Eyebrow>
-                        <h2
-                            className="mt-4 font-[family-name:var(--font-display)] text-3xl font-extrabold tracking-tight text-slate-900 md:text-4xl"
-                            style={{ textWrap: "balance" }}
-                        >
-                            Every purchase, against the right driver
-                        </h2>
-                        <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-slate-500">
-                            Fuel stops appear as they happen — merchant, place, amount and time —
-                            tied to the driver and vehicle the card belongs to. No reimbursements
-                            to chase, no receipts to collect, nothing to reconcile at month&apos;s end.
-                        </p>
+                    <div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-2 lg:gap-16">
+                        <div>
+                            <Eyebrow>Visibility</Eyebrow>
+                            <h2 className="mt-4 font-[family-name:var(--font-display)] text-3xl font-extrabold tracking-tight text-slate-900 md:text-4xl">
+                                Every purchase, against the right driver
+                            </h2>
+                            <p className="mt-5 max-w-lg text-base leading-relaxed text-slate-500">
+                                Fuel stops appear as they happen — merchant, place, amount and time —
+                                tied to the driver and vehicle the card belongs to.
+                            </p>
+                            <p className="mt-4 max-w-lg text-base leading-relaxed text-slate-500">
+                                No reimbursements to chase, no shoebox of receipts to sort, nothing to
+                                key into a spreadsheet at month&apos;s end.
+                            </p>
+                        </div>
+                        <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200 shadow-xl">
+                            <Image
+                                src="/messy-receipts.jpg"
+                                alt="Sorting a pile of paper fuel receipts by hand with a calculator at month's end"
+                                width={1200}
+                                height={800}
+                                sizes="(min-width: 1024px) 40rem, 100vw"
+                                className="h-full w-full object-cover"
+                            />
+                        </div>
                     </div>
-                    <div className="mx-auto mt-12 max-w-5xl">
+
+                    <div className="mx-auto mt-14 max-w-5xl">
                         <FuelActivityPanel />
                         <p className="mt-3 text-center text-sm text-slate-400">
                             Sample data — a week of fuel across one fleet.

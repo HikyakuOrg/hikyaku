@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Image from "next/image"
 import Link from "next/link"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
@@ -78,6 +79,46 @@ export default function Page() {
                             <p className="mt-3 text-xs text-slate-400">
                                 Live demo with sample data — a driver working a real Tokyo
                                 route, stops marking off as they pass.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                {/* Before — the clipboard in the cab */}
+                <section className="bg-slate-50 px-6 py-20 md:py-24">
+                    <div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-2 lg:gap-16">
+                        <div className="relative order-last lg:order-first">
+                            <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200 shadow-xl">
+                                <Image
+                                    src="/driver-pen-paper.jpg"
+                                    alt="A delivery driver parked at the kerb, balancing a parcel on the steering wheel while filling out a paper run sheet by hand"
+                                    width={1200}
+                                    height={800}
+                                    sizes="(min-width: 1024px) 40rem, 100vw"
+                                    className="h-full w-full object-cover"
+                                />
+                            </div>
+                            <div className="absolute -bottom-4 -right-3 hidden rotate-2 rounded-xl bg-white px-4 py-3 shadow-lg ring-1 ring-slate-200 sm:block">
+                                <p className="text-xs font-semibold text-slate-900">Dispatch sees this</p>
+                                <p className="mt-0.5 text-xs text-slate-400">
+                                    …tomorrow, once the sheet comes back
+                                </p>
+                            </div>
+                        </div>
+                        <div>
+                            <Eyebrow>Before Hikyaku</Eyebrow>
+                            <h2 className="mt-4 font-[family-name:var(--font-display)] text-3xl font-extrabold tracking-tight text-slate-900 md:text-4xl">
+                                The run sheet lived on the dashboard
+                            </h2>
+                            <p className="mt-5 max-w-lg text-base leading-relaxed text-slate-500">
+                                A clipboard balanced on the steering wheel, stops ticked off
+                                in biro, signatures scrawled in the margin. The driver knows
+                                how the day is going — nobody back at base does, not until the
+                                paper comes in and someone keys it into a spreadsheet.
+                            </p>
+                            <p className="mt-4 max-w-lg text-base leading-relaxed text-slate-500">
+                                When a customer rings to ask where their parcel is, the honest
+                                answer is a shrug. Everything below replaces that clipboard.
                             </p>
                         </div>
                     </div>
