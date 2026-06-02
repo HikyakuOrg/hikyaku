@@ -8,13 +8,14 @@ import {
     ArrowRightIcon,
     NavigationArrowIcon,
     MapPinIcon,
-    UsersIcon,
     PersonIcon,
     CaretDownIcon,
     SparkleIcon,
     WifiHighIcon,
 } from "@phosphor-icons/react/dist/ssr";
-import { LandingStepper } from "./stepper/landing-stepper";
+import { LandingStepper } from "./landing/stepper/landing-stepper";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { LandingAccordion } from "./landing/accordion/landing-accordion";
 
 export default function Page() {
     
@@ -323,7 +324,10 @@ export default function Page() {
                         </div>
                     </div>
                 </section>
-                
+
+                <section className="bg-slate-50 px-6 py-20">
+                    <LandingAccordion />
+                </section>
             </main>
 
             <footer className="border-t border-slate-100 bg-white px-6 py-10">

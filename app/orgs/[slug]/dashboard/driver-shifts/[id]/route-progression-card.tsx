@@ -194,12 +194,14 @@ function StaticStepRow({
     totalSteps,
     warehouseInfo,
     editMode,
+    disableInteractions = false,
 }: {
     step: PackageOptimisation
     index: number
     totalSteps: number
     warehouseInfo: { id: string; warehouse_name: string; warehouse_address: string } | undefined
     editMode: boolean
+    disableInteractions?: boolean
 }) {
     const slug = useOrgSlug()
     const pkg = step.package_assignment?.package
@@ -232,23 +234,36 @@ function StaticStepRow({
             <div className="flex-1 space-y-1 py-0.5">
                 <div className="flex items-center justify-between">
                     {step.type === "start" || step.type === "end" ? (
-                        <Link
-                            href={
-                                warehouseInfo?.id
-                                    ? `/orgs/${slug}/dashboard/service/warehouse/${warehouseInfo.id}`
-                                    : "#"
-                            }
-                            className="flex flex-col gap-0.5 group"
-                        >
-                            <div className="text-sm font-medium text-foreground group-hover:underline underline-offset-4 decoration-primary">
-                                {warehouseInfo?.warehouse_name ?? "Warehouse"}
-                            </div>
-                            {warehouseInfo?.warehouse_address && (
-                                <div className="text-xs text-muted-foreground leading-snug">
-                                    {warehouseInfo.warehouse_address}
+                        disableInteractions ? (
+                            <div className="flex flex-col gap-0.5">
+                                <div className="text-sm font-medium text-foreground">
+                                    {warehouseInfo?.warehouse_name ?? "Warehouse"}
                                 </div>
-                            )}
-                        </Link>
+                                {warehouseInfo?.warehouse_address && (
+                                    <div className="text-xs text-muted-foreground leading-snug">
+                                        {warehouseInfo.warehouse_address}
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <Link
+                                href={
+                                    warehouseInfo?.id
+                                        ? `/orgs/${slug}/dashboard/service/warehouse/${warehouseInfo.id}`
+                                        : "#"
+                                }
+                                className="flex flex-col gap-0.5 group"
+                            >
+                                <div className="text-sm font-medium text-foreground group-hover:underline underline-offset-4 decoration-primary">
+                                    {warehouseInfo?.warehouse_name ?? "Warehouse"}
+                                </div>
+                                {warehouseInfo?.warehouse_address && (
+                                    <div className="text-xs text-muted-foreground leading-snug">
+                                        {warehouseInfo.warehouse_address}
+                                    </div>
+                                )}
+                            </Link>
+                        )
                     ) : (
                         <div className="flex flex-col gap-0.5">
                             {step.package_assignment && (
@@ -302,7 +317,7 @@ function StaticStepRow({
                                 ) : null
                             })()}
                         </div>
-                        {!editMode && step.type !== "start" && step.type !== "end" && step.package_assignment && (
+                        {!editMode && !disableInteractions && step.type !== "start" && step.type !== "end" && step.package_assignment && (
                             <DropdownMenu>
                                 <DropdownMenuTrigger className="rounded-md p-1 hover:bg-muted transition-colors focus-visible:outline-none">
                                     <MoreVertical className="h-4 w-4 text-muted-foreground" />
@@ -343,9 +358,11 @@ function StaticStepRow({
 export function RouteProgressionCard({
     routeSteps,
     routeId,
+    disableInteractions = false,
 }: {
     routeSteps: PackageOptimisation[]
     routeId: string
+    disableInteractions?: boolean
 }) {
     const router = useRouter()
     const [isPending, startTransition] = useTransition()
@@ -538,7 +555,7 @@ export function RouteProgressionCard({
                                 </Button>
                             </div>
                         ) : (
-                            hasEditableSteps && (
+                            hasEditableSteps && !disableInteractions && (
                                 <Button
                                     size="sm"
                                     variant="outline"
@@ -571,6 +588,7 @@ export function RouteProgressionCard({
                                     totalSteps={lockedDisplayStepsWithoutEnd.length}
                                     warehouseInfo={warehouseInfo ?? undefined}
                                     editMode={true}
+                                    disableInteractions={disableInteractions}
                                 />
                             ))}
 
@@ -611,6 +629,7 @@ export function RouteProgressionCard({
                                     totalSteps={1}
                                     warehouseInfo={warehouseInfo ?? undefined}
                                     editMode={true}
+                                    disableInteractions={disableInteractions}
                                 />
                             )}
                         </div>
@@ -624,6 +643,7 @@ export function RouteProgressionCard({
                                     totalSteps={routeSteps.length}
                                     warehouseInfo={warehouseInfo ?? undefined}
                                     editMode={false}
+                                    disableInteractions={disableInteractions}
                                 />
                             ))}
                         </div>
