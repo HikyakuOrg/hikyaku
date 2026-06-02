@@ -86,8 +86,8 @@ export async function listMyOrganisations(): Promise<OrganisationSummary[]> {
   const [orgsResult, issuingStatuses] = await Promise.all([
     supabase
       .from('organisations')
-      .select('id, slug, name, org_type, user_permission!inner(user_id)')
-      .eq('user_permission.user_id', userData.user.id),
+      .select('id, slug, name, org_type, team_members!inner(id)')
+      .eq('team_members.id', userData.user.id),
     getIssuingStatuses(),
   ])
 
