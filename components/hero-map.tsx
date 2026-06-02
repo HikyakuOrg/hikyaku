@@ -71,7 +71,7 @@ export function HeroMap() {
             canvas.width = size
             canvas.height = size
             const ctx = canvas.getContext("2d")!
-            ctx.fillStyle = "#f59e0b"
+            ctx.fillStyle = "#3b82f6"
             ctx.beginPath()
             ctx.moveTo(size / 2, 2)          // tip
             ctx.lineTo(size - 6, size - 4)   // bottom-right
@@ -98,7 +98,7 @@ export function HeroMap() {
                 source: "route",
                 layout: { "line-join": "round", "line-cap": "round" },
                 paint: {
-                    "line-color": "#f59e0b",
+                    "line-color": "#3b82f6",
                     "line-width": 10,
                     "line-opacity": 0.2,
                 },
@@ -111,7 +111,7 @@ export function HeroMap() {
                 source: "route",
                 layout: { "line-join": "round", "line-cap": "round" },
                 paint: {
-                    "line-color": "#f59e0b",
+                    "line-color": "#3b82f6",
                     "line-width": 3,
                 },
             })
