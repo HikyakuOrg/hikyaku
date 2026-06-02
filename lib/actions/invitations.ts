@@ -29,7 +29,7 @@ async function getAccessToken(): Promise<string | { error: string }> {
 }
 
 function getApiUrl(): string | null {
-    return process.env.WHENDAN_API_URL ?? null
+    return process.env.NEXT_PUBLIC_HIKYAKU_API_URL ?? null
 }
 
 async function getOrgSlug(): Promise<string | null> {
