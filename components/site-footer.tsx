@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { GithubLogoIcon } from "@phosphor-icons/react/dist/ssr";
 
 export function SiteFooter() {
     return (
@@ -14,6 +15,15 @@ export function SiteFooter() {
                     <Link href="#" className="hover:text-slate-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 rounded">Privacy</Link>
                     <Link href="#" className="hover:text-slate-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 rounded">Terms</Link>
                     <Link href="/auth/login" className="hover:text-slate-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 rounded">Dashboard</Link>
+                    <a
+                        href="https://github.com/Hikyakuorg"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 hover:text-slate-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 rounded"
+                    >
+                        <GithubLogoIcon size={16} weight="fill" />
+                        GitHub
+                    </a>
                 </div>
             </div>
         </footer>

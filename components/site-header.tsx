@@ -6,6 +6,7 @@ import {
     SparkleIcon,
     WifiHighIcon,
 } from "@phosphor-icons/react/dist/ssr";
+import { GithubStarButton } from "@/components/github-star-button";
 
 const MENU_ITEMS = [
     {
@@ -98,6 +99,7 @@ export function SiteHeader() {
                 </ul>
 
                 <div className="flex items-center gap-3">
+                    <GithubStarButton />
                     <Link
                         href="/auth/login"
                         className="hidden sm:inline-flex rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
