@@ -4,7 +4,7 @@ import { Tables } from "./supabase"
 import { createClient } from "./server"
 import { PackageOptimisation, Location } from "@/app/models/package-optimisation"
 import type { ServiceRateOption } from "@/app/booking/booking-schema"
-import { getCustomersByStripeIdsAction, listCustomersAction, getCustomerAction } from "@/lib/actions/customers"
+import { listCustomersAction, getCustomerAction } from "@/lib/actions/customers"
 
 type ServiceAreaViewportBounds = {
     minLat: number
@@ -349,7 +349,11 @@ export async function getRouteSteps(routeId: string) {
                     current_status,
                     to_customer:customer!packages_to_customer_fkey(
                         id,
-                        stripe_customer_id
+                        customer_name,
+                        customer_address,
+                        customer_suburb,
+                        customer_state,
+                        customer_postcode
                     ),
                     warehouse:warehouse!packages_warehouse_id_fkey(
                         id,
@@ -368,37 +372,7 @@ export async function getRouteSteps(routeId: string) {
 
     if (error) throw error
 
-    const steps = data as PackageOptimisation[]
-
-    const stripeIds = steps.flatMap((s) => {
-        const sid = (s.package_assignment?.package?.to_customer as any)?.stripe_customer_id
-        return sid ? [sid as string] : []
-    })
-    const customerMap = await getCustomersByStripeIdsAction([...new Set(stripeIds)])
-
-    return steps.map((step) => {
-        const tc = step.package_assignment?.package?.to_customer as any
-        if (!tc?.stripe_customer_id) return step
-        const c = customerMap[tc.stripe_customer_id]
-        if (!c) return step
-        return {
-            ...step,
-            package_assignment: step.package_assignment ? {
-                ...step.package_assignment,
-                package: step.package_assignment.package ? {
-                    ...step.package_assignment.package,
-                    to_customer: {
-                        id: tc.id,
-                        customer_name: c.customer_name,
-                        customer_address: c.customer_address,
-                        customer_suburb: c.customer_suburb,
-                        customer_state: c.customer_state,
-                        customer_postcode: c.customer_postcode,
-                    },
-                } : null,
-            } : null,
-        }
-    }) as PackageOptimisation[]
+    return data as PackageOptimisation[]
 }
 
 export interface DriverVehiclePair {
@@ -552,7 +526,12 @@ export async function getUnassignedPackagesByWarehouse(warehouseId: string): Pro
                 weight_kg, length_cm, width_cm, height_cm
             ),
             to_customer:customer!packages_to_customer_fkey(
-                stripe_customer_id, customer_location
+                customer_name,
+                customer_address,
+                customer_suburb,
+                customer_state,
+                customer_postcode,
+                customer_location
             ),
             package_delivery_window:package_delivery_window!package_delivery_window_package_id_fkey(
                 scheduled_arrival
@@ -568,18 +547,11 @@ export async function getUnassignedPackagesByWarehouse(warehouseId: string): Pro
 
     const rows = data ?? []
 
-    const stripeIds = rows.flatMap((p) => {
-        const sid = (p.to_customer as any)?.stripe_customer_id
-        return sid ? [sid as string] : []
-    })
-    const customerMap = await getCustomersByStripeIdsAction([...new Set(stripeIds)])
-
     return rows.map((p) => {
         const dims = p.package_dimensions as any
         const cust = p.to_customer as any
         const pdw = p.package_delivery_window as any
         const loc = cust?.customer_location as Location | null
-        const enriched = cust?.stripe_customer_id ? customerMap[cust.stripe_customer_id] : null
         return {
             id: p.id,
             tracking_number: p.tracking_number ?? null,
@@ -587,11 +559,11 @@ export async function getUnassignedPackagesByWarehouse(warehouseId: string): Pro
             length_cm: dims?.length_cm ?? null,
             width_cm: dims?.width_cm ?? null,
             height_cm: dims?.height_cm ?? null,
-            customer_name: enriched?.customer_name ?? null,
-            customer_address: enriched?.customer_address ?? null,
-            customer_suburb: enriched?.customer_suburb ?? null,
-            customer_state: enriched?.customer_state ?? null,
-            customer_postcode: enriched?.customer_postcode ?? null,
+            customer_name: cust?.customer_name ?? null,
+            customer_address: cust?.customer_address ?? null,
+            customer_suburb: cust?.customer_suburb ?? null,
+            customer_state: cust?.customer_state ?? null,
+            customer_postcode: cust?.customer_postcode ?? null,
             customer_lng: loc?.coordinates?.[0] ?? null,
             customer_lat: loc?.coordinates?.[1] ?? null,
             scheduled_arrival: pdw?.scheduled_arrival ?? null,
