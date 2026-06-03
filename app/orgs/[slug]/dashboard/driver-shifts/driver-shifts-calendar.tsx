@@ -6,6 +6,9 @@ import { enUS } from 'date-fns/locale'
 import { dateFnsLocalizer } from 'react-big-calendar'
 import { ChevronLeft, ChevronRight, Clock, Package } from 'lucide-react'
 import { Avatar, AvatarImage } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
+import { ButtonGroup } from '@/components/ui/button-group'
+import type { ToolbarProps } from 'react-big-calendar'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useOrgSlug } from '@/lib/use-org'
@@ -16,6 +19,42 @@ import { getDriversByIds } from '@/lib/supabase/supabase-rpc'
 interface DriverShiftsCalendarProps {
     driverId?: string
     emptyMessage?: string
+}
+
+
+function CalendarToolbar({ label, onNavigate }: ToolbarProps<DeliveryRouteByDate, object>) {
+    return (
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-3">
+            <div className="flex items-center gap-2">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onNavigate('TODAY')}
+                >
+                    Today
+                </Button>
+                <ButtonGroup>
+                    <Button
+                        variant="outline"
+                        size="icon-sm"
+                        aria-label="Previous week"
+                        onClick={() => onNavigate('PREV')}
+                    >
+                        <ChevronLeft />
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="icon-sm"
+                        aria-label="Next week"
+                        onClick={() => onNavigate('NEXT')}
+                    >
+                        <ChevronRight />
+                    </Button>
+                </ButtonGroup>
+            </div>
+            <span className="text-base font-semibold tracking-tight">{label}</span>
+        </div>
+    )
 }
 
 
@@ -176,14 +215,11 @@ export function DriverShiftsCalendar({
                     }
                 }}
                 components={{
-                    event: CustomEvent
+                    event: CustomEvent,
+                    toolbar: CalendarToolbar,
                 }}
                 defaultView="week"
                 views={['week']}
-                messages={{
-                    previous: <ChevronLeft className="w-4 h-4" />,
-                    next: <ChevronRight className="w-4 h-4" />,
-                }}
             />
 
             {events.length === 0 && (
