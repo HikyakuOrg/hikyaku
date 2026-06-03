@@ -41,6 +41,7 @@ function toApiBody(values: CustomerFormValues) {
     return {
         name: values.customerName,
         phone: values.customerPhone,
+        email: values.customerEmail || undefined,
         address: {
             street: values.customerAddress,
             suburb: values.customerSuburb,
@@ -50,6 +51,9 @@ function toApiBody(values: CustomerFormValues) {
         },
         lat: values.customerLat,
         lon: values.customerLon,
+        confidence: values.customerConfidence,
+        peliasGid: values.customerPeliasGid,
+        peliasRaw: values.customerPeliasRaw,
     }
 }
 

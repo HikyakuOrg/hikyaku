@@ -18,6 +18,7 @@ export function customerToFormValues(customer: Customer): CustomerFormValues {
     return {
         customerName: customer.customer_name ?? "",
         customerPhone: customer.customer_phone ?? "",
+        customerEmail: customer.customer_email ?? "",
         customerCountry: customer.customer_country ?? "",
         customerAddress: customer.customer_address ?? "",
         customerSuburb: customer.customer_suburb ?? "",
@@ -25,6 +26,9 @@ export function customerToFormValues(customer: Customer): CustomerFormValues {
         customerPostcode: customer.customer_postcode ?? "",
         customerLat: customer.customer_location?.coordinates[1] ?? 0,
         customerLon: customer.customer_location?.coordinates[0] ?? 0,
+        customerConfidence: customer.geocode_confidence ?? undefined,
+        customerPeliasGid: customer.pelias_gid ?? undefined,
+        customerPeliasRaw: customer.pelias_raw ?? undefined,
     }
 }
 
@@ -43,12 +47,16 @@ export async function prepareCustomerFromForm(
         created_at: "",
         customer_name: values.customerName,
         customer_phone: values.customerPhone,
+        customer_email: values.customerEmail,
         customer_country: values.customerCountry,
         customer_address: values.customerAddress,
         customer_suburb: values.customerSuburb,
         customer_state: values.customerState,
         customer_postcode: values.customerPostcode,
         customer_location: location,
+        geocode_confidence: values.customerConfidence ?? null,
+        pelias_gid: values.customerPeliasGid ?? null,
+        pelias_raw: values.customerPeliasRaw ?? null,
     }
 
     const serviceAreas = await getServiceAreas()

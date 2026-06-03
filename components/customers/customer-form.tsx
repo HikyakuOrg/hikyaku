@@ -13,6 +13,7 @@ import { customerSchema, type CustomerFormValues } from "./customer-schema"
 const defaultValues: CustomerFormValues = {
     customerName: "",
     customerPhone: "",
+    customerEmail: "",
     customerCountry: "",
     customerAddress: "",
     customerSuburb: "",
@@ -106,6 +107,24 @@ export function CustomerForm({
                     )}
                 />
 
+                <Field className="space-y-2">
+                    <FieldLabel htmlFor="customer-email">Email</FieldLabel>
+
+                    <Input
+                        id="customer-email"
+                        type="email"
+                        placeholder="Enter customer email (optional)"
+                        disabled={isSubmitting}
+                        {...form.register("customerEmail")}
+                    />
+
+                    {form.formState.errors.customerEmail && (
+                        <FieldError>
+                            {form.formState.errors.customerEmail.message}
+                        </FieldError>
+                    )}
+                </Field>
+
                 <Controller
                     name="customerAddress"
                     control={form.control}
@@ -126,6 +145,9 @@ export function CustomerForm({
                                     form.setValue("customerPostcode", s.postcode)
                                     form.setValue("customerLat", s.lat)
                                     form.setValue("customerLon", s.lon)
+                                    form.setValue("customerConfidence", s.confidence)
+                                    form.setValue("customerPeliasGid", s.gid)
+                                    form.setValue("customerPeliasRaw", s.raw)
                                 }}
                                 placeholder="Enter customer address"
                                 aria-invalid={fieldState.invalid}

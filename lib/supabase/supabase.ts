@@ -72,23 +72,56 @@ export type Database = {
       customer: {
         Row: {
           created_at: string
+          customer_address: string | null
+          customer_country: string | null
+          customer_email: string | null
           customer_location: unknown
+          customer_name: string
+          customer_phone: string | null
+          customer_postcode: string | null
+          customer_state: string | null
+          customer_suburb: string | null
+          geocode_confidence: number | null
           id: string
           organisation_id: string
+          pelias_gid: string | null
+          pelias_raw: Json | null
           stripe_customer_id: string | null
         }
         Insert: {
           created_at?: string
+          customer_address?: string | null
+          customer_country?: string | null
+          customer_email?: string | null
           customer_location: unknown
+          customer_name: string
+          customer_phone?: string | null
+          customer_postcode?: string | null
+          customer_state?: string | null
+          customer_suburb?: string | null
+          geocode_confidence?: number | null
           id?: string
           organisation_id: string
+          pelias_gid?: string | null
+          pelias_raw?: Json | null
           stripe_customer_id?: string | null
         }
         Update: {
           created_at?: string
+          customer_address?: string | null
+          customer_country?: string | null
+          customer_email?: string | null
           customer_location?: unknown
+          customer_name?: string
+          customer_phone?: string | null
+          customer_postcode?: string | null
+          customer_state?: string | null
+          customer_suburb?: string | null
+          geocode_confidence?: number | null
           id?: string
           organisation_id?: string
+          pelias_gid?: string | null
+          pelias_raw?: Json | null
           stripe_customer_id?: string | null
         }
         Relationships: [
