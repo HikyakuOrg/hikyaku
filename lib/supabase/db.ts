@@ -410,34 +410,7 @@ export async function getVehicleWithFullDetails(id: string) {
         }
     }
 
-    // 3. Get deliveries
-    const { data: deliveries, error: deError } = await supabase
-        .from('package_assignment')
-        .select(`
-            package_id,
-            created_at,
-            driver_id,
-            package:packages (
-                tracking_number,
-                from_customer:customer!packages_from_customer_fkey (customer_name),
-                to_customer:customer!packages_to_customer_fkey (customer_name),
-                window:package_delivery_window (
-                    scheduled_departure,
-                    actual_departure,
-                    scheduled_arrival,
-                    actual_arrival
-                )
-            )
-        `)
-        .eq('vehicle_id', id)
-        .order('created_at', { ascending: false })
-
-    // Since views like packages_with_latest_status are hard to join in nested selects without explicit FKs,
-    // we might need to fetch statuses separately or use a join-heavy query if the view supports it.
-    // However, I'll stick to a simpler approach for now: if status join fails, I'll fallback to a default.
-    // For now, let's keep it simple as the view join might just work if we use the right name.
-
-    // 4. Get maintenance records
+    // 3. Get maintenance records
     const { data: maintenance } = await supabase
         .from('vehicle_maintenance')
         .select('id, date_serviced, odometer, description, created_at')
@@ -447,8 +420,57 @@ export async function getVehicleWithFullDetails(id: string) {
     return {
         vehicle,
         currentDriver: driver,
-        deliveries: deliveries || [],
         maintenance: maintenance || []
+    }
+}
+
+export async function getVehicleDeliveries(
+    vehicleId: string,
+    page: number = 1,
+    pageSize: number = 10
+) {
+    const from = (page - 1) * pageSize
+    const to = from + pageSize - 1
+
+    const { data: assignments, error, count } = await supabase
+        .from('package_assignment')
+        .select(`
+            package_id,
+            created_at,
+            driver_id,
+            package:packages (
+                tracking_number,
+                from_customer:customer!packages_from_customer_fkey (customer_name),
+                to_customer:customer!packages_to_customer_fkey (customer_name)
+            )
+        `, { count: 'exact' })
+        .eq('vehicle_id', vehicleId)
+        .order('created_at', { ascending: false })
+        .range(from, to)
+
+    if (error) throw error
+
+    const packageIds = (assignments || []).map(a => a.package_id)
+    const statusMap: Record<string, string | null> = {}
+
+    if (packageIds.length > 0) {
+        const { data: statusRows } = await supabase
+            .from('packages_with_latest_status')
+            .select('id, current_status')
+            .in('id', packageIds)
+
+        for (const row of statusRows || []) {
+            if (row.id) statusMap[row.id] = row.current_status
+        }
+    }
+
+    return {
+        deliveries: (assignments || []).map(a => ({
+            ...a,
+            current_status: statusMap[a.package_id] ?? null
+        })),
+        total: count ?? 0,
+        totalPages: Math.max(1, Math.ceil((count ?? 0) / pageSize))
     }
 }
 

@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { getVehicleWithFullDetails, deleteVehicle } from '@/lib/supabase/db'
+import { getVehicleWithFullDetails, getVehicleDeliveries, deleteVehicle } from '@/lib/supabase/db'
 import { getSignedUrls, listVehicleFiles } from '@/lib/supabase/storage'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/lib/utils'
@@ -28,6 +28,22 @@ import { Separator } from '@/components/ui/separator'
 import { format } from 'date-fns'
 import { VehicleDriverSheet } from './vehicle-driver-sheet'
 
+function DeliveryStatusBadge({ status }: { status: string | null }) {
+    const s = status ?? 'UNKNOWN'
+    const variantMap: Record<string, React.ComponentProps<typeof Badge>['variant']> = {
+        DELIVERED: 'default',
+        IN_TRANSIT: 'secondary',
+        ASSIGNED: 'outline',
+        PENDING: 'secondary',
+        FAILED: 'destructive',
+    }
+    return (
+        <Badge variant={variantMap[s] ?? 'outline'} className="text-[10px] uppercase font-bold px-1.5 py-0">
+            {s.replace('_', ' ')}
+        </Badge>
+    )
+}
+
 export default function VehicleOverviewPage() {
     const router = useRouter()
     const { id, slug } = useParams() as { id: string; slug: string }
@@ -39,11 +55,22 @@ export default function VehicleOverviewPage() {
     const [maintenancePage, setMaintenancePage] = useState(1)
     const maintenancePageSize = 10
 
+    const [deliveriesData, setDeliveriesData] = useState<Awaited<ReturnType<typeof getVehicleDeliveries>> | null>(null)
+    const [deliveriesPage, setDeliveriesPage] = useState(1)
+    const [isLoadingDeliveries, setIsLoadingDeliveries] = useState(false)
+    const deliveriesPageSize = 10
+
     useEffect(() => {
         if (id) {
             loadData()
         }
     }, [id])
+
+    useEffect(() => {
+        if (id) {
+            loadDeliveries(deliveriesPage)
+        }
+    }, [id, deliveriesPage])
 
     const loadData = async () => {
         try {
@@ -62,6 +89,18 @@ export default function VehicleOverviewPage() {
             router.push(`/orgs/${slug}/dashboard/fleet/vehicles`)
         } finally {
             setIsLoading(false)
+        }
+    }
+
+    const loadDeliveries = async (page: number) => {
+        setIsLoadingDeliveries(true)
+        try {
+            const result = await getVehicleDeliveries(id, page, deliveriesPageSize)
+            setDeliveriesData(result)
+        } catch {
+            toast.error('Failed to load deliveries')
+        } finally {
+            setIsLoadingDeliveries(false)
         }
     }
 
@@ -89,7 +128,9 @@ export default function VehicleOverviewPage() {
 
     if (!data) return null
 
-    const { vehicle, currentDriver, deliveries, maintenance } = data
+    const { vehicle, currentDriver, maintenance } = data
+    const deliveries = deliveriesData?.deliveries ?? []
+    const deliveriesTotalPages = deliveriesData?.totalPages ?? 1
     const maintenanceTotalPages = Math.max(1, Math.ceil(maintenance.length / maintenancePageSize))
     const pagedMaintenance = maintenance.slice((maintenancePage - 1) * maintenancePageSize, maintenancePage * maintenancePageSize)
 
@@ -247,36 +288,61 @@ export default function VehicleOverviewPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    {deliveries.length > 0 ? (
-                        <div className="rounded-md border overflow-hidden">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow className="bg-muted/50">
-                                        <TableHead>Tracking #</TableHead>
-                                        <TableHead>From</TableHead>
-                                        <TableHead>To</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead>Assigned On</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {deliveries.map((d) => (
-                                        <TableRow key={d.package_id} className="hover:bg-muted/30">
-                                            <TableCell className="font-mono font-medium">{d.package?.tracking_number}</TableCell>
-                                            <TableCell className="text-sm">{d.package?.from_customer?.customer_name}</TableCell>
-                                            <TableCell className="text-sm">{d.package?.to_customer?.customer_name}</TableCell>
-                                            <TableCell>
-                                                <Badge variant="secondary" className="text-[10px] uppercase font-bold px-1.5 py-0">
-                                                    PENDING
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-muted-foreground text-xs italic">
-                                                {format(new Date(d.created_at), 'MMM d, yyyy HH:mm')}
-                                            </TableCell>
+                    {isLoadingDeliveries ? (
+                        <div className="py-10 flex items-center justify-center">
+                            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                        </div>
+                    ) : deliveries.length > 0 ? (
+                        <div className="space-y-4">
+                            <div className="rounded-md border overflow-hidden">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="bg-muted/50">
+                                            <TableHead>Tracking #</TableHead>
+                                            <TableHead>From</TableHead>
+                                            <TableHead>To</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead>Assigned On</TableHead>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {deliveries.map((d) => (
+                                            <TableRow key={d.package_id} className="hover:bg-muted/30">
+                                                <TableCell className="font-mono font-medium">{d.package?.tracking_number}</TableCell>
+                                                <TableCell className="text-sm">{d.package?.from_customer?.customer_name}</TableCell>
+                                                <TableCell className="text-sm">{d.package?.to_customer?.customer_name}</TableCell>
+                                                <TableCell>
+                                                    <DeliveryStatusBadge status={d.current_status} />
+                                                </TableCell>
+                                                <TableCell className="text-muted-foreground text-xs italic">
+                                                    {format(new Date(d.created_at), 'MMM d, yyyy HH:mm')}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                            <div className="flex items-center justify-end space-x-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setDeliveriesPage((p) => Math.max(1, p - 1))}
+                                    disabled={deliveriesPage === 1 || isLoadingDeliveries}
+                                >
+                                    Previous
+                                </Button>
+                                <span className="text-sm text-muted-foreground">
+                                    Page {deliveriesPage} of {deliveriesTotalPages}
+                                </span>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setDeliveriesPage((p) => Math.min(deliveriesTotalPages, p + 1))}
+                                    disabled={deliveriesPage === deliveriesTotalPages || isLoadingDeliveries}
+                                >
+                                    Next
+                                </Button>
+                            </div>
                         </div>
                     ) : (
                         <div className="py-20 flex flex-col items-center justify-center text-center text-muted-foreground border-2 border-dashed rounded-lg">
