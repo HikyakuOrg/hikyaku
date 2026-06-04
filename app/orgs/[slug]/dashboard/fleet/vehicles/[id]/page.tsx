@@ -136,9 +136,7 @@ export default function VehicleOverviewPage() {
                                     <dd className="font-medium text-right md:text-left">{vehicle.vehicle_year}</dd>
                                     
                                     <dt className="text-muted-foreground">Type</dt>
-                                    <dd className="text-right md:text-left">
-                                        <Badge variant="secondary">{vehicle.vehicle_type?.vehicle_type}</Badge>
-                                    </dd>
+                                    <dd className="font-medium text-right md:text-left">{vehicle.vehicle_type?.vehicle_type}</dd>
                                 </dl>
                             </div>
 
