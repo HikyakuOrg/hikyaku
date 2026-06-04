@@ -13,15 +13,15 @@ import {
 } from "@/components/ui/sidebar"
 import type { OrganisationSummary } from "@/lib/actions/organisations"
 import { orgPath } from "@/lib/subdomain"
-import { GearIcon, PersonIcon, BlueprintIcon, MapTrifoldIcon, PackageIcon, TruckIcon } from "@phosphor-icons/react"
+import { PersonIcon, BlueprintIcon, MapTrifoldIcon, PackageIcon, TruckIcon } from "@phosphor-icons/react"
 import { JwtPayload } from "@supabase/supabase-js"
 import { ClockIcon } from "lucide-react"
 
 function buildNavItems(slug: string, cardIssuingActive: boolean) {
   const p = (path: string) => orgPath(slug, path)
   const fleetItems: { title: string; url: string }[] = [
-    { title: "Team Members", url: p('/dashboard/fleet/team-members') },
     { title: "Vehicles", url: p('/dashboard/fleet/vehicles') },
+    { title: "Team Members", url: p('/dashboard/fleet/team-members') },
   ]
   if (cardIssuingActive) {
     fleetItems.push({ title: "Fuel Cards", url: p('/dashboard/fleet/fuel-cards') })
@@ -58,20 +58,11 @@ function buildNavItems(slug: string, cardIssuingActive: boolean) {
       url: "",
       icon: <MapTrifoldIcon />,
       items: [
-        { title: "Warehouse", url: p('/dashboard/service/warehouse') },
         { title: "Areas", url: p('/dashboard/service/areas') },
+        { title: "Warehouse", url: p('/dashboard/service/warehouse') },
         { title: "Service Rates", url: p('/dashboard/service-rates') },
       ],
-    },
-    {
-      title: "Settings",
-      url: "#",
-      icon: <GearIcon />,
-      items: [
-        { title: "Team", url: p('/dashboard/settings/team') },
-        { title: "Mobile", url: p('/dashboard/settings/mobile') },
-      ],
-    },
+    }
   ]
 }
 
