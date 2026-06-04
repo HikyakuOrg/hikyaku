@@ -15,7 +15,9 @@ import {
     Edit, 
     Trash2,
     ArrowUpRight,
-    Search
+    Search,
+    Wrench,
+    Plus
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -34,6 +36,8 @@ export default function VehicleOverviewPage() {
     const [images, setImages] = useState<string[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isDeleting, setIsDeleting] = useState(false)
+    const [maintenancePage, setMaintenancePage] = useState(1)
+    const maintenancePageSize = 10
 
     useEffect(() => {
         if (id) {
@@ -85,7 +89,9 @@ export default function VehicleOverviewPage() {
 
     if (!data) return null
 
-    const { vehicle, currentDriver, deliveries } = data
+    const { vehicle, currentDriver, deliveries, maintenance } = data
+    const maintenanceTotalPages = Math.max(1, Math.ceil(maintenance.length / maintenancePageSize))
+    const pagedMaintenance = maintenance.slice((maintenancePage - 1) * maintenancePageSize, maintenancePage * maintenancePageSize)
 
     return (
         <div className="max-w-7xl mx-auto py-8 px-4 space-y-8">
@@ -277,6 +283,75 @@ export default function VehicleOverviewPage() {
                             <Package className="w-12 h-12 mb-3 opacity-20" />
                             <h4 className="font-medium text-foreground">No Deliveries Found</h4>
                             <p className="text-sm max-w-[250px]">This vehicle has not been used for any deliveries yet.</p>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Maintenance Records Table */}
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle>Maintenance Records</CardTitle>
+                        <CardDescription>Service history logged for this vehicle.</CardDescription>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => router.push(`/orgs/${slug}/dashboard/fleet/maintenance/add`)}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Record
+                    </Button>
+                </CardHeader>
+                <CardContent>
+                    {maintenance.length > 0 ? (
+                        <div className="space-y-4">
+                            <div className="rounded-md border overflow-hidden">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="bg-muted/50">
+                                            <TableHead>Date Serviced</TableHead>
+                                            <TableHead>Odometer</TableHead>
+                                            <TableHead>Description</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {pagedMaintenance.map((m) => (
+                                            <TableRow key={m.id} className="hover:bg-muted/30">
+                                                <TableCell className="font-medium">
+                                                    {format(new Date(m.date_serviced), 'MMM d, yyyy')}
+                                                </TableCell>
+                                                <TableCell className="text-sm">{m.odometer.toLocaleString()} km</TableCell>
+                                                <TableCell className="text-sm whitespace-pre-wrap">{m.description}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                            <div className="flex items-center justify-end space-x-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setMaintenancePage((p) => Math.max(1, p - 1))}
+                                    disabled={maintenancePage === 1}
+                                >
+                                    Previous
+                                </Button>
+                                <span className="text-sm text-muted-foreground">
+                                    Page {maintenancePage} of {maintenanceTotalPages}
+                                </span>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setMaintenancePage((p) => Math.min(maintenanceTotalPages, p + 1))}
+                                    disabled={maintenancePage === maintenanceTotalPages}
+                                >
+                                    Next
+                                </Button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="py-20 flex flex-col items-center justify-center text-center text-muted-foreground border-2 border-dashed rounded-lg">
+                            <Wrench className="w-12 h-12 mb-3 opacity-20" />
+                            <h4 className="font-medium text-foreground">No Maintenance Records</h4>
+                            <p className="text-sm max-w-[250px]">No service history has been logged for this vehicle yet.</p>
                         </div>
                     )}
                 </CardContent>

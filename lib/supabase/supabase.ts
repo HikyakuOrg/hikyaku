@@ -76,7 +76,7 @@ export type Database = {
           customer_country: string | null
           customer_email: string | null
           customer_location: unknown
-          customer_name: string
+          customer_name: string | null
           customer_phone: string | null
           customer_postcode: string | null
           customer_state: string | null
@@ -94,7 +94,7 @@ export type Database = {
           customer_country?: string | null
           customer_email?: string | null
           customer_location: unknown
-          customer_name: string
+          customer_name?: string | null
           customer_phone?: string | null
           customer_postcode?: string | null
           customer_state?: string | null
@@ -112,7 +112,7 @@ export type Database = {
           customer_country?: string | null
           customer_email?: string | null
           customer_location?: unknown
-          customer_name?: string
+          customer_name?: string | null
           customer_phone?: string | null
           customer_postcode?: string | null
           customer_state?: string | null
@@ -1006,6 +1006,54 @@ export type Database = {
             columns: ["permission_id"]
             isOneToOne: false
             referencedRelation: "app_permission"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_maintenance: {
+        Row: {
+          created_at: string
+          date_serviced: string
+          description: string
+          id: string
+          odometer: number
+          organisation_id: string
+          user_id: string | null
+          vehicle_id: string
+        }
+        Insert: {
+          created_at?: string
+          date_serviced: string
+          description: string
+          id?: string
+          odometer: number
+          organisation_id: string
+          user_id?: string | null
+          vehicle_id: string
+        }
+        Update: {
+          created_at?: string
+          date_serviced?: string
+          description?: string
+          id?: string
+          odometer?: number
+          organisation_id?: string
+          user_id?: string | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_maintenance_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_maintenance_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
             referencedColumns: ["id"]
           },
         ]

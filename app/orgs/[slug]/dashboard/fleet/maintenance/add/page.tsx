@@ -25,7 +25,7 @@ import { useOrgSlug } from '@/lib/use-org'
 import { getVehicles, getOrganisationIdBySlug, createMaintenanceRecord } from '@/lib/supabase/db'
 
 const maintenanceSchema = z.object({
-    vehicle_id: z.string().uuid('Please select a vehicle'),
+    vehicle_id: z.string().min(1, 'Please select a vehicle'),
     odometer: z.number().min(0, 'Odometer must be 0 or more'),
     description: z.string().min(1, 'Description is required'),
     date_serviced: z.string().min(1, 'Date serviced is required'),

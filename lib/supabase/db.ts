@@ -437,10 +437,18 @@ export async function getVehicleWithFullDetails(id: string) {
     // However, I'll stick to a simpler approach for now: if status join fails, I'll fallback to a default.
     // For now, let's keep it simple as the view join might just work if we use the right name.
 
+    // 4. Get maintenance records
+    const { data: maintenance } = await supabase
+        .from('vehicle_maintenance')
+        .select('id, date_serviced, odometer, description, created_at')
+        .eq('vehicle_id', id)
+        .order('date_serviced', { ascending: false })
+
     return {
         vehicle,
         currentDriver: driver,
-        deliveries: deliveries || []
+        deliveries: deliveries || [],
+        maintenance: maintenance || []
     }
 }
 
