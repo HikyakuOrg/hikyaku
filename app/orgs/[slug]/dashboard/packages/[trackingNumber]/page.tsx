@@ -26,10 +26,7 @@ export default function PackageDetails() {
     const slug = params.slug as string
     const [packageId, setPackageId] = useState<string | null>(null)
     const canvasRef = useRef<HTMLCanvasElement>(null)
-    const [driverId, setDriverId] = useState<string | null>(null)
     const [driver, setDriver] = useState<ListDriverDto | null>(null)
-    const [fromCustomerId, setFromCustomerId] = useState<string | null>("")
-    const [toCustomerId, setToCustomerId] = useState<string | null>("")
     const [fromCustomer, setFromCustomer] = useState<Customer | null>(null)
     const [toCustomer, setToCustomer] = useState<Customer | null>(null)
     const [packageStatusTimeline, setPackageStatusTimeline] = useState<PackageStatusTimeline[]>([])
@@ -39,110 +36,90 @@ export default function PackageDetails() {
     const [warehouse, setWarehouse] = useState<Tables<"warehouse"> | null>(null)
     const [packageFailure, setPackageFailure] = useState<Tables<"package_failure"> | null>(null)
 
-
     useEffect(() => {
-        if (trackingNumber) {
-            getPackageByTrackingNumber(trackingNumber).then(data => {
-                setPackageId(data.id)
-            }).catch(err => {
-                console.error("Error fetching package by tracking number", err)
-            })
-        }
-    }, [trackingNumber])
+        if (!trackingNumber) return
+        let cancelled = false
 
-    useEffect(() => {
-        if (packageId) {
-            fetchTimeline(packageId)
-            fetchPackageData(packageId)
-            fetchPackageDimension(packageId)
-            fetchPackageDeliveryWindow(packageId)
-        }
-    }, [packageId])
+        async function fetchAll() {
+            const pkgByTracking = await getPackageByTrackingNumber(trackingNumber)
+            const id = pkgByTracking.id
+            if (cancelled) return
+            setPackageId(id)
 
-    async function fetchTimeline(packageId: string) {
-        const packageTimelineValue = await getPackageTimeline(packageId)
-        if (packageTimelineValue.length === 0) return
+            const [packageResult, timelineResult, dimensionResult, deliveryWindowResult, assignmentResult] =
+                await Promise.allSettled([
+                    getPackage(id),
+                    getPackageTimeline(id),
+                    getPackageDimension(id),
+                    getPackageDeliveryWindow(id),
+                    getPackageAssignment(id),
+                ])
 
-        const timeline: PackageStatusTimeline[] = packageTimelineValue.map(value => ({
-            id: value.id.toString(),
-            label: value.package_status.status,
-            createdAt: value.created_at,
-            status: value.package_status.enums as PackageStatus,
-            statusText: value.package_status.status,
-        }))
-        setPackageStatusTimeline(timeline)
+            if (cancelled) return
 
-        if (timeline.at(-1)?.status === "FAILED") {
-            try {
-                const failure = await getPackageFailure(packageId)
-                if (failure) {
-                    setPackageFailure(failure)
+            if (packageResult.status === 'fulfilled') {
+                const data = packageResult.value
+                setPackageData(data)
+
+                const customerIds = [data.from_customer, data.to_customer].filter(Boolean) as string[]
+                if (customerIds.length > 0) {
+                    const customers = await getCustomersByIdsAction(customerIds)
+                    if (!cancelled) {
+                        const fromCust = customers.find(c => c.id === data.from_customer)
+                        const toCust = customers.find(c => c.id === data.to_customer)
+                        if (fromCust) setFromCustomer(fromCust)
+                        if (toCust) setToCustomer(toCust)
+                    }
                 }
-            } catch (err) {
-                console.error("Failed to fetch package failure", err)
+
+                if (data.warehouse_id) {
+                    const wh = await getWarehouse(data.warehouse_id)
+                    if (!cancelled) setWarehouse(wh)
+                }
+            }
+
+            if (timelineResult.status === 'fulfilled' && timelineResult.value.length > 0) {
+                const timeline: PackageStatusTimeline[] = timelineResult.value.map(value => ({
+                    id: value.id.toString(),
+                    label: value.package_status.status,
+                    createdAt: value.created_at,
+                    status: value.package_status.enums as PackageStatus,
+                    statusText: value.package_status.status,
+                }))
+                if (!cancelled) setPackageStatusTimeline(timeline)
+
+                if (timeline.at(-1)?.status === "FAILED") {
+                    try {
+                        const failure = await getPackageFailure(id)
+                        if (!cancelled && failure) setPackageFailure(failure)
+                    } catch (err) {
+                        console.error("Failed to fetch package failure", err)
+                    }
+                }
+            }
+
+            if (dimensionResult.status === 'fulfilled' && dimensionResult.value && !cancelled) {
+                setPackageDimension(dimensionResult.value)
+            }
+
+            if (deliveryWindowResult.status === 'fulfilled' && deliveryWindowResult.value && !cancelled) {
+                setPackageDeliveryWindow(deliveryWindowResult.value)
+            }
+
+            if (assignmentResult.status === 'fulfilled') {
+                const driverId = assignmentResult.value.driver_id
+                if (driverId) {
+                    const drivers = await getDriversByIds([driverId])
+                    if (!cancelled && drivers.length > 0) setDriver(drivers[0])
+                }
+            } else {
+                console.error("No driver assigned yet")
             }
         }
-    }
 
-    async function fetchPackageData(packageId: string) {
-        try {
-            const assignment = await getPackageAssignment(packageId)
-            setDriverId(assignment.driver_id)
-        } catch (e) {
-            console.error("No driver assigned yet")
-        }
-
-        const data = await getPackage(packageId)
-        setPackageData(data)
-        setFromCustomerId(data.from_customer)
-        setToCustomerId(data.to_customer)
-
-        if (data.warehouse_id) {
-            const wh = await getWarehouse(data.warehouse_id)
-            setWarehouse(wh)
-        }
-    }
-
-    async function fetchCustomer(customerIds: string[]) {
-        const customers = await getCustomersByIdsAction(customerIds)
-        const fromCust = customers.find((item) => item.id === fromCustomerId)
-        const toCust = customers.find((item) => item.id === toCustomerId)
-        if (fromCust) setFromCustomer(fromCust)
-        if (toCust) setToCustomer(toCust)
-    }
-
-    async function fetchDriver(driverId: string) {
-        const driver = await getDriversByIds([driverId])
-        if (driver.length > 0) {
-            setDriver(driver[0])
-        }
-    }
-
-    async function fetchPackageDeliveryWindow(packageId: string) {
-        const pdw = await getPackageDeliveryWindow(packageId)
-        if (pdw) {
-            setPackageDeliveryWindow(pdw)
-        }
-    }
-
-    async function fetchPackageDimension(packageId: string) {
-        const dim = await getPackageDimension(packageId)
-        if (dim) {
-            setPackageDimension(dim)
-        }
-    }
-
-    useEffect(() => {
-        if (fromCustomerId && toCustomerId) {
-            fetchCustomer([fromCustomerId, toCustomerId])
-        }
-    }, [fromCustomerId, toCustomerId])
-
-    useEffect(() => {
-        if (driverId) {
-            fetchDriver(driverId)
-        }
-    }, [driverId])
+        fetchAll().catch(err => console.error("Error fetching package details", err))
+        return () => { cancelled = true }
+    }, [trackingNumber])
 
     if (!toCustomer || !fromCustomer || !packageDimension || !packageDeliveryWindow || !packageData || !packageId) {
         return (
