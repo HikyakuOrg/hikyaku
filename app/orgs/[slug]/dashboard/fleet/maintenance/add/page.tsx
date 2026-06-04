@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { getErrorMessage } from '@/lib/utils'
 import { format } from 'date-fns'
 import { Loader2 } from 'lucide-react'
 
@@ -114,8 +115,8 @@ export default function AddMaintenancePage() {
             form.reset()
             setServiceDate(undefined)
             upload.setFiles([])
-        } catch (error: any) {
-            toast.error(error.message || 'Failed to add maintenance record')
+        } catch (error) {
+            toast.error(getErrorMessage(error) || 'Failed to add maintenance record')
         } finally {
             setIsSubmitting(false)
         }

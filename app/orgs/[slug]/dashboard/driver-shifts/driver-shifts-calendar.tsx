@@ -14,6 +14,7 @@ import { useEffect, useState } from 'react'
 import { useOrgSlug } from '@/lib/use-org'
 import { getDeliveryRoutesByDates, DeliveryRouteByDate } from '@/lib/supabase/db'
 import { getDriversByIds } from '@/lib/supabase/supabase-rpc'
+import type { ListDriverDto } from '@/lib/api'
 
 
 interface DriverShiftsCalendarProps {
@@ -67,7 +68,7 @@ export function DriverShiftsCalendar({
     const [startDate, setStartDate] = useState(startOfWeek(new Date(), { weekStartsOn: 0 }))
     const [endDate, setEndDate] = useState(endOfWeek(new Date(), { weekStartsOn: 0 }))
     const [events, setEvents] = useState<DeliveryRouteByDate[]>([])
-    const [drivers, setDrivers] = useState<Record<string, any>>({})
+    const [drivers, setDrivers] = useState<Record<string, ListDriverDto>>({})
 
     const onRangeChange = (range: Date[] | { start: Date; end: Date }) => {
         if (Array.isArray(range)) {
@@ -105,10 +106,10 @@ export function DriverShiftsCalendar({
             if (driverIds.size > 0) {
                 try {
                     const fetchedDrivers = await getDriversByIds(Array.from(driverIds));
-                    const driversMap = fetchedDrivers.reduce((acc: Record<string, any>, d: any) => {
+                    const driversMap = fetchedDrivers.reduce((acc: Record<string, ListDriverDto>, d) => {
                         acc[d.id] = d;
                         return acc;
-                    }, {});
+                    }, {} as Record<string, ListDriverDto>);
                     setDrivers(driversMap);
                 } catch (e) {
                     console.error('Failed to fetch drivers', e);
@@ -134,7 +135,7 @@ export function DriverShiftsCalendar({
     })
 
 
-    const eventStyleGetter = (event: any) => {
+    const eventStyleGetter = (_event: DeliveryRouteByDate) => {
         return {
             style: {
                 backgroundColor: 'white',
@@ -177,7 +178,7 @@ export function DriverShiftsCalendar({
         const endStr = format(arrDate, 'HH:mm');
 
         const driverId = event.package_assignment[0]?.driver_id;
-        const driverAvatar = driverId ? (drivers[driverId]?.avatarUrl || drivers[driverId]?.avatar_url) : null;
+        const driverAvatar = driverId ? (drivers[driverId]?.avatar_url ?? undefined) : undefined;
 
         return (
             <div className="flex flex-col h-full p-1 gap-1 text-black">

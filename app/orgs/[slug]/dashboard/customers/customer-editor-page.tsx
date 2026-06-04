@@ -4,6 +4,7 @@ import { notFound, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Loader2, TriangleAlert } from "lucide-react"
 import { toast } from "sonner"
+import { getErrorMessage } from "@/lib/utils"
 
 import { CustomerForm } from "@/components/customers/customer-form"
 import type { CustomerFormValues } from "@/components/customers/customer-schema"
@@ -115,9 +116,9 @@ export function CustomerEditorPage({ mode, customerId }: CustomerEditorPageProps
                     : "Customer created successfully"
             )
             router.push(`/orgs/${slug}/dashboard/customers/${customer.id}`)
-        } catch (error: any) {
+        } catch (error) {
             toast.error(
-                error.message ||
+                getErrorMessage(error) ||
                 (mode === "edit" ? "Failed to update customer" : "Failed to create customer")
             )
         } finally {
@@ -142,9 +143,9 @@ export function CustomerEditorPage({ mode, customerId }: CustomerEditorPageProps
                     : "Customer created successfully"
             )
             router.push(`/orgs/${slug}/dashboard/customers/${customer.id}`)
-        } catch (error: any) {
+        } catch (error) {
             toast.error(
-                error.message ||
+                getErrorMessage(error) ||
                 (mode === "edit" ? "Failed to update customer" : "Failed to create customer")
             )
         } finally {

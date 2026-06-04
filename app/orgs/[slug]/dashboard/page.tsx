@@ -34,7 +34,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
     getPackages(20, 1, undefined, supabase)
   ]);
 
-  const recentPackages = (recentPackagesData as any[] || []).map(pkg => ({
+  const recentPackages = (recentPackagesData ?? []).map(pkg => ({
     id: pkg.id,
     tracking_number: pkg.tracking_number,
     from_customer: pkg.from_customer,

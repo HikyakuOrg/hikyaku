@@ -7,6 +7,7 @@ import { useDriverLocationUpdates } from "@/hooks/useDriverLocationUpdates"
 import DriverMap from "./driver-map"
 import { Spinner } from "@/components/ui/spinner"
 import { getDriverPackageAssignmentStatus } from "@/lib/supabase/db"
+import type { ListDriverDto } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Edit } from "lucide-react"
 import LocationHistoryCard from "./location-history-card"
@@ -14,13 +15,20 @@ import { useDriverPresenceStatus } from "@/hooks/useDriverPresenceStatus"
 import { DriverShiftsCalendar } from "@/app/orgs/[slug]/dashboard/driver-shifts/driver-shifts-calendar"
 
 
+type AssignmentWithPackage = Awaited<ReturnType<typeof getDriverPackageAssignmentStatus>>[number]
+interface DriverPackageRow {
+    assignmentId: string
+    assignedAt: string
+    package: AssignmentWithPackage["package"] | null
+}
+
 export default function DriverDetailsPage() {
     const params = useParams()
     const driverId = params.id as string
     const slug = params.slug as string
 
-    const [driver, setDriver] = useState<any | null>(null)
-    const [packages, setPackages] = useState<any[]>([])
+    const [driver, setDriver] = useState<ListDriverDto | null>(null)
+    const [packages, setPackages] = useState<DriverPackageRow[]>([])
     const [loading, setLoading] = useState(true)
     const router = useRouter()
     const { location } = useDriverLocationUpdates(driverId ?? "")
@@ -47,8 +55,8 @@ export default function DriverDetailsPage() {
             try {
                 const data = await getDriverPackageAssignmentStatus(driverId)
 
-                const mapped = (data ?? []).map((row: any) => ({
-                    assignmentId: row.id ?? null,
+                const mapped: DriverPackageRow[] = (data ?? []).map((row) => ({
+                    assignmentId: row.package_id,
                     assignedAt: row.created_at,
                     package: row.package ?? null,
                 }))
@@ -130,7 +138,7 @@ export default function DriverDetailsPage() {
                     <div>
                         <p className="text-muted-foreground">Warehouse</p>
                         <p className="font-medium">
-                            {driver?.warehouse_name ?? driver?.warehouse_id ?? "—"}
+                            {"—"}
                         </p>
                     </div>
 
@@ -195,13 +203,12 @@ export default function DriverDetailsPage() {
                             >
                                 <div>
                                     <p className="font-medium">
-                                        {p.package?.tracking_number ?? p.package?.id}
+                                        {p.package?.id}
                                     </p>
 
                                     <p className="text-sm text-muted-foreground">
                                         Status:{" "}
-                                        {p.package?.current_status ??
-                                            p.package?.current_status_id}
+                                        {p.package?.current_status}
                                     </p>
                                 </div>
 

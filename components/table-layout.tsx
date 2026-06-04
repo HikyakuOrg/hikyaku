@@ -60,7 +60,7 @@ export function TableLayout<TData>({ data, columns, loading, pageSize, actions, 
     const table = useReactTable({
         data: data || [],
         columns: columnsWithSelection,
-        getRowId: (row: any) => row.id,
+        getRowId: (row: TData) => (row as { id: string }).id,
         state: isSelectionEnabled
             ? { rowSelection }
             : {},

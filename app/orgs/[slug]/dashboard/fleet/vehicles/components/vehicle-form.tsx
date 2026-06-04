@@ -16,7 +16,7 @@ import { Loader2, CheckCircle2, AlertCircle, X, Image as ImageIcon } from 'lucid
 import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/dropzone'
 import { useSupabaseUpload } from '@/hooks/use-supabase-upload'
 import { createClient } from '@/lib/supabase/client'
-import { cn } from '@/lib/utils'
+import { cn, getErrorMessage } from '@/lib/utils'
 import { Tables } from '@/lib/supabase/supabase'
 import { decodeVin } from '@/lib/actions/vin'
 
@@ -46,8 +46,8 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
     const router = useRouter()
     const [isDecoding, setIsDecoding] = useState(false)
     const [isAutoPopulated, setIsAutoPopulated] = useState(!!initialData)
-    const [vehicleTypes, setVehicleTypes] = useState<any[]>([])
-    const [warehouses, setWarehouses] = useState<any[]>([])
+    const [vehicleTypes, setVehicleTypes] = useState<Tables<'vehicle_type'>[]>([])
+    const [warehouses, setWarehouses] = useState<Tables<'warehouse'>[]>([])
     const [existingImages, setExistingImages] = useState<{ name: string, url: string }[]>([])
     const [isRemovingImage, setIsRemovingImage] = useState<string | null>(null)
 
@@ -143,8 +143,8 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
             if (error) throw error
             setExistingImages(prev => prev.filter(img => img.name !== imageName))
             toast.success('Image removed')
-        } catch (error: any) {
-            toast.error(error.message || 'Failed to remove image')
+        } catch (error) {
+            toast.error(getErrorMessage(error) || 'Failed to remove image')
         } finally {
             setIsRemovingImage(null)
         }

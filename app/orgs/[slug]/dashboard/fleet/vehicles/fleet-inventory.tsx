@@ -11,6 +11,7 @@ import { getVehiclesByType, getVehicleTypes, VehiclesWithTypes, deleteVehicle } 
 import { Tables } from '@/lib/supabase/supabase';
 import { RowSelectionState } from '@tanstack/react-table';
 import { toast } from 'sonner';
+import { getErrorMessage } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 
 
@@ -97,8 +98,8 @@ export function FleetInventory() {
                             setVehicles(prev => prev.filter(v => !rows.map(r => r.id).includes(v.id)))
                             setRowSelection({})
                             toast.success("Vehicles deleted successfully")
-                        } catch (error: any) {
-                            toast.error(error.message)
+                        } catch (error) {
+                            toast.error(getErrorMessage(error))
                         }
                     }}
                 />

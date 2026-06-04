@@ -6,6 +6,7 @@ import { useOrgSlug } from "@/lib/use-org";
 import { createClient } from "@/lib/supabase/client";
 import { insertPackage, insertPackageDimension, insertPackageDeliveryWindow } from "@/lib/supabase/db";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import { Loader2, Printer, CheckCircle2 } from "lucide-react";
 import { PackageLabel, downloadLabelAsPNG } from "@/components/package-label";
@@ -67,9 +68,9 @@ export function OverviewStep({ onPrev, formData }: {
 
             toast.success("Package added successfully!");
             setIsSubmitted(true);
-        } catch (error: any) {
+        } catch (error) {
             console.error("Submission error:", error);
-            toast.error(error.message || "Failed to add package. Please try again.");
+            toast.error(getErrorMessage(error) || "Failed to add package. Please try again.");
         } finally {
             setIsSubmitting(false);
         }

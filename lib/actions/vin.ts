@@ -1,6 +1,7 @@
 "use server"
 
 import { createDecoder } from "@cardog/corgi";
+import { getErrorMessage } from "@/lib/utils";
 
 export async function decodeVin(vin: string) {
     if (!vin || vin.length !== 17) {
@@ -24,10 +25,10 @@ export async function decodeVin(vin: string) {
                 error: 'Could not decode VIN'
             };
         }
-    } catch (error: any) {
+    } catch (error) {
         return {
             success: false,
-            error: error.message || 'Internal server error during VIN decoding'
+            error: getErrorMessage(error) || 'Internal server error during VIN decoding'
         };
     }
 }

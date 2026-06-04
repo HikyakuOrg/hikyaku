@@ -46,11 +46,7 @@ export function WarehouseStep({
             setIsLoading(true)
             try {
                 const data = await searchWarehouse(searchTerm)
-                const typed: Tables<"warehouse">[] = (data ?? []).map((item) => ({
-                    ...item,
-                    warehouse_location: item.warehouse_location as any,
-                }))
-                setResults(typed)
+                setResults(data ?? [])
             } catch {
                 // silently fail search
             } finally {

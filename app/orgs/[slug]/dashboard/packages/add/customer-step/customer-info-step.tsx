@@ -38,8 +38,8 @@ export function CustomerInfo({ onNext, onPrev, defaultValues }: {
                     const sender = customers.find(c => c.id === defaultValues?.senderId);
                     const receiver = customers.find(c => c.id === defaultValues?.receiverId);
 
-                    if (sender) setSelectedSenderCustomer(sender as any);
-                    if (receiver) setSelectedReceiverCustomer(receiver as any);
+                    if (sender) setSelectedSenderCustomer(sender);
+                    if (receiver) setSelectedReceiverCustomer(receiver);
                 } catch (error) {
                     console.error("Error fetching customers:", error);
                 }

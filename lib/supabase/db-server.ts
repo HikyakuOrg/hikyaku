@@ -488,15 +488,15 @@ export async function getAvailableDriverVehiclePairs(warehouseId: string, date: 
             p_driver_ids: driverIds
         })
         if (driverProfiles) {
-            for (const profile of driverProfiles as any[]) {
+            for (const profile of driverProfiles) {
                 displayNameMap[profile.id] = profile.display_name ?? profile.email ?? profile.id
             }
         }
     }
 
     return filteredPairs.map((p) => {
-        const driver = p.drivers as any
-        const vehicle = p.vehicles as any
+        const driver = p.drivers
+        const vehicle = p.vehicles
         return {
             dvaId: p.id,
             driverId: p.driver_id,
@@ -566,9 +566,9 @@ export async function getUnassignedPackagesByWarehouse(warehouseId: string): Pro
     const rows = data ?? []
 
     return rows.map((p) => {
-        const dims = p.package_dimensions as any
-        const cust = p.to_customer as any
-        const pdw = p.package_delivery_window as any
+        const dims = p.package_dimensions
+        const cust = p.to_customer
+        const pdw = p.package_delivery_window
         const loc = cust?.customer_location as Location | null
         return {
             id: p.id,

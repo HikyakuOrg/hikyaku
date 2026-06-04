@@ -18,9 +18,9 @@ export async function updateServiceArea(id: string, name: string, geometry: stri
     if (error) throw error
     return data
 }
-import { QueryData } from "@supabase/supabase-js";
+import { QueryData, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { createClient } from "./client";
-import { Database, Tables } from "./supabase";
+import { Database, Tables, TablesInsert } from "./supabase";
 import { PackageOptimisation } from "@/app/models/package-optimisation";
 
 
@@ -78,10 +78,12 @@ export async function getPackageTimeline(packageId: string) {
 }
 
 
-export function subscribeToDriverLocationUpdates(driverId: string, onUpdate: (payload: any) => void) {
+type DriverCurrentLocationRow = Database["public"]["Tables"]["driver_current_location"]["Row"]
+
+export function subscribeToDriverLocationUpdates(driverId: string, onUpdate: (payload: RealtimePostgresChangesPayload<DriverCurrentLocationRow>) => void) {
     const channel = supabase
         .channel("driver-location-updates")
-        .on(
+        .on<DriverCurrentLocationRow>(
             "postgres_changes",
             {
                 event: "*",
@@ -331,7 +333,7 @@ export async function deleteVehicle(vehicleId: string) {
     return data
 }
 
-export async function createVehicle(vehicle: Tables<'vehicles'>) {
+export async function createVehicle(vehicle: TablesInsert<'vehicles'>) {
     const { data, error } = await supabase.from("vehicles").insert(vehicle).select().single()
     if (error) throw error
     return data
@@ -513,19 +515,20 @@ export async function searchServiceArea(search: string) {
 
 export async function insertPackage(packageId: string, fromCustomer: string, toCustomer: string,
     warehouseId: string, trackingNumber?: string, deliveryNotes?: string | null) {
-    const payload: any = {
+    const payload = {
         id: packageId,
         from_customer: fromCustomer,
         to_customer: toCustomer,
         warehouse_id: warehouseId,
-        deliveryNotes: deliveryNotes
-    }
+        delivery_notes: deliveryNotes,
+        ...(trackingNumber ? { tracking_number: trackingNumber } : {}),
+    } satisfies Partial<Database["public"]["Tables"]["packages"]["Insert"]>
 
-    if (trackingNumber) {
-        payload.tracking_number = trackingNumber
-    }
-
-    const { data, error } = await supabase.from("packages").insert(payload).select().single()
+    const { data, error } = await supabase
+        .from("packages")
+        .insert(payload as Database["public"]["Tables"]["packages"]["Insert"])
+        .select()
+        .single()
 
     if (error) throw error
 
@@ -615,7 +618,7 @@ export async function getDeliveryRoutesByDates(
     endDate: string,
     driverId?: string
 ): Promise<DeliveryRouteByDate[]> {
-    const { data, error } = await supabase.from('package_delivery_window')
+    const query = supabase.from('package_delivery_window')
         .select(`
             package_id,
             scheduled_departure,
@@ -632,11 +635,13 @@ export async function getDeliveryRoutesByDates(
         .gt('scheduled_departure', startDate)
         .lt('scheduled_departure', endDate)
 
+    const { data, error } = await query
+
     if (error) throw error
 
     const routesMap = new Map<string, DeliveryRouteByDate>();
 
-    for (const item of (data as any[]) || []) {
+    for (const item of (data ?? []) as QueryData<typeof query>) {
         const package_id = item.package_id;
         const scheduled_departure = item.scheduled_departure;
         const scheduled_arrival = item.scheduled_arrival;

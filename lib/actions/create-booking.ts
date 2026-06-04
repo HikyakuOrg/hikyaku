@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server"
 import type { BookingFormData } from "@/app/booking/booking-stepper"
 
-export async function createBooking(formData: BookingFormData, serviceResult: any) {
+export async function createBooking(formData: BookingFormData, serviceResult: unknown) {
     const supabase = await createClient()
 
     const { data: { session } } = await supabase.auth.getSession()

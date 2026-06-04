@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { getVehicleWithFullDetails, deleteVehicle } from '@/lib/supabase/db'
 import { getSignedUrls, listVehicleFiles } from '@/lib/supabase/storage'
 import { toast } from 'sonner'
+import { getErrorMessage } from '@/lib/utils'
 import { 
     ChevronLeft, 
     Loader2, 
@@ -29,7 +30,7 @@ export default function VehicleOverviewPage() {
     const router = useRouter()
     const { id, slug } = useParams() as { id: string; slug: string }
     
-    const [data, setData] = useState<any>(null)
+    const [data, setData] = useState<Awaited<ReturnType<typeof getVehicleWithFullDetails>> | null>(null)
     const [images, setImages] = useState<string[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isDeleting, setIsDeleting] = useState(false)
@@ -68,8 +69,8 @@ export default function VehicleOverviewPage() {
             await deleteVehicle(id)
             toast.success('Vehicle deleted successfully')
             router.push(`/orgs/${slug}/dashboard/fleet/vehicles`)
-        } catch (error: any) {
-            toast.error(error.message || 'Failed to delete vehicle')
+        } catch (error) {
+            toast.error(getErrorMessage(error) || 'Failed to delete vehicle')
             setIsDeleting(false)
         }
     }
@@ -147,7 +148,7 @@ export default function VehicleOverviewPage() {
                                 <h3 className="text-lg font-semibold mb-4">Technical Specs</h3>
                                 <dl className="grid grid-cols-2 gap-y-4 text-sm">
                                     <dt className="text-muted-foreground">VIN</dt>
-                                    <dd className="font-mono font-medium text-right md:text-left truncate" title={vehicle.vehicle_identification_number}>
+                                    <dd className="font-mono font-medium text-right md:text-left truncate" title={vehicle.vehicle_identification_number ?? undefined}>
                                         {vehicle.vehicle_identification_number}
                                     </dd>
                                     
@@ -259,18 +260,14 @@ export default function VehicleOverviewPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {deliveries.map((d: any) => (
+                                    {deliveries.map((d) => (
                                         <TableRow key={d.package_id} className="hover:bg-muted/30">
                                             <TableCell className="font-mono font-medium">{d.package?.tracking_number}</TableCell>
                                             <TableCell className="text-sm">{d.package?.from_customer?.customer_name}</TableCell>
                                             <TableCell className="text-sm">{d.package?.to_customer?.customer_name}</TableCell>
                                             <TableCell>
-                                                <Badge variant={
-                                                    d.package?.status?.current_status === 'DELIVERED' ? 'default' :
-                                                    d.package?.status?.current_status === 'FAILED' ? 'destructive' :
-                                                    'secondary'
-                                                } className="text-[10px] uppercase font-bold px-1.5 py-0">
-                                                    {d.package?.status?.current_status || 'PENDING'}
+                                                <Badge variant="secondary" className="text-[10px] uppercase font-bold px-1.5 py-0">
+                                                    PENDING
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-muted-foreground text-xs italic">

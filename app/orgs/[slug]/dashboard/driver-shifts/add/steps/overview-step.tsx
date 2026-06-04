@@ -8,6 +8,7 @@ import { createManualShift } from "@/lib/actions/shift"
 import { useRouter } from "next/navigation"
 import { useOrgSlug } from "@/lib/use-org"
 import { toast } from "sonner"
+import { getErrorMessage } from "@/lib/utils"
 import { Loader2, CheckCircle2, AlertTriangle, XCircle } from "lucide-react"
 import { isBefore, parseISO } from "date-fns"
 import type { FormData } from "@/app/orgs/[slug]/dashboard/driver-shifts/add/types"
@@ -84,8 +85,8 @@ export function OverviewStep({
 
             toast.success("Shift created successfully!")
             router.push(`/orgs/${slug}/dashboard/driver-shifts/${result.routeId}`)
-        } catch (err: any) {
-            toast.error(err.message ?? "Failed to create shift")
+        } catch (err) {
+            toast.error(getErrorMessage(err) || "Failed to create shift")
         } finally {
             setIsSubmitting(false)
         }

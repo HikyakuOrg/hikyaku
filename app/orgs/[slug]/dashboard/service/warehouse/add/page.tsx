@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { getErrorMessage } from '@/lib/utils'
 
 import { AddressAutocomplete } from '@/components/ui/address-autocomplete'
 import { Button } from '@/components/ui/button'
@@ -77,8 +78,8 @@ export default function AddWarehousePage() {
             })
             toast.success('Warehouse added successfully')
             router.push(`/orgs/${slug}/dashboard/service/warehouse/${warehouse!.id}`)
-        } catch (error: any) {
-            toast.error(error.message || 'Failed to add warehouse')
+        } catch (error) {
+            toast.error(getErrorMessage(error) || 'Failed to add warehouse')
         } finally {
             setIsSubmitting(false)
         }

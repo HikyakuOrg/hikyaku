@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { getVehicle, updateVehicle } from '@/lib/supabase/db'
 import { toast } from 'sonner'
+import { getErrorMessage } from '@/lib/utils'
 import { ChevronLeft, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
@@ -33,7 +34,7 @@ export default function EditVehiclePage() {
         setIsSubmitting(true)
         try {
             // 1. Update vehicle record
-            await updateVehicle(id, values as any)
+            await updateVehicle(id, values)
 
             // 2. Upload new images if any
             if (newFiles.length > 0) {
@@ -54,8 +55,8 @@ export default function EditVehiclePage() {
 
             toast.success('Vehicle updated successfully')
             router.push(`/orgs/${slug}/dashboard/fleet/vehicles`)
-        } catch (error: any) {
-            toast.error(error.message || 'Failed to update vehicle')
+        } catch (error) {
+            toast.error(getErrorMessage(error) || 'Failed to update vehicle')
         } finally {
             setIsSubmitting(false)
         }

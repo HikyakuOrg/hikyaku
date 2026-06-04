@@ -5,7 +5,9 @@ import { getSupabaseServerClaims } from "@/lib/supabase/server"
 import { insertPackageTimeline } from "@/lib/supabase/supabase-rpc"
 import { getAvailableDriverVehiclePairs, getUnassignedPackagesByWarehouse } from "@/lib/supabase/db-server"
 import type { DriverVehiclePair, UnassignedPackage } from "@/lib/supabase/db-server"
-import { DirectionsResponse } from "ors-client"
+import { DirectionsResponse, type RouteSegment } from "ors-client"
+import { getErrorMessage } from "@/lib/utils"
+import type { Database } from "@/lib/supabase/supabase"
 
 export async function fetchAvailableDriverVehiclePairs(
     warehouseId: string,
@@ -101,13 +103,14 @@ export async function createManualShift(params: ManualShiftParams): Promise<{ su
         const waypoints = orsRoute?.way_points ?? []
         // arrival seconds per stop index come from "segments[i].steps"
         // We use the ORS duration per waypoint segment to derive arrival
-        const segmentDurations: number[] = (orsRoute?.segments ?? []).map((s: any) => s.duration ?? 0)
+        const segmentDurations: number[] = (orsRoute?.segments ?? []).map((s: RouteSegment) => s.duration ?? 0)
 
-        const routeStepInserts: object[] = []
+        const routeStepInserts: Database["public"]["Tables"]["vrp_route_step"]["Insert"][] = []
 
         // start step
         routeStepInserts.push({
             route_id: route.id,
+            solution_id: solution.id,
             step_index: 0,
             type: "start",
             location: `SRID=4326;POINT(${params.warehouseLng} ${params.warehouseLat})`,
@@ -121,6 +124,7 @@ export async function createManualShift(params: ManualShiftParams): Promise<{ su
             const pkg = params.orderedPackages[i]
             routeStepInserts.push({
                 route_id: route.id,
+                solution_id: solution.id,
                 step_index: i + 1,
                 type: "job",
                 location: `SRID=4326;POINT(${pkg.customerLng} ${pkg.customerLat})`,
@@ -133,13 +137,14 @@ export async function createManualShift(params: ManualShiftParams): Promise<{ su
         cumulativeArrival += segmentDurations[params.orderedPackages.length] ?? 0
         routeStepInserts.push({
             route_id: route.id,
+            solution_id: solution.id,
             step_index: params.orderedPackages.length + 1,
             type: "end",
             location: `SRID=4326;POINT(${params.warehouseLng} ${params.warehouseLat})`,
             arrival: Math.round(cumulativeArrival),
         })
 
-        const { error: stepsError } = await supabase.from("vrp_route_step").insert(routeStepInserts as any)
+        const { error: stepsError } = await supabase.from("vrp_route_step").insert(routeStepInserts)
         if (stepsError) throw new Error(`vrp_route_step insert: ${stepsError.message}`)
 
         // 6. Upsert package_delivery_window per package
@@ -169,8 +174,8 @@ export async function createManualShift(params: ManualShiftParams): Promise<{ su
         }
 
         return { success: true, routeId: route.id }
-    } catch (err: any) {
+    } catch (err) {
         console.error("createManualShift error:", err)
-        return { success: false, error: err.message ?? "An unexpected error occurred" }
+        return { success: false, error: getErrorMessage(err) || "An unexpected error occurred" }
     }
 }

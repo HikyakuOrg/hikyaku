@@ -15,6 +15,7 @@ import { ColumnDef } from "@tanstack/react-table"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
+import { getErrorMessage } from "@/lib/utils"
 
 
 interface WarehouseVehicleDialog {
@@ -116,8 +117,8 @@ export function WarehouseVehiclesDialog({ warehouseId, driverId, assignedVehicle
             await deleteDriverAssignedVehicle(vehicleId, driverId)
             setIsDialogOpen(false)
             router.refresh()
-        } catch (error: any) {
-            toast.error(error.message, { position: "bottom-right" })
+        } catch (error) {
+            toast.error(getErrorMessage(error), { position: "bottom-right" })
         }
     }
 
@@ -126,8 +127,8 @@ export function WarehouseVehiclesDialog({ warehouseId, driverId, assignedVehicle
             await assignVehicleToDriver(vehicleId, driverId)
             setIsDialogOpen(false)
             router.refresh()
-        } catch (error: any) {
-            toast.error(error.message, { position: "bottom-right" })
+        } catch (error) {
+            toast.error(getErrorMessage(error), { position: "bottom-right" })
         }
     }
 

@@ -18,6 +18,7 @@ import { getDrivers } from "@/lib/supabase/supabase-rpc"
 import { RowSelectionState } from "@tanstack/react-table"
 import { assignVehicleToDriver } from "@/lib/supabase/db"
 import { toast } from "sonner"
+import { getErrorMessage } from "@/lib/utils"
 
 interface VehicleDriverSheetProps {
     vehicleId: string
@@ -36,10 +37,10 @@ export function VehicleDriverSheet({ vehicleId, onDriverAssigned }: VehicleDrive
     const fetchDrivers = async (p: number) => {
         setLoading(true)
         try {
-            const data = await getDrivers(p, PAGE_SIZE) as any[]
+            const data = await getDrivers(p, PAGE_SIZE)
             setDrivers(data)
             if (data.length > 0) {
-                setTotalPages(data[0].total_pages ?? 1)
+                setTotalPages(Math.max(1, Math.ceil((data[0].total ?? 0) / PAGE_SIZE)))
             }
         } finally {
             setLoading(false)
@@ -68,8 +69,8 @@ export function VehicleDriverSheet({ vehicleId, onDriverAssigned }: VehicleDrive
             setOpen(false)
             onDriverAssigned()
             toast.success("Driver assigned successfully", { position: "bottom-right" })
-        } catch (error: any) {
-            toast.error(error.message || "Failed to assign driver")
+        } catch (error) {
+            toast.error(getErrorMessage(error) || "Failed to assign driver")
         }
     }
 

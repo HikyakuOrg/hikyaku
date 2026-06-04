@@ -9,6 +9,7 @@ import { useState, useEffect, SetStateAction } from "react"
 import { WarehouseVehicleSheet } from "./warehouse-vehicle-sheet"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { getErrorMessage } from "@/lib/utils"
 
 
 export function WarehouseVehicleCard({ warehouseId }: { warehouseId: string }) {
@@ -40,8 +41,8 @@ export function WarehouseVehicleCard({ warehouseId }: { warehouseId: string }) {
             await removeVehiclesWarehouse(selectedIds)
             setVehicles(prev => prev.filter(v => !selectedIds.includes(v.id)))
             router.refresh()
-        } catch(error: any){
-            toast.error(error.message, { position: "bottom-right" })
+        } catch(error){
+            toast.error(getErrorMessage(error), { position: "bottom-right" })
         }
     }
 

@@ -97,8 +97,7 @@ export async function listMyOrganisations(): Promise<OrganisationSummary[]> {
     issuingStatuses.map((s) => [s.slug, s]),
   )
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (orgsResult.data as any[]).map(({ id, slug, name, org_type }) => {
+  return orgsResult.data.map(({ id, slug, name, org_type }) => {
     const stripe = statusBySlug.get(slug)
     return {
       id,

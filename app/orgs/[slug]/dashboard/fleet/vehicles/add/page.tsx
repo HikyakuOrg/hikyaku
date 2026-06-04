@@ -3,7 +3,9 @@
 import { useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createVehicle } from '@/lib/supabase/db'
+import { TablesInsert } from '@/lib/supabase/supabase'
 import { toast } from 'sonner'
+import { getErrorMessage } from '@/lib/utils'
 import { ChevronLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
@@ -21,7 +23,7 @@ export default function AddVehiclePage() {
             const vehicle = await createVehicle({
                 ...values,
                 is_deleted: false
-            } as any)
+            } as TablesInsert<'vehicles'>)
 
             // 2. Upload images if any
             if (newFiles.length > 0) {
@@ -42,8 +44,8 @@ export default function AddVehiclePage() {
 
             toast.success('Vehicle added successfully')
             router.push(`/orgs/${slug}/dashboard/fleet/vehicles`)
-        } catch (error: any) {
-            toast.error(error.message || 'Failed to add vehicle')
+        } catch (error) {
+            toast.error(getErrorMessage(error) || 'Failed to add vehicle')
         } finally {
             setIsSubmitting(false)
         }

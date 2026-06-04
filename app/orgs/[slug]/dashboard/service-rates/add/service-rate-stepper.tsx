@@ -6,6 +6,7 @@ import { StepStatus, useStepItemContext } from "@stepperize/react/primitives"
 import { useRouter } from "next/navigation"
 import { useOrgSlug } from "@/lib/use-org"
 import { toast } from "sonner"
+import { getErrorMessage } from "@/lib/utils"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -260,8 +261,8 @@ export function ServiceRateStepper() {
                                                 })
                                                 toast.success("Service rate created successfully!")
                                                 router.push(`/orgs/${slug}/dashboard/service-rates`)
-                                            } catch (err: any) {
-                                                toast.error(err?.message ?? "Failed to create service rate.")
+                                            } catch (err) {
+                                                toast.error(getErrorMessage(err) || "Failed to create service rate.")
                                             } finally {
                                                 setIsSubmitting(false)
                                             }

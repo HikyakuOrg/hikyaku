@@ -61,7 +61,7 @@ export function LogisticsAssignmentStep({ onNext, onPrev, defaultValues }: {
             if (defaultValues?.warehouseId) {
                 try {
                     const warehouse = await getWarehouse(defaultValues.warehouseId);
-                    setSelectedWarehouse(warehouse as any);
+                    setSelectedWarehouse(warehouse);
                 } catch (error) {
                     console.error("Error fetching warehouse:", error);
                 }

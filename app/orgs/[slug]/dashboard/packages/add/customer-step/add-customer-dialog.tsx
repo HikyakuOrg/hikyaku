@@ -29,6 +29,7 @@ import {
 import { TriangleAlert } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
+import { getErrorMessage } from "@/lib/utils"
 
 interface AddCustomerDialogProps {
     open: boolean
@@ -56,8 +57,8 @@ export function AddCustomerDialog({ open, onOpenChange, onCustomerAdded }: AddCu
             onCustomerAdded(customer)
             toast.success("Customer created successfully")
             onOpenChange(false)
-        } catch (e: any) {
-            toast.error(e.message)
+        } catch (e) {
+            toast.error(getErrorMessage(e))
         } finally {
             setIsLoading(false)
         }
@@ -77,8 +78,8 @@ export function AddCustomerDialog({ open, onOpenChange, onCustomerAdded }: AddCu
             onCustomerAdded(customer)
             toast.success("Customer created successfully")
             onOpenChange(false)
-        } catch (error: any) {
-            toast.error(error.message || "Failed to create customer")
+        } catch (error) {
+            toast.error(getErrorMessage(error) || "Failed to create customer")
         } finally {
             setIsLoading(false)
         }

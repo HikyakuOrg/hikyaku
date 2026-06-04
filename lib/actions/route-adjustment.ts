@@ -58,7 +58,7 @@ export async function adjustRoute(params: AdjustRouteParams): Promise<AdjustRout
     // 3. Compute the lock boundary: highest step_index of any JOB with a locked status
     const lockBoundaryStepIndex = (() => {
         const locked = currentSteps.filter(s => {
-            const status = (s.package_assignment as any)?.package?.current_status as string | undefined
+            const status = s.package_assignment?.package?.current_status as string | undefined
             return s.type === "job" && LOCKED_STATUSES.includes(status as never)
         })
         return locked.length > 0 ? Math.max(...locked.map(s => s.step_index)) : -1
@@ -66,7 +66,7 @@ export async function adjustRoute(params: AdjustRouteParams): Promise<AdjustRout
 
     // Helper: get the status of a step
     const statusOf = (s: (typeof currentSteps)[number]) =>
-        ((s.package_assignment as any)?.package?.current_status as string | undefined) ?? null
+        (s.package_assignment?.package?.current_status as string | undefined) ?? null
 
     // 4. Validate each deletion
     for (const stepId of deletedStepIds) {

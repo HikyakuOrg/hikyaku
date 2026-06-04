@@ -14,6 +14,7 @@ import { ColumnDef, RowSelectionState } from "@tanstack/react-table"
 import { getDriversByIds, getDriversByWarehouse } from "@/lib/supabase/supabase-rpc"
 import { removeDriversWarehouse } from "@/lib/supabase/db"
 import { toast } from "sonner"
+import { getErrorMessage } from "@/lib/utils"
 import { WarehouseVehiclesDialog } from "./warehouse-vehicles-dialog"
 import { Button } from "@/components/ui/button"
 
@@ -89,8 +90,8 @@ export function WarehouseDriverCard({ warehouseId }: { warehouseId: string }) {
             // Update UI after successful deletion
             setDrivers(prevDrivers => prevDrivers.filter(driver => !driverIds.includes(driver.id)))
             router.refresh()
-        } catch (error: any) {
-            toast.error(error.message, { position: "bottom-right" })
+        } catch (error) {
+            toast.error(getErrorMessage(error), { position: "bottom-right" })
         }
     }
 
