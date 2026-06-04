@@ -5,6 +5,7 @@ import { TeamMemberNameCrumb } from "../../driver-crumb";
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/reui/phone-input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { CalendarIcon, CameraIcon } from "@phosphor-icons/react";
@@ -158,11 +159,11 @@ export default function DriverPage() {
 
                     <div className="space-y-2">
                         <Label htmlFor="phone">Phone</Label>
-                        <Input
+                        <PhoneInput
                             id="phone"
                             value={phone ?? ""}
-                            placeholder="8720 6021"
-                            onChange={(e) => setPhone(e.target.value)}
+                            onChange={(value) => setPhone(value ?? "")}
+                            defaultCountry="AU"
                         />
                     </div>
                 </div>
