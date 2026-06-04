@@ -57,6 +57,9 @@ async function AuthenticatedShell({ children, params }: DashboardLayoutProps) {
   // Company orgs can use the dashboard immediately; Stripe Connect setup is
   // now opt-in via the Business Information page in the user dropdown.
   const cardIssuingActive = currentOrg.cardIssuingStatus === 'active'
+  // "Service Rates" (the unit-priced catalog) only makes sense once the org can
+  // actually accept payments.
+  const serviceRatesActive = currentOrg.chargesEnabled
 
   return (
     <>
@@ -65,6 +68,7 @@ async function AuthenticatedShell({ children, params }: DashboardLayoutProps) {
         organisations={organisations}
         currentSlug={slug}
         cardIssuingActive={cardIssuingActive}
+        serviceRatesActive={serviceRatesActive}
       />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">

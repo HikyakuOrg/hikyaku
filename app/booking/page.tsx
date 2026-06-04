@@ -1,7 +1,8 @@
 import { headers } from "next/headers"
 import { notFound } from "next/navigation"
 import { BookingStepper } from "./booking-stepper"
-import { getOrganisationBySlug, getServiceRates } from "@/lib/supabase/db-server"
+import { getOrganisationBySlug } from "@/lib/supabase/db-server"
+import { getServiceCatalog } from "@/lib/api/services"
 
 export default async function BookingPage() {
     // The active tenant is resolved by middleware from the subdomain
@@ -14,10 +15,12 @@ export default async function BookingPage() {
     const organisation = await getOrganisationBySlug(slug)
     if (!organisation) notFound()
 
-    const serviceRates = await getServiceRates(organisation.id)
+    // Price/currency live in Stripe, so the catalog comes from whendan-api
+    // (cached, 60s TTL) rather than supabase-js.
+    const { services } = await getServiceCatalog(slug)
     const orgName = organisation.name ?? "This store"
 
-    if (serviceRates.length === 0) {
+    if (services.length === 0) {
         return (
             <div className="flex min-h-[70svh] flex-col items-center justify-center px-4 text-center">
                 <h1 className="scroll-m-20 text-2xl font-semibold tracking-tight text-balance">
@@ -37,7 +40,7 @@ export default async function BookingPage() {
                     Fill in your package and delivery details to get started.
                 </p>
             </div>
-            <BookingStepper serviceRates={serviceRates} orgSlug={organisation.slug} />
+            <BookingStepper services={services} orgSlug={organisation.slug} />
         </div>
     )
 }

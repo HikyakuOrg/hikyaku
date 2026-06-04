@@ -5,17 +5,12 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { BookingFormData } from "../booking-stepper"
-import type { AddressesFormValues, ServiceRateOption } from "../booking-schema"
-import type { ServiceFeeResult } from "@/lib/api/service-fees"
+import type { AddressesFormValues, ServiceOption } from "../booking-schema"
+import type { QuoteResult } from "@/lib/api/payments"
 import { formatCurrency } from "@/lib/currency"
+import { minorToMajor, unitSuffix } from "@/lib/pricing"
 
-function ReviewRow({
-    label,
-    value,
-}: {
-    label: string
-    value: React.ReactNode
-}) {
+function ReviewRow({ label, value }: { label: string; value: React.ReactNode }) {
     return (
         <div className="flex items-start justify-between gap-4 py-2.5">
             <p className="text-muted-foreground text-sm shrink-0">{label}</p>
@@ -36,16 +31,13 @@ function ReviewSection({
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 {title}
             </p>
-            <div className="rounded-lg border bg-muted/20 px-4 divide-y">
-                {children}
-            </div>
+            <div className="rounded-lg border bg-muted/20 px-4 divide-y">{children}</div>
         </div>
     )
 }
 
 function formatAddress(addr: AddressesFormValues["sender"] | undefined): string {
-    if (!addr) return "—"
-    return addr.address
+    return addr?.address ?? "—"
 }
 
 function formatTimeWindow(from?: string, to?: string): string {
@@ -54,28 +46,40 @@ function formatTimeWindow(from?: string, to?: string): string {
     return from ?? to ?? "—"
 }
 
+/** "Distance · 12.70 km × $0.50" for fractional units; just the name otherwise. */
+function lineLabel(line: QuoteResult["lines"][number], currency: string): string {
+    const suffix = unitSuffix(line.pricing_unit)
+    if (line.pricing_unit === "per_recipient") {
+        return `${line.name} · ${line.quantity} × ${formatCurrency(line.rate, currency)}`
+    }
+    if (!suffix) return line.name
+    const qty = Number.isInteger(line.quantity)
+        ? String(line.quantity)
+        : line.quantity.toFixed(2)
+    return `${line.name} · ${qty} ${suffix} × ${formatCurrency(line.rate, currency)}`
+}
+
 export function ReviewStep({
     formData,
-    serviceRates,
-    serviceFee,
+    services,
+    quote,
     onPrev,
     onSubmit,
     isSubmitting = false,
 }: {
     formData: BookingFormData
-    serviceRates: ServiceRateOption[]
-    serviceFee?: ServiceFeeResult | null
+    services: ServiceOption[]
+    quote?: QuoteResult | null
     onPrev: () => void
     onSubmit: () => void | Promise<void>
     isSubmitting?: boolean
 }) {
     const { package: pkg, addresses, schedule } = formData
 
-    const isScheduled = pkg?.deliveryType === "scheduled"
-    const selectedRate = serviceRates.find((r) => r.id === pkg?.serviceRateId)
-    const serviceLabel =
-        selectedRate?.name ??
-        (pkg?.deliveryType === "on_demand" ? "On Demand" : "Scheduled")
+    const selectedService = services.find((s) => s.id === pkg?.serviceId)
+    const selectedAddons = (selectedService?.addons ?? []).filter((a) =>
+        (pkg?.addonIds ?? []).includes(a.id)
+    )
 
     return (
         <div className="space-y-8 p-4">
@@ -93,16 +97,30 @@ export function ReviewStep({
                 <ReviewSection title="Package Details">
                     <ReviewRow
                         label="Service"
-                        value={<Badge variant="secondary">{serviceLabel}</Badge>}
+                        value={
+                            <Badge variant="secondary">
+                                {selectedService?.name ?? "—"}
+                            </Badge>
+                        }
                     />
+                    {selectedAddons.length > 0 && (
+                        <ReviewRow
+                            label="Add-ons"
+                            value={
+                                <div className="flex flex-wrap justify-end gap-1">
+                                    {selectedAddons.map((a) => (
+                                        <Badge key={a.id} variant="outline">
+                                            {a.name}
+                                        </Badge>
+                                    ))}
+                                </div>
+                            }
+                        />
+                    )}
                     <ReviewRow label="Description" value={pkg?.description ?? "—"} />
                     <ReviewRow
                         label="Weight"
-                        value={
-                            pkg?.weight != null
-                                ? `${pkg.weight} ${pkg.weightUnit}`
-                                : "—"
-                        }
+                        value={pkg?.weight != null ? `${pkg.weight} ${pkg.weightUnit}` : "—"}
                     />
                     <ReviewRow
                         label="Dimensions"
@@ -112,7 +130,6 @@ export function ReviewStep({
                                 : "—"
                         }
                     />
-                   
                 </ReviewSection>
 
                 {/* Sender */}
@@ -120,10 +137,7 @@ export function ReviewStep({
                     <ReviewRow label="Name" value={addresses?.sender?.fullName ?? "—"} />
                     <ReviewRow label="Email" value={addresses?.sender?.email ?? "—"} />
                     <ReviewRow label="Phone" value={addresses?.sender?.phone ?? "—"} />
-                    <ReviewRow
-                        label="Address"
-                        value={formatAddress(addresses?.sender)}
-                    />
+                    <ReviewRow label="Address" value={formatAddress(addresses?.sender)} />
                 </ReviewSection>
 
                 {/* Recipients */}
@@ -144,119 +158,49 @@ export function ReviewStep({
                 ))}
 
                 {/* Schedule */}
-                <ReviewSection title="Schedule & Options">
+                <ReviewSection title="Schedule">
+                    <ReviewRow label="Pickup Date" value={schedule?.pickupDate ?? "—"} />
                     <ReviewRow
-                        label="Pickup Date"
-                        value={schedule?.pickupDate ?? "—"}
+                        label="Pickup Window"
+                        value={formatTimeWindow(
+                            schedule?.pickupTimeFrom,
+                            schedule?.pickupTimeTo
+                        )}
                     />
-                    {isScheduled && (
-                        <ReviewRow
-                            label="Pickup Window"
-                            value={formatTimeWindow(
-                                schedule?.pickupTimeFrom,
-                                schedule?.pickupTimeTo
-                            )}
-                        />
-                    )}
-                    {isScheduled && (
+                    <Separator className="my-0" />
+                    <ReviewRow label="Delivery Date" value={schedule?.deliveryDate ?? "—"} />
+                    <ReviewRow
+                        label="Delivery Window"
+                        value={formatTimeWindow(
+                            schedule?.deliveryTimeFrom,
+                            schedule?.deliveryTimeTo
+                        )}
+                    />
+                    {schedule?.deliveryNotes && (
                         <>
                             <Separator className="my-0" />
-                            <ReviewRow
-                                label="Delivery Date"
-                                value={schedule?.deliveryDate ?? "—"}
-                            />
-                            <ReviewRow
-                                label="Delivery Window"
-                                value={formatTimeWindow(
-                                    schedule?.deliveryTimeFrom,
-                                    schedule?.deliveryTimeTo
-                                )}
-                            />
+                            <ReviewRow label="Delivery Notes" value={schedule.deliveryNotes} />
                         </>
                     )}
-                    <Separator className="my-0" />
-                    {schedule?.deliveryNotes && (
-                        <ReviewRow
-                            label="Delivery Notes"
-                            value={schedule.deliveryNotes}
-                        />
-                    )}
-                    <ReviewRow
-                        label="Signature Required"
-                        value={schedule?.signatureRequired ? "Yes" : "No"}
-                    />
                 </ReviewSection>
 
-                {/* Service Fees */}
-                {serviceFee && (
+                {/* Service Fees — itemised quote */}
+                {quote && (
                     <ReviewSection title="Service Fees">
-                        <ReviewRow
-                            label="Base Rate"
-                            value={formatCurrency(
-                                serviceFee.breakdown.base_rate,
-                                serviceFee.currency
-                            )}
-                        />
-                        {serviceFee.breakdown.distance.cost > 0 && (
+                        {quote.lines.map((line) => (
                             <ReviewRow
-                                label={`Distance · ${serviceFee.breakdown.distance.total} ${
-                                    serviceFee.breakdown.distance.unit
-                                } × ${formatCurrency(
-                                    serviceFee.breakdown.distance.rate_per_unit,
-                                    serviceFee.currency
-                                )}/${serviceFee.breakdown.distance.unit}`}
+                                key={line.id}
+                                label={lineLabel(line, quote.currency)}
                                 value={formatCurrency(
-                                    serviceFee.breakdown.distance.cost,
-                                    serviceFee.currency
+                                    minorToMajor(line.amount_minor, quote.currency),
+                                    quote.currency
                                 )}
                             />
-                        )}
-                        {serviceFee.breakdown.signature.applies && (
-                            <ReviewRow
-                                label={`Signature · ${
-                                    serviceFee.breakdown.signature.receiver_count
-                                } × ${formatCurrency(
-                                    serviceFee.breakdown.signature.charge_per_receiver,
-                                    serviceFee.currency
-                                )}`}
-                                value={formatCurrency(
-                                    serviceFee.breakdown.signature.cost,
-                                    serviceFee.currency
-                                )}
-                            />
-                        )}
-                        {serviceFee.breakdown.storage.applies && (
-                            <>
-                                <ReviewRow
-                                    label="Storage"
-                                    value={formatCurrency(
-                                        serviceFee.breakdown.storage.cost,
-                                        serviceFee.currency
-                                    )}
-                                />
-                                {serviceFee.breakdown.storage.receivers.map(
-                                    (receiver, index) => (
-                                        <ReviewRow
-                                            key={index}
-                                            label={`${receiver.name} · ${
-                                                receiver.days
-                                            } day${receiver.days === 1 ? "" : "s"}`}
-                                            value={formatCurrency(
-                                                receiver.cost,
-                                                serviceFee.currency
-                                            )}
-                                        />
-                                    )
-                                )}
-                            </>
-                        )}
+                        ))}
                         <div className="flex items-center justify-between gap-4 py-3 font-semibold">
                             <p className="text-sm">Total</p>
                             <p className="text-base text-right">
-                                {formatCurrency(
-                                    serviceFee.total,
-                                    serviceFee.currency
-                                )}
+                                {formatCurrency(quote.total, quote.currency)}
                             </p>
                         </div>
                     </ReviewSection>
@@ -267,14 +211,8 @@ export function ReviewStep({
                 <Button type="button" variant="outline" onClick={onPrev}>
                     Previous
                 </Button>
-                <Button
-                    type="button"
-                    onClick={onSubmit}
-                    disabled={isSubmitting}
-                >
-                    {isSubmitting && (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
+                <Button type="button" onClick={onSubmit} disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Submit Booking
                 </Button>
             </div>

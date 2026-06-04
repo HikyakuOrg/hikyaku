@@ -10,7 +10,7 @@ import {
     PackageFormValues,
     AddressesFormValues,
     ScheduleFormValues,
-    ServiceRateOption,
+    ServiceOption,
     packageSchema,
     addressesSchema,
     scheduleSchema,
@@ -19,8 +19,7 @@ import { PackageStep } from "./steps/package-step"
 import { AddressesStep } from "./steps/addresses-step"
 import { ScheduleStep } from "./steps/schedule-step"
 import { ReviewStep } from "./steps/review-step"
-import { calculateServiceFee, ServiceFeeResult } from "@/lib/api/service-fees"
-import { createCheckout } from "@/lib/api/payments"
+import { getQuote, createCheckout, QuoteResult } from "@/lib/api/payments"
 
 export type BookingFormData = {
     package?: PackageFormValues
@@ -55,13 +54,13 @@ const { Stepper } = defineStepper(
 )
 
 export function BookingStepper({
-    serviceRates,
+    services,
     orgSlug,
 }: {
-    serviceRates: ServiceRateOption[]
+    services: ServiceOption[]
     orgSlug: string
 }) {
-    const [serviceFee, setServiceFee] = useState<ServiceFeeResult | null>(null)
+    const [quote, setQuote] = useState<QuoteResult | null>(null)
     const [isCalculatingFee, setIsCalculatingFee] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -189,7 +188,7 @@ export function BookingStepper({
                                 package: () => (
                                     <PackageStep
                                         defaultValues={formData.package}
-                                        serviceRates={serviceRates}
+                                        services={services}
                                         onNext={(data) => {
                                             stepper.metadata.set("package", {
                                                 ...formData,
@@ -215,9 +214,6 @@ export function BookingStepper({
                                 schedule: () => (
                                     <ScheduleStep
                                         defaultValues={formData.schedule}
-                                        deliveryType={
-                                            formData.package?.deliveryType ?? "on_demand"
-                                        }
                                         isSubmitting={isCalculatingFee}
                                         onNext={async (data) => {
                                             const updated = {
@@ -227,12 +223,11 @@ export function BookingStepper({
                                             stepper.metadata.set("schedule", updated)
                                             setIsCalculatingFee(true)
                                             try {
-                                                const result = await calculateServiceFee(
+                                                const result = await getQuote(
                                                     updated,
-                                                    formData.package?.serviceRateId ?? "",
                                                     orgSlug
                                                 )
-                                                setServiceFee(result)
+                                                setQuote(result)
                                                 stepper.navigation.next()
                                             } catch (err) {
                                                 toast.error(
@@ -250,8 +245,8 @@ export function BookingStepper({
                                 review: () => (
                                     <ReviewStep
                                         formData={formData}
-                                        serviceRates={serviceRates}
-                                        serviceFee={serviceFee}
+                                        services={services}
+                                        quote={quote}
                                         isSubmitting={isSubmitting}
                                         onPrev={() => stepper.navigation.prev()}
                                         onSubmit={async () => {
@@ -260,8 +255,6 @@ export function BookingStepper({
                                                 const { checkoutUrl } =
                                                     await createCheckout(
                                                         formData,
-                                                        formData.package
-                                                            ?.serviceRateId ?? "",
                                                         orgSlug
                                                     )
                                                 // Redirect to Stripe-hosted

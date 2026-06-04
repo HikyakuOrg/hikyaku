@@ -3,7 +3,6 @@ import { createServiceAreaFeatureCollection, emptyServiceAreaFeatureCollection }
 import { Tables } from "./supabase"
 import { createClient } from "./server"
 import { PackageOptimisation, Location } from "@/app/models/package-optimisation"
-import type { ServiceRateOption } from "@/app/booking/booking-schema"
 import { listCustomersAction, getCustomerAction } from "@/lib/actions/customers"
 
 type ServiceAreaViewportBounds = {
@@ -212,58 +211,6 @@ export async function getOrganisationBySlug(slug: string): Promise<BookingOrgani
         return null
     }
     return data
-}
-
-export type DashboardServiceRate = Tables<'service_rates'> & {
-    service_areas: Array<{ id: string; name: string }>
-}
-
-export async function getServiceRatesWithCoverage(organisationId: string): Promise<DashboardServiceRate[]> {
-    const supabase = await createClient()
-    const { data, error } = await supabase
-        .from("service_rates")
-        .select(`
-            *,
-            service_rate_coverage(
-                service_areas(id, name)
-            )
-        `)
-        .eq("organisation_id", organisationId)
-        .order("name", { ascending: true })
-
-    if (error) {
-        console.error(error)
-        return []
-    }
-
-    return (data ?? []).map((rate) => ({
-        ...rate,
-        service_areas: (rate.service_rate_coverage ?? []).flatMap(
-            (cov: { service_areas: { id: string; name: string } | null }) =>
-                cov.service_areas ? [cov.service_areas] : []
-        ),
-    }))
-}
-
-export async function getServiceRates(organisationId: string): Promise<ServiceRateOption[]> {
-    const supabase = await createClient()
-    const { data, error } = await supabase
-        .from("service_rates")
-        .select("id, name, delivery_type, distance_unit")
-        .eq("organisation_id", organisationId)
-        .order("name", { ascending: true })
-
-    if (error) {
-        console.error(error)
-        return []
-    }
-
-    return (data ?? []).map((r) => ({
-        id: r.id,
-        name: r.name,
-        delivery_type: r.delivery_type === "on_demand" ? "on_demand" : "scheduled",
-        distance_unit: r.distance_unit,
-    }))
 }
 
 export async function getServiceAreaExtent() {

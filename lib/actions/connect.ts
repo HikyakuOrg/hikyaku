@@ -37,6 +37,8 @@ export interface OrgIssuingStatus {
     slug: string
     cardIssuingStatus: string | null
     detailsSubmitted: boolean
+    /** Whether the connected account can accept payments — gates "Service Rates". */
+    chargesEnabled: boolean
 }
 
 type ActionError = { success: false; error: string }

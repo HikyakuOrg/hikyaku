@@ -814,6 +814,38 @@ export type Database = {
           },
         ]
       }
+      service_addons: {
+        Row: {
+          id: string
+          pricing_unit: string
+          service_id: string
+          stripe_price_id: string
+          stripe_product_id: string
+        }
+        Insert: {
+          id?: string
+          pricing_unit: string
+          service_id: string
+          stripe_price_id: string
+          stripe_product_id: string
+        }
+        Update: {
+          id?: string
+          pricing_unit?: string
+          service_id?: string
+          stripe_price_id?: string
+          stripe_product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_addons_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_areas: {
         Row: {
           geometry: unknown
@@ -843,97 +875,31 @@ export type Database = {
           },
         ]
       }
-      service_rate_coverage: {
+      services: {
         Row: {
           id: string
-          service_area_id: string
-          service_rate_id: string
+          organisation_id: string
+          pricing_unit: string
+          stripe_price_id: string
+          stripe_product_id: string
         }
         Insert: {
           id?: string
-          service_area_id: string
-          service_rate_id: string
+          organisation_id: string
+          pricing_unit: string
+          stripe_price_id: string
+          stripe_product_id: string
         }
         Update: {
           id?: string
-          service_area_id?: string
-          service_rate_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "service_rate_coverage_service_area_id_fkey"
-            columns: ["service_area_id"]
-            isOneToOne: false
-            referencedRelation: "service_areas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "service_rate_coverage_service_rate_id_fkey"
-            columns: ["service_rate_id"]
-            isOneToOne: false
-            referencedRelation: "service_rates"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      service_rates: {
-        Row: {
-          base_rate: number
-          created_at: string
-          currency: string
-          delivery_type: string
-          distance_unit: string
-          has_out_of_area_surcharge: boolean
-          has_signature_charge: boolean
-          id: string
-          name: string
-          organisation_id: string
-          out_of_area_rate: number | null
-          out_of_area_type: string | null
-          rate_per_distance: number
-          signature_charge: number | null
-          storage_per_day: number | null
-          updated_at: string
-        }
-        Insert: {
-          base_rate: number
-          created_at?: string
-          currency: string
-          delivery_type: string
-          distance_unit?: string
-          has_out_of_area_surcharge?: boolean
-          has_signature_charge?: boolean
-          id?: string
-          name: string
-          organisation_id: string
-          out_of_area_rate?: number | null
-          out_of_area_type?: string | null
-          rate_per_distance: number
-          signature_charge?: number | null
-          storage_per_day?: number | null
-          updated_at?: string
-        }
-        Update: {
-          base_rate?: number
-          created_at?: string
-          currency?: string
-          delivery_type?: string
-          distance_unit?: string
-          has_out_of_area_surcharge?: boolean
-          has_signature_charge?: boolean
-          id?: string
-          name?: string
           organisation_id?: string
-          out_of_area_rate?: number | null
-          out_of_area_type?: string | null
-          rate_per_distance?: number
-          signature_charge?: number | null
-          storage_per_day?: number | null
-          updated_at?: string
+          pricing_unit?: string
+          stripe_price_id?: string
+          stripe_product_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "service_rates_organisation_id_fkey"
+            foreignKeyName: "services_organisation_id_fkey"
             columns: ["organisation_id"]
             isOneToOne: false
             referencedRelation: "organisations"
@@ -1554,14 +1520,14 @@ export type Database = {
           driver_id: string
           driver_name: string
           from_customer: string
-          from_customer_name: string
           from_customer_address: string
+          from_customer_name: string
           id: string
           latest_package_status_at: string
           latest_package_status_text: string
           to_customer: string
-          to_customer_name: string
           to_customer_address: string
+          to_customer_name: string
           tracking_number: string
         }[]
       }

@@ -1,4 +1,3 @@
-import { createClient } from "@/lib/supabase/client"
 import type { BookingFormData } from "@/app/booking/booking-stepper"
 
 const API_URL = process.env.NEXT_PUBLIC_HIKYAKU_API_URL ?? "http://localhost:3002"
@@ -8,30 +7,38 @@ export type CreateCheckoutResult = {
     sessionId: string
 }
 
+/** One itemised line in a quote (name + quantity × rate + amount). */
+export type QuoteLine = {
+    id: string
+    name: string
+    pricing_unit: string
+    rate: number
+    quantity: number
+    amount_minor: number
+}
+
+export type QuoteResult = {
+    currency: string
+    lines: QuoteLine[]
+    total_minor: number
+    total: number
+}
+
 function toKg(weight: number, unit: string): number {
     return unit === "lb" ? weight * 0.453592 : weight
 }
 
 /**
- * Starts a Stripe-hosted Checkout for the booking. The backend recomputes the
- * price (never trusts the client) and returns a hosted Checkout URL — the
- * caller should redirect the browser to it. Fulfillment (customer + package
- * creation) happens server-side via the Stripe webhook, not here.
+ * Build the request body shared by /quote and /pay. The org is resolved by the
+ * backend from the x-org-slug header. Weight is canonicalised to kg here; the
+ * backend converts to lb for per_lb items.
  */
-export async function createCheckout(
-    formData: BookingFormData,
-    serviceRateId: string,
-    orgSlug: string,
-): Promise<CreateCheckoutResult> {
+function buildBody(formData: BookingFormData) {
     const { package: pkg, addresses, schedule } = formData
-
-    const supabase = createClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    const token = session?.access_token
-
     const sender = addresses!.sender
-    const body = {
-        serviceRateId,
+    return {
+        serviceId: pkg!.serviceId,
+        addonIds: pkg!.addonIds ?? [],
         sender: {
             name: sender.fullName,
             phoneNumber: sender.phone,
@@ -64,25 +71,50 @@ export async function createCheckout(
                 lat: r.lat ?? 0,
                 lon: r.lon ?? 0,
             },
-            deliveryDate: schedule!.deliveryDate,
+            deliveryDate: schedule!.deliveryDate || schedule!.pickupDate,
         })),
-        deliveryNotes: schedule?.deliveryNotes,
     }
+}
 
-    const res = await fetch(`${API_URL}/api/v1/service-fees/pay`, {
+async function postOrThrow<T>(path: string, slug: string, body: unknown): Promise<T> {
+    const res = await fetch(`${API_URL}${path}`, {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "x-org-slug": orgSlug,
-            ...(token ? { "x-whendan": `Bearer ${token}` } : {}),
-        },
+        headers: { "Content-Type": "application/json", "x-org-slug": slug },
         body: JSON.stringify(body),
     })
-
     if (!res.ok) {
         const error = await res.json().catch(() => ({ message: `HTTP ${res.status}` }))
-        throw new Error(error.message ?? `HTTP ${res.status}`)
+        const message = Array.isArray(error?.message)
+            ? error.message.join(", ")
+            : error?.message
+        throw new Error(message ?? `HTTP ${res.status}`)
     }
-
     return res.json()
+}
+
+/**
+ * Itemised quote for the review step. Distance can't be computed client-side, so
+ * the server measures it (ORS) and returns the per-line breakdown. No charge.
+ */
+export async function getQuote(
+    formData: BookingFormData,
+    orgSlug: string,
+): Promise<QuoteResult> {
+    return postOrThrow<QuoteResult>("/api/v1/services/quote", orgSlug, buildBody(formData))
+}
+
+/**
+ * Starts a Stripe-hosted Checkout for the booking on the org's connected account.
+ * The backend recomputes the price (never trusts the client) and returns a hosted
+ * Checkout URL — the caller redirects the browser to it. Fulfillment (customer +
+ * package creation) happens server-side via the Stripe webhook, not here.
+ */
+export async function createCheckout(
+    formData: BookingFormData,
+    orgSlug: string,
+): Promise<CreateCheckoutResult> {
+    return postOrThrow<CreateCheckoutResult>("/api/v1/services/pay", orgSlug, {
+        ...buildBody(formData),
+        deliveryNotes: formData.schedule?.deliveryNotes,
+    })
 }

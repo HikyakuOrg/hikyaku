@@ -11,6 +11,8 @@ export interface OrganisationSummary {
   orgType: string
   cardIssuingStatus: string | null
   detailsSubmitted: boolean
+  /** Whether the org can accept payments — gates the "Service Rates" menu item. */
+  chargesEnabled: boolean
 }
 
 /**
@@ -106,6 +108,7 @@ export async function listMyOrganisations(): Promise<OrganisationSummary[]> {
       orgType: org_type ?? 'personal',
       cardIssuingStatus: stripe?.cardIssuingStatus ?? null,
       detailsSubmitted: stripe?.detailsSubmitted ?? false,
+      chargesEnabled: stripe?.chargesEnabled ?? false,
     }
   })
 }

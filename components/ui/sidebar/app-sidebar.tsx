@@ -17,7 +17,7 @@ import { PersonIcon, BlueprintIcon, MapTrifoldIcon, PackageIcon, TruckIcon } fro
 import { JwtPayload } from "@supabase/supabase-js"
 import { ClockIcon } from "lucide-react"
 
-function buildNavItems(slug: string, cardIssuingActive: boolean) {
+function buildNavItems(slug: string, cardIssuingActive: boolean, serviceRatesActive: boolean) {
   const p = (path: string) => orgPath(slug, path)
   const fleetItems: { title: string; url: string }[] = [
     { title: "Vehicles", url: p('/dashboard/fleet/vehicles') },
@@ -25,6 +25,13 @@ function buildNavItems(slug: string, cardIssuingActive: boolean) {
   ]
   if (cardIssuingActive) {
     fleetItems.push({ title: "Fuel Cards", url: p('/dashboard/fleet/fuel-cards') })
+  }
+  const serviceItems: { title: string; url: string }[] = [
+    { title: "Areas", url: p('/dashboard/service/areas') },
+    { title: "Warehouse", url: p('/dashboard/service/warehouse') },
+  ]
+  if (serviceRatesActive) {
+    serviceItems.push({ title: "Service Rates", url: p('/dashboard/service-rates') })
   }
   return [
     {
@@ -57,11 +64,7 @@ function buildNavItems(slug: string, cardIssuingActive: boolean) {
       title: "Service",
       url: "",
       icon: <MapTrifoldIcon />,
-      items: [
-        { title: "Areas", url: p('/dashboard/service/areas') },
-        { title: "Warehouse", url: p('/dashboard/service/warehouse') },
-        { title: "Service Rates", url: p('/dashboard/service-rates') },
-      ],
+      items: serviceItems,
     }
   ]
 }
@@ -71,10 +74,11 @@ type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
   organisations: OrganisationSummary[]
   currentSlug: string | null
   cardIssuingActive?: boolean
+  serviceRatesActive?: boolean
 }
 
-export function AppSidebar({ user, organisations, currentSlug, cardIssuingActive = false, ...props }: AppSidebarProps) {
-  const navItems = currentSlug ? buildNavItems(currentSlug, cardIssuingActive) : []
+export function AppSidebar({ user, organisations, currentSlug, cardIssuingActive = false, serviceRatesActive = false, ...props }: AppSidebarProps) {
+  const navItems = currentSlug ? buildNavItems(currentSlug, cardIssuingActive, serviceRatesActive) : []
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>

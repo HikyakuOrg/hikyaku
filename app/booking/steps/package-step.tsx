@@ -3,42 +3,46 @@
 import { useMemo } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { PackageIcon, CalendarIcon } from "@phosphor-icons/react"
+import { PackageIcon } from "@phosphor-icons/react"
 
 import {
     PackageFormValues,
-    ServiceRateOption,
+    ServiceOption,
     packageSchema,
 } from "../booking-schema"
 import { cn } from "@/lib/utils"
+import { formatRate } from "@/lib/pricing"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import {
     InputGroup,
     InputGroupAddon,
+    InputGroupButton,
     InputGroupInput,
 } from "@/components/ui/input-group"
 
 export function PackageStep({
     defaultValues,
-    serviceRates,
+    services,
     onNext,
 }: {
     defaultValues?: PackageFormValues
-    serviceRates: ServiceRateOption[]
+    services: ServiceOption[]
     onNext: (data: PackageFormValues) => void
 }) {
     const initial = useMemo(
         () =>
             defaultValues ?? {
-                serviceRateId: "",
-                deliveryType: "on_demand" as const,
+                serviceId: "",
+                addonIds: [] as string[],
                 description: "",
                 weight: undefined as unknown as number,
                 weightUnit: "kg" as const,
                 length: undefined as unknown as number,
                 width: undefined as unknown as number,
-                height: undefined as unknown as number,            },
+                height: undefined as unknown as number,
+            },
         [defaultValues]
     )
 
@@ -48,7 +52,9 @@ export function PackageStep({
     })
 
     const weightUnit = form.watch("weightUnit")
-    const hasServiceRates = serviceRates.length > 0
+    const selectedServiceId = form.watch("serviceId")
+    const hasServices = services.length > 0
+    const selectedService = services.find((s) => s.id === selectedServiceId)
 
     return (
         <form
@@ -61,42 +67,32 @@ export function PackageStep({
                     Package Details
                 </h3>
                 <p className="text-muted-foreground mt-2 leading-7">
-                    Tell us about your shipment and how quickly you need it delivered.
+                    Choose a service, add any extras, and tell us about your shipment.
                 </p>
             </div>
 
             <FieldGroup>
                 {/* Service */}
                 <Controller
-                    name="serviceRateId"
+                    name="serviceId"
                     control={form.control}
                     render={({ field, fieldState }) => (
                         <Field data-invalid={fieldState.invalid}>
                             <FieldLabel>Service</FieldLabel>
-                            {hasServiceRates ? (
+                            {hasServices ? (
                                 <div className="grid grid-cols-2 gap-4">
-                                    {serviceRates.map((rate) => {
-                                        const Icon =
-                                            rate.delivery_type === "on_demand"
-                                                ? PackageIcon
-                                                : CalendarIcon
-                                        const selected = field.value === rate.id
+                                    {services.map((service) => {
+                                        const selected = field.value === service.id
                                         return (
                                             <button
-                                                key={rate.id}
+                                                key={service.id}
                                                 type="button"
                                                 onClick={() => {
-                                                    form.setValue("serviceRateId", rate.id, {
+                                                    form.setValue("serviceId", service.id, {
                                                         shouldValidate: true,
                                                     })
-                                                    form.setValue(
-                                                        "deliveryType",
-                                                        rate.delivery_type
-                                                    )
-                                                    form.setValue(
-                                                        "weightUnit",
-                                                        rate.distance_unit === "mi" ? "lb" : "kg"
-                                                    )
+                                                    // Add-ons belong to a service — reset on change.
+                                                    form.setValue("addonIds", [])
                                                 }}
                                                 className={cn(
                                                     "rounded-lg border-2 p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -106,7 +102,7 @@ export function PackageStep({
                                                 )}
                                             >
                                                 <div className="flex items-start gap-3">
-                                                    <Icon
+                                                    <PackageIcon
                                                         size={20}
                                                         className={cn(
                                                             "mt-0.5 shrink-0",
@@ -124,12 +120,14 @@ export function PackageStep({
                                                                     : "text-foreground"
                                                             )}
                                                         >
-                                                            {rate.name}
+                                                            {service.name}
                                                         </p>
-                                                        <p className="text-muted-foreground mt-1 text-sm">
-                                                            {rate.delivery_type === "on_demand"
-                                                                ? "On Demand"
-                                                                : "Scheduled"}
+                                                        <p className="text-muted-foreground mt-1 text-sm tabular-nums">
+                                                            {formatRate(
+                                                                service.amount_minor,
+                                                                service.currency,
+                                                                service.pricing_unit
+                                                            )}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -148,6 +146,55 @@ export function PackageStep({
                         </Field>
                     )}
                 />
+
+                {/* Add-ons — only once a service with extras is selected */}
+                {selectedService && selectedService.addons.length > 0 && (
+                    <Controller
+                        name="addonIds"
+                        control={form.control}
+                        render={({ field }) => {
+                            const value = field.value ?? []
+                            const toggle = (id: string, checked: boolean) =>
+                                field.onChange(
+                                    checked
+                                        ? [...value, id]
+                                        : value.filter((v) => v !== id)
+                                )
+                            return (
+                                <Field>
+                                    <FieldLabel>Add-ons</FieldLabel>
+                                    <div className="space-y-2">
+                                        {selectedService.addons.map((addon) => (
+                                            <label
+                                                key={addon.id}
+                                                className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border p-3 hover:bg-muted/30"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <Checkbox
+                                                        checked={value.includes(addon.id)}
+                                                        onCheckedChange={(checked) =>
+                                                            toggle(addon.id, !!checked)
+                                                        }
+                                                    />
+                                                    <span className="text-sm font-medium">
+                                                        {addon.name}
+                                                    </span>
+                                                </div>
+                                                <span className="text-muted-foreground text-sm tabular-nums">
+                                                    {formatRate(
+                                                        addon.amount_minor,
+                                                        addon.currency,
+                                                        addon.pricing_unit
+                                                    )}
+                                                </span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </Field>
+                            )
+                        }}
+                    />
+                )}
 
                 {/* Description */}
                 <Controller
@@ -190,7 +237,19 @@ export function PackageStep({
                                     onChange={(e) => field.onChange(e.target.valueAsNumber)}
                                     aria-invalid={fieldState.invalid}
                                 />
-                                <InputGroupAddon align="inline-end">{weightUnit}</InputGroupAddon>
+                                <InputGroupAddon align="inline-end">
+                                    <InputGroupButton
+                                        type="button"
+                                        onClick={() =>
+                                            form.setValue(
+                                                "weightUnit",
+                                                weightUnit === "kg" ? "lb" : "kg"
+                                            )
+                                        }
+                                    >
+                                        {weightUnit}
+                                    </InputGroupButton>
+                                </InputGroupAddon>
                             </InputGroup>
                             {fieldState.invalid && (
                                 <FieldError errors={[fieldState.error]} />
@@ -246,7 +305,7 @@ export function PackageStep({
             </FieldGroup>
 
             <div className="flex justify-end pt-6 border-t">
-                <Button type="submit" disabled={!hasServiceRates}>
+                <Button type="submit" disabled={!hasServices}>
                     Next
                 </Button>
             </div>
