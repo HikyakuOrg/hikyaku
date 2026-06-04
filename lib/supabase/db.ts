@@ -147,6 +147,7 @@ export async function getVehiclesByType(selectedTypes: string[], page: number, p
         .select(
             `
         id,
+        organisation_id,
         vehicle_plate,
         vehicle_identification_number,
         vehicle_make,
@@ -243,6 +244,7 @@ export async function getVehiclesInWarehouse(warehouseId: string, page: number, 
 
     const { data, error, count } = await supabase.from("vehicles").select(`
         id,
+        organisation_id,
         vehicle_plate,
         vehicle_identification_number,
         vehicle_make,
@@ -307,6 +309,7 @@ export async function removeVehiclesWarehouse(vehicleIds: string[]) {
 export async function getVehiclesById(vehicleIds: string[]) {
     const { data, error } = await supabase.from("vehicles").select(`
         id,
+        organisation_id,
         vehicle_plate,
         vehicle_identification_number,
         vehicle_make,
@@ -317,7 +320,7 @@ export async function getVehiclesById(vehicleIds: string[]) {
         is_deleted,
         vehicle_type:vehicle_type (
           id,
-                    ors_vehicle_type,
+          ors_vehicle_type,
           vehicle_type,
           vehicle_description
         )

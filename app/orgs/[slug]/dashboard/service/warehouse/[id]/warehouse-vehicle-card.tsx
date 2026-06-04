@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { VehiclesWithTypes, getVehiclesInWarehouse, getVehicleTypes, getVehiclesById, removeVehiclesWarehouse } from "@/lib/supabase/db"
 import { Tables } from "@/lib/supabase/supabase"
 import { RowSelectionState } from "@tanstack/react-table"
-import { useState, useEffect, SetStateAction } from "react"
+import { useState, useEffect } from "react"
 import { WarehouseVehicleSheet } from "./warehouse-vehicle-sheet"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
@@ -23,11 +23,15 @@ export function WarehouseVehicleCard({ warehouseId }: { warehouseId: string }) {
     const router = useRouter()
 
     useEffect(() => {
-        setLoading(true)
+        let cancelled = false
         getVehiclesInWarehouse(warehouseId, currentPage, itemsPerPage).then((data) => {
+            if (cancelled) return
             setVehicles(data.data)
             setLoading(false)
         })
+        return () => {
+            cancelled = true
+        }
     }, [warehouseId, currentPage])
 
     useEffect(() => {
@@ -71,7 +75,10 @@ export function WarehouseVehicleCard({ warehouseId }: { warehouseId: string }) {
                     vehicleTypes={vehicleTypes}
                     loading={loading}
                     pageSize={itemsPerPage}
-                    onPageChange={setCurrentPage}
+                    onPageChange={(page) => {
+                        setLoading(true)
+                        setCurrentPage(page)
+                    }}
                     handleDelete={async (row) => {
                         handleDelete()
                     }}
