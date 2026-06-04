@@ -72,7 +72,7 @@ export default function EditVehiclePage() {
     if (!vehicle) return null
 
     return (
-        <div className="max-w-4xl mx-auto py-8 px-4 space-y-6">
+        <div className="space-y-6 p-6">
             <div className="flex items-center gap-4 mb-2">
                 <Button variant="ghost" size="icon" onClick={() => router.back()}>
                     <ChevronLeft className="w-5 h-5" />
