@@ -239,9 +239,6 @@ export default function VehicleOverviewPage() {
                         <CardTitle>Recent Deliveries</CardTitle>
                         <CardDescription>Historical and active packages assigned to this vehicle.</CardDescription>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="font-mono">{deliveries.length} Packages</Badge>
-                    </div>
                 </CardHeader>
                 <CardContent>
                     {deliveries.length > 0 ? (
@@ -254,7 +251,6 @@ export default function VehicleOverviewPage() {
                                         <TableHead>To</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead>Assigned On</TableHead>
-                                        <TableHead className="text-right">Action</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -270,11 +266,6 @@ export default function VehicleOverviewPage() {
                                             </TableCell>
                                             <TableCell className="text-muted-foreground text-xs italic">
                                                 {format(new Date(d.created_at), 'MMM d, yyyy HH:mm')}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                                    <Search className="h-4 w-4" />
-                                                </Button>
                                             </TableCell>
                                         </TableRow>
                                     ))}
