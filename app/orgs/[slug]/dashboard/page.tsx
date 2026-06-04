@@ -21,6 +21,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
 
   const [
     pendingPackagesCount,
+    outForDeliveryCount,
     driversCount,
     fleetSize,
     warehousesCount,
@@ -28,6 +29,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
     recentPackagesData
   ] = await Promise.all([
     getPackagesCount(["PENDING"]),
+    getPackagesCount(["OUT_FOR_DELIVERY"]),
     getDriversCount(),
     getFleetSize(),
     getWarehousesCount(),
@@ -52,6 +54,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
       <Suspense fallback={<OverviewSkeleton />}>
         <DashboardMetrics
           pendingPackagesCount={pendingPackagesCount ?? 0}
+          outForDeliveryCount={outForDeliveryCount ?? 0}
           driversCount={driversCount ?? 0}
           fleetSize={fleetSize ?? 0}
           warehousesCount={warehousesCount ?? 0}
