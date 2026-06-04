@@ -39,6 +39,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
     tracking_number: pkg.tracking_number,
     from_customer: pkg.from_customer,
     to_customer: pkg.to_customer,
+    to_customer_name: pkg.to_customer_name,
     latest_package_status_text: pkg.latest_package_status_text,
     created_at: pkg.created_at
   }));

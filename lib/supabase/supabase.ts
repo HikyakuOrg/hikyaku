@@ -1554,11 +1554,13 @@ export type Database = {
           driver_id: string
           driver_name: string
           from_customer: string
+          from_customer_name: string
           from_customer_address: string
           id: string
           latest_package_status_at: string
           latest_package_status_text: string
           to_customer: string
+          to_customer_name: string
           to_customer_address: string
           tracking_number: string
         }[]

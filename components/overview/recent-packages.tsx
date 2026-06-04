@@ -16,6 +16,7 @@ interface PackageData {
     tracking_number: string
     from_customer: string
     to_customer: string
+    to_customer_name: string | null
     latest_package_status_text: string
     created_at: string
 }
@@ -63,7 +64,7 @@ export function RecentPackages({ packages, slug }: RecentPackagesProps) {
                                     <TableCell className="font-medium">
                                         {pkg.tracking_number}
                                     </TableCell>
-                                    <TableCell>{pkg.to_customer}</TableCell>
+                                    <TableCell>{pkg.to_customer_name ?? "—"}</TableCell>
                                     <TableCell>
                                         <Badge
                                             variant={getStatusVariant(pkg.latest_package_status_text)}
