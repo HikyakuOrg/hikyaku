@@ -717,12 +717,13 @@ export async function getDeliveryRoutesByDates(
 }
 
 
-export async function createServiceArea(name: string, geometry: string) {
+export async function createServiceArea(name: string, geometry: string, organisation_id: string) {
     const { data, error } = await supabase
         .from("service_areas")
         .insert({
             name,
             geometry,
+            organisation_id,
         })
         .select()
         .single()
