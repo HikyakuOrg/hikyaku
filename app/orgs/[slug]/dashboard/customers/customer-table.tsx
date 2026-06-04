@@ -1,6 +1,7 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
+import { formatPhoneNumberIntl } from "react-phone-number-input"
 import { DataTable } from "@/components/data-table"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useOrgSlug } from "@/lib/use-org"
@@ -34,6 +35,7 @@ export function CustomerTable({ data, total, page, pageSize }: CustomerTableProp
         {
             accessorKey: "customer_phone",
             header: "Phone Number",
+            cell: ({ row }) => formatPhoneNumberIntl(row.original.customer_phone)
         },
     ]
 

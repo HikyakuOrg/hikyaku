@@ -4,7 +4,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { use, useEffect, useState } from "react"
 import { useOrgSlug } from "@/lib/use-org"
-
+import { formatPhoneNumberIntl } from "react-phone-number-input"
 import {
     Breadcrumb,
     BreadcrumbItem,
@@ -99,6 +99,7 @@ export default function CustomerDetailPage({ params }: CustomerDetailPageProps) 
     }
 
     const region = formatRegion(customer)
+    const phoneNumber = formatPhoneNumberIntl(customer.customer_phone) || customer.customer_phone
     return (
         <div className="space-y-6 p-6">
             <Breadcrumb>
@@ -166,7 +167,7 @@ export default function CustomerDetailPage({ params }: CustomerDetailPageProps) 
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-sm text-muted-foreground">Phone number</p>
-                                    <p className="text-sm font-semibold tracking-tight text-foreground">{customer.customer_phone}</p>
+                                    <p className="text-sm font-semibold tracking-tight text-foreground">{phoneNumber}</p>
                                 </div>
                             </div>
 

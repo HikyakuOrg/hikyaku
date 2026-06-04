@@ -1,5 +1,6 @@
 import { CategoryCard } from "./category-card"
 import { format, parseISO, isValid } from "date-fns"
+import { formatPhoneNumberIntl } from "react-phone-number-input"
 
 interface PackageDetailsTabsProps {
     deliveryStatus: string
@@ -62,14 +63,14 @@ export function PackageDetailsTabs({ recipient, sender, deliveryStatus, schedule
             title: "Driver Info",
             attributes: [
                 { label: "Driver Name", value: driver.name },
-                { label: "Contact", value: driver.contact },
+                { label: "Contact", value: formatPhoneNumberIntl(driver.contact) },
             ],
         }] : []),
         {
             title: "Recipient Info",
             attributes: [
                 { label: "Name", value: recipient.name },
-                { label: "Contact", value: recipient.contact },
+                { label: "Contact", value: formatPhoneNumberIntl(recipient.contact) },
                 { label: "Address", value: recipient.address },
             ],
         },
@@ -77,7 +78,7 @@ export function PackageDetailsTabs({ recipient, sender, deliveryStatus, schedule
             title: "Sender Info",
             attributes: [
                 { label: "Name", value: sender.name },
-                { label: "Contact", value: sender.contact },
+                { label: "Contact", value: formatPhoneNumberIntl(sender.contact) },
             ],
         },
     ]
