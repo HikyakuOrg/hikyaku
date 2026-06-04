@@ -29,7 +29,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
     recentPackagesData
   ] = await Promise.all([
     getPackagesCount(["PENDING"]),
-    getPackagesCount(["OUT_FOR_DELIVERY"]),
+    getPackagesCount(["IN_TRANSIT"]),
     getDriversCount(),
     getFleetSize(),
     getWarehousesCount(),
