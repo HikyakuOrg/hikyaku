@@ -11,7 +11,6 @@ import {
     Truck, 
     User as UserIcon, 
     Package, 
-    Calendar, 
     Edit, 
     Trash2,
     ArrowUpRight,
@@ -24,6 +23,7 @@ import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Separator } from '@/components/ui/separator'
 import { format } from 'date-fns'
+import { VehicleDriverSheet } from './vehicle-driver-sheet'
 
 export default function VehicleOverviewPage() {
     const router = useRouter()
@@ -226,9 +226,7 @@ export default function VehicleOverviewPage() {
                                     <p className="text-sm font-medium">No Driver Assigned</p>
                                     <p className="text-xs text-muted-foreground px-4">Assign a driver to this vehicle to start tracking shifts.</p>
                                 </div>
-                                <Button size="sm" variant="outline" className="mt-2">
-                                    Assign Now
-                                </Button>
+                                <VehicleDriverSheet vehicleId={id} onDriverAssigned={loadData} />
                             </div>
                         )}
                     </CardContent>
