@@ -375,6 +375,24 @@ export async function getRouteSteps(routeId: string) {
     return data as PackageOptimisation[]
 }
 
+export async function getDriverCurrentLocation(driverId: string): Promise<[number, number] | null> {
+    if (!driverId) return null
+
+    const supabase = await createClient()
+    const { data, error } = await supabase
+        .from("driver_current_location")
+        .select("location, speed, updated_at")
+        .eq("driver_id", driverId)
+        .maybeSingle()
+
+    if (error) throw error
+
+    const location = data?.location as Location | null
+    if (!location?.coordinates) return null
+
+    return [location.coordinates[0], location.coordinates[1]]
+}
+
 export interface DriverVehiclePair {
     dvaId: string
     driverId: string

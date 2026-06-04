@@ -3,9 +3,10 @@ import { RouteMap, RouteStep } from "./route-map";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MapPin } from "lucide-react";
 import { RouteProgressionCard } from "./route-progression-card";
-import { getRouteSteps } from "@/lib/supabase/db-server";
+import { getRouteSteps, getDriverCurrentLocation } from "@/lib/supabase/db-server";
 import { getDriversByIds } from "@/lib/supabase/supabase-rpc";
 import Link from "next/link";
+import { VehicleCard } from "@/app/orgs/[slug]/dashboard/fleet/vehicles/components/vehicle-card";
 
 export default async function DriverShiftsDetails({ params }: { params: Promise<{ id: string; slug: string }> }) {
     const { id, slug } = await params;
@@ -17,6 +18,8 @@ export default async function DriverShiftsDetails({ params }: { params: Promise<
     const assignment = routeSteps.find(s => s.package_assignment?.package?.warehouse)?.package_assignment;
     const warehouseInfo = assignment?.package?.warehouse;
 
+    let stopNumber = 0;
+
     routeSteps.forEach((routeStep) => {
         const pkg = routeStep.package_assignment?.package;
         routeStepArray.push({
@@ -25,7 +28,9 @@ export default async function DriverShiftsDetails({ params }: { params: Promise<
             warehouse_name: warehouseInfo?.warehouse_name,
             warehouse_address: warehouseInfo?.warehouse_address,
             customer_name: pkg?.to_customer?.customer_name,
-            customer_address: pkg?.to_customer?.customer_address
+            customer_address: pkg?.to_customer?.customer_address,
+            stop_number: pkg ? ++stopNumber : undefined,
+            status: pkg?.current_status ?? undefined,
         })
         routeCoords.push([routeStep.location.coordinates[0], routeStep.location.coordinates[1]])
     })
@@ -39,6 +44,7 @@ export default async function DriverShiftsDetails({ params }: { params: Promise<
     const driver = assignment?.driver;
 
     const driverProfile = await getDriversByIds([driver?.id ?? ""])
+    const driverLocation = await getDriverCurrentLocation(driver?.id ?? "")
 
     return (
         <div className="space-y-6 p-6">
@@ -54,28 +60,23 @@ export default async function DriverShiftsDetails({ params }: { params: Promise<
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-6">
-                    <RouteMap routeSteps={routeStepArray} route={route} />
+                    <RouteMap routeSteps={routeStepArray} route={route} driverId={driver?.id} driverLocation={driverLocation} />
 
                     <RouteProgressionCard routeSteps={routeSteps} routeId={id} />
                 </div>
 
                 <div className="space-y-6">
+                    {vehicle && (
+                        <VehicleCard
+                            vehicle={vehicle}
+                            href={`/orgs/${slug}/dashboard/fleet/vehicles/${vehicle.id}`}
+                        />
+                    )}
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-lg">Route Summary</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            {vehicle && (
-                                <div className="flex justify-between items-start py-2 border-b">
-                                    <span className="text-sm text-muted-foreground flex items-center gap-1">
-                                        Vehicle
-                                    </span>
-                                    <div className="text-right">
-                                        <div className="font-semibold text-sm">{vehicle.vehicle_make} {vehicle.vehicle_model}</div>
-                                        <div className="text-xs text-muted-foreground font-mono">{vehicle.vehicle_plate}</div>
-                                    </div>
-                                </div>
-                            )}
                             {driver && (
                                 <div className="flex justify-between items-start py-2 border-b">
                                     <span className="text-sm text-muted-foreground flex items-center gap-1">

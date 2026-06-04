@@ -5,6 +5,7 @@ import maplibregl, { FilterSpecification } from "maplibre-gl"
 import "maplibre-gl/dist/maplibre-gl.css"
 import { DirectionsResponse } from "ors-client"
 import { decodePolyline } from "@/lib/maps/geo"
+import { subscribeToDriverLocationUpdates, getDriverCurrentLocation } from "@/lib/supabase/db"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Layers, Loader2 } from "lucide-react"
@@ -17,6 +18,47 @@ export interface RouteStep {
     warehouse_address?: string
     customer_name?: string
     customer_address?: string
+    stop_number?: number
+    status?: string
+}
+
+function statusColor(status?: string): string {
+    switch (status?.toUpperCase()) {
+        case "DELIVERED":
+            return "#16a34a"
+        case "FAILED":
+            return "#dc2626"
+        default:
+            return "#3b82f6"
+    }
+}
+
+function stopMarker(n: number, color: string): HTMLElement {
+    const el = document.createElement("div")
+    el.className = "custom-marker"
+    el.style.cssText =
+        `width:28px;height:28px;border-radius:9999px;background:${color};color:#fff;border:2px solid #fff;box-sizing:border-box;` +
+        "box-shadow:0 2px 6px rgba(15,23,42,.3);" +
+        "font-size:13px;font-weight:700;font-family:Inter,system-ui,sans-serif;line-height:24px;text-align:center;cursor:pointer;"
+    el.textContent = String(n)
+    return el
+}
+
+function driverMarker(): HTMLElement {
+    const el = document.createElement("div")
+    el.className = "driver-marker"
+    el.style.cssText = "position:relative;width:18px;height:18px;cursor:pointer;"
+    const pulse = document.createElement("span")
+    pulse.style.cssText =
+        "position:absolute;inset:0;border-radius:9999px;background:rgba(49,44,133,.4);" +
+        "animation:driver-pulse 1.8s ease-out infinite;"
+    const dot = document.createElement("span")
+    dot.style.cssText =
+        "position:absolute;inset:0;border-radius:9999px;background:#312c85;border:2px solid #fff;" +
+        "box-shadow:0 1px 3px rgba(15,23,42,.4);"
+    el.appendChild(pulse)
+    el.appendChild(dot)
+    return el
 }
 
 export function RouteMap({
@@ -24,19 +66,25 @@ export function RouteMap({
     route,
     isLoading = false,
     height = "500px",
+    driverId,
+    driverLocation,
 }: {
     routeSteps: RouteStep[]
     route: DirectionsResponse | null
     isLoading?: boolean
     height?: string
+    driverId?: string
+    driverLocation?: [number, number] | null
 }) {
     const [showOutbound, setShowOutbound] = useState(true)
     const [showReturn, setShowReturn] = useState(true)
     const [showJobs, setShowJobs] = useState(true)
+    const [showDriver, setShowDriver] = useState(true)
 
     const mapContainer = useRef<HTMLDivElement>(null)
     const mapRef = useRef<maplibregl.Map | null>(null)
     const markersRef = useRef<{ element: HTMLElement; marker: maplibregl.Marker; type: "start" | "end" | "job" }[]>([])
+    const driverMarkerRef = useRef<maplibregl.Marker | null>(null)
     const routeFeature = route?.routes
 
     useEffect(() => {
@@ -62,24 +110,42 @@ export function RouteMap({
             const isEnd = routeStep.type === "end" || index === routeSteps.length - 1
             const isJob = routeStep.type === "job" || !!routeStep.package_id
 
-            let imageUrl: string | null = null
-            if (isStart || isEnd) {
-                imageUrl = "/postal.png"
-            } else if (isJob) {
-                imageUrl = "/bighouse.png"
-            }
+            let el: HTMLElement | null = null
+            let anchor: "center" | "bottom" = "center"
+            let popupContent = ""
+            let popupOffset: [number, number] = [0, -18]
 
-            if (imageUrl) {
-                const el = document.createElement("div")
+            if (isStart || isEnd) {
+                el = document.createElement("div")
                 el.className = "custom-marker"
-                el.style.backgroundImage = `url('${imageUrl}')`
+                el.style.backgroundImage = "url('/postal.png')"
                 el.style.width = "40px"
                 el.style.height = "40px"
                 el.style.backgroundSize = "contain"
                 el.style.backgroundRepeat = "no-repeat"
                 el.style.cursor = "pointer"
+                anchor = "bottom"
+                popupOffset = [0, -35]
+                popupContent = `
+                        <div class="px-2 py-1.5 space-y-0.5">
+                            <div class="font-bold text-sm text-blue-600">${routeStep.warehouse_name || "Warehouse"}</div>
+                            <div class="text-xs text-muted-foreground w-48 leading-tight line-clamp-2">${routeStep.warehouse_address || ""}</div>
+                        </div>
+                    `
+            } else if (isJob) {
+                el = stopMarker(routeStep.stop_number ?? index, statusColor(routeStep.status))
+                anchor = "center"
+                popupOffset = [0, -18]
+                popupContent = `
+                        <div class="px-2 py-1.5 space-y-0.5">
+                            <div class="font-bold text-sm text-amber-600">${routeStep.customer_name || "Recipient"}</div>
+                            <div class="text-xs text-muted-foreground w-48 leading-tight line-clamp-2">${routeStep.customer_address || ""}</div>
+                        </div>
+                    `
+            }
 
-                const marker = new maplibregl.Marker({ element: el, anchor: "bottom" })
+            if (el) {
+                const marker = new maplibregl.Marker({ element: el, anchor })
                     .setLngLat(coords)
                     .addTo(map)
 
@@ -89,26 +155,9 @@ export function RouteMap({
                     type: isStart ? "start" : isEnd ? "end" : "job",
                 })
 
-                let popupContent = ""
-                if (isStart || isEnd) {
-                    popupContent = `
-                        <div class="px-2 py-1.5 space-y-0.5">
-                            <div class="font-bold text-sm text-blue-600">${routeStep.warehouse_name || "Warehouse"}</div>
-                            <div class="text-xs text-muted-foreground w-48 leading-tight line-clamp-2">${routeStep.warehouse_address || ""}</div>
-                        </div>
-                    `
-                } else if (isJob) {
-                    popupContent = `
-                        <div class="px-2 py-1.5 space-y-0.5">
-                            <div class="font-bold text-sm text-amber-600">${routeStep.customer_name || "Recipient"}</div>
-                            <div class="text-xs text-muted-foreground w-48 leading-tight line-clamp-2">${routeStep.customer_address || ""}</div>
-                        </div>
-                    `
-                }
-
                 if (popupContent) {
                     const popup = new maplibregl.Popup({
-                        offset: [0, -35],
+                        offset: popupOffset,
                         closeButton: false,
                         closeOnClick: false,
                         className: "custom-popup",
@@ -123,6 +172,28 @@ export function RouteMap({
 
             bounds.extend(coords)
         })
+
+        if (driverLocation) {
+            const el = driverMarker()
+            const marker = new maplibregl.Marker({ element: el, anchor: "center" })
+                .setLngLat(driverLocation)
+                .addTo(map)
+            driverMarkerRef.current = marker
+            bounds.extend(driverLocation)
+
+            const popup = new maplibregl.Popup({
+                offset: [0, -14],
+                closeButton: false,
+                closeOnClick: false,
+                className: "custom-popup",
+            }).setHTML(`<div class="px-2 py-1.5"><div class="font-bold text-sm text-indigo-600">Driver</div></div>`)
+
+            el.addEventListener("mouseenter", () => {
+                const lngLat = marker.getLngLat()
+                popup.addTo(map).setLngLat(lngLat)
+            })
+            el.addEventListener("mouseleave", () => popup.remove())
+        }
 
         map.on("load", () => {
             map.fitBounds(bounds, { padding: 50, maxZoom: 12 })
@@ -208,10 +279,40 @@ export function RouteMap({
 
         return () => {
             markersRef.current = []
+            driverMarkerRef.current = null
             map.remove()
             mapRef.current = null
         }
     }, [routeSteps, routeFeature])
+
+    useEffect(() => {
+        if (!driverId) return
+
+        const channel = subscribeToDriverLocationUpdates(driverId, async () => {
+            try {
+                const coords = await getDriverCurrentLocation(driverId)
+                if (!coords) return
+                const map = mapRef.current
+                if (!map) return
+
+                if (driverMarkerRef.current) {
+                    driverMarkerRef.current.setLngLat(coords)
+                } else {
+                    const marker = new maplibregl.Marker({ element: driverMarker(), anchor: "center" })
+                        .setLngLat(coords)
+                        .addTo(map)
+                    marker.getElement().style.display = showDriver ? "block" : "none"
+                    driverMarkerRef.current = marker
+                }
+            } catch (e) {
+                console.error("Failed to update driver location", e)
+            }
+        })
+
+        return () => {
+            channel.unsubscribe()
+        }
+    }, [driverId])
 
     useEffect(() => {
         const map = mapRef.current
@@ -222,11 +323,11 @@ export function RouteMap({
                 let filter: FilterSpecification | null = null
 
                 if (!showOutbound && !showReturn) {
-                    filter = ["==", ["id"], "none"] as any
+                    filter = ["==", ["id"], "none"] 
                 } else if (!showOutbound) {
-                    filter = ["==", ["get", "is_return"], true] as any
+                    filter = ["==", ["get", "is_return"], true]
                 } else if (!showReturn) {
-                    filter = ["==", ["get", "is_return"], false] as any
+                    filter = ["==", ["get", "is_return"], false]
                 }
 
                 map.setFilter("route-line", filter)
@@ -238,6 +339,11 @@ export function RouteMap({
                     element.style.display = showJobs ? "block" : "none"
                 }
             })
+
+            const driverEl = driverMarkerRef.current?.getElement()
+            if (driverEl) {
+                driverEl.style.display = showDriver ? "block" : "none"
+            }
         }
 
         if (map.isStyleLoaded()) {
@@ -245,10 +351,11 @@ export function RouteMap({
         } else {
             map.once("styledata", applyFilter)
         }
-    }, [showOutbound, showReturn, showJobs])
+    }, [showOutbound, showReturn, showJobs, showDriver])
 
     return (
         <div className="relative w-full rounded-md border group overflow-hidden" style={{ height }}>
+            <style>{`@keyframes driver-pulse{0%{transform:scale(1);opacity:.6}100%{transform:scale(2.6);opacity:0}}`}</style>
             {isLoading && (
                 <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/60 backdrop-blur-sm">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -257,7 +364,7 @@ export function RouteMap({
             <div ref={mapContainer} className="w-full h-full" />
 
             <div className="absolute top-4 right-4 z-10 group/control">
-                <div className="bg-background/80 backdrop-blur-md border shadow-lg rounded-md overflow-hidden transition-all duration-300 w-10 group-hover/control:w-44 h-10 group-hover/control:h-35">
+                <div className="bg-background/80 backdrop-blur-md border shadow-lg rounded-md overflow-hidden transition-all duration-300 w-10 group-hover/control:w-44 h-10 group-hover/control:h-44">
                     <div className="flex items-center justify-center w-10 h-10 shrink-0">
                         <Layers className="h-4 w-4 text-muted-foreground" />
                     </div>
@@ -273,6 +380,10 @@ export function RouteMap({
                         <div className="flex items-center space-x-2">
                             <Checkbox id="showJobs" checked={showJobs} onCheckedChange={(v) => setShowJobs(!!v)} />
                             <Label htmlFor="showJobs" className="text-xs font-medium cursor-pointer">Job Markers</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <Checkbox id="showDriver" checked={showDriver} onCheckedChange={(v) => setShowDriver(!!v)} />
+                            <Label htmlFor="showDriver" className="text-xs font-medium cursor-pointer">Driver</Label>
                         </div>
                     </div>
                 </div>

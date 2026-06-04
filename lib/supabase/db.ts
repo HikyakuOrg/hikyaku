@@ -98,6 +98,22 @@ export function subscribeToDriverLocationUpdates(driverId: string, onUpdate: (pa
     return channel
 }
 
+export async function getDriverCurrentLocation(driverId: string): Promise<[number, number] | null> {
+    if (!driverId) return null
+
+    const { data, error } = await supabase
+        .from("driver_current_location")
+        .select("location")
+        .eq("driver_id", driverId)
+        .maybeSingle()
+
+    if (error) throw error
+
+    const location = data?.location as { coordinates?: [number, number] } | null
+    if (!location?.coordinates) return null
+
+    return [location.coordinates[0], location.coordinates[1]]
+}
 
 
 export async function getPackageDimension(packageId: string) {
