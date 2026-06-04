@@ -12,6 +12,7 @@ import { DashboardMetrics } from "@/components/overview/dashboard-metrics";
 import { RecentPackages } from "@/components/overview/recent-packages";
 import { WarehouseSummary } from "@/components/overview/warehouse-summary";
 import { OverviewSkeleton } from "@/components/overview/overview-skeleton";
+import { TodayShiftsCalendar } from "@/components/overview/today-shifts-calendar";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
@@ -59,6 +60,10 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 mt-8">
           <RecentPackages packages={recentPackages} slug={slug} />
           <WarehouseSummary warehouses={warehouseSummaries} />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <TodayShiftsCalendar />
         </div>
       </Suspense>
     </div>
