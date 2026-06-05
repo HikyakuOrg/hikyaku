@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useCallback, useTransition } from "react"
+import { useState, useMemo, useCallback, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { PackageOptimisation } from "@/app/models/package-optimisation"
 import { PackageStatus, PackageStatusText } from "@/app/models/package-status"
@@ -84,6 +84,21 @@ function getStatusVariant(
     }
 }
 
+/**
+ * Current time as a client-only value. Returns `null` during SSR/prerender and
+ * the first hydration render, then the live `Date` after mount. Reading the
+ * current time (`new Date()`) during render is a dynamic API that isn't allowed
+ * while prerendering under cacheComponents — gating it behind mount keeps the
+ * "LATE" check out of the prerender while staying accurate for the viewer.
+ */
+function useNow(): Date | null {
+    const [now, setNow] = useState<Date | null>(null)
+    useEffect(() => {
+        setNow(new Date())
+    }, [])
+    return now
+}
+
 /** A single draggable/deletable job step in edit mode */
 function SortableJobStep({
     step,
@@ -96,6 +111,7 @@ function SortableJobStep({
 }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
         useSortable({ id: step.id })
+    const now = useNow()
 
     const style: React.CSSProperties = {
         transform: CSS.Transform.toString(transform),
@@ -165,7 +181,7 @@ function SortableJobStep({
                                     const scheduled = new Date(dw.scheduled_arrival)
                                     const isLateFlag = dw.actual_arrival
                                         ? new Date(dw.actual_arrival) > scheduled
-                                        : new Date() > scheduled
+                                        : now !== null && now > scheduled
                                     return isLateFlag ? (
                                         <Badge variant="destructive">LATE</Badge>
                                     ) : null
@@ -204,6 +220,7 @@ function StaticStepRow({
     disableInteractions?: boolean
 }) {
     const slug = useOrgSlug()
+    const now = useNow()
     const pkg = step.package_assignment?.package
     const status = pkg?.current_status
     const showLockIcon = editMode && step.type === "job" && isLocked(status)
@@ -311,7 +328,7 @@ function StaticStepRow({
                                 const scheduled = new Date(dw.scheduled_arrival)
                                 const isLateFlag = dw.actual_arrival
                                     ? new Date(dw.actual_arrival) > scheduled
-                                    : new Date() > scheduled
+                                    : now !== null && now > scheduled
                                 return isLateFlag ? (
                                     <Badge variant="destructive">LATE</Badge>
                                 ) : null

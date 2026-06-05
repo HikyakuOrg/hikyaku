@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { getSupabaseServerClaims } from '@/lib/supabase/server'
 import { listMyOrganisations } from '@/lib/actions/organisations'
@@ -5,7 +6,17 @@ import { orgPath } from '@/lib/subdomain'
 import { PendingInvitationsDialog } from '@/components/pending-invitations-dialog'
 import { listPendingInvitations } from '@/lib/actions/invitations'
 
-export default async function OrgsResolverPage() {
+export default function OrgsResolverPage() {
+    // Pure server-side resolver: reads the session (cookies) and redirects. That
+    // request-time work must sit inside a <Suspense> boundary (cacheComponents).
+    return (
+        <Suspense fallback={null}>
+            <OrgsResolver />
+        </Suspense>
+    )
+}
+
+async function OrgsResolver() {
     const { data: claimsData, error: claimsError } = await getSupabaseServerClaims()
     if (claimsError || !claimsData?.claims?.sub) {
         redirect('/auth/login')

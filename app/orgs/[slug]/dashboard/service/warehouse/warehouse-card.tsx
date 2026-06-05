@@ -4,7 +4,7 @@ import Link from "next/link"
 import type { Ref } from "react"
 
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card"
-import { buttonVariants } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button-variants"
 import { cn } from "@/lib/utils"
 import { useOrgSlug } from "@/lib/use-org"
 import type { WarehouseCardData } from "@/lib/supabase/db-server"

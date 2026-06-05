@@ -90,7 +90,7 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
     <div className={cn('flex flex-col gap-6', className)} {...props}>
       <Card>
         <CardHeader>
-          <CardDescription>Choose how you'd like to sign in</CardDescription>
+          <CardDescription>Choose how you&apos;d like to sign in</CardDescription>
         </CardHeader>
         <CardContent>
           {mode === null && (
