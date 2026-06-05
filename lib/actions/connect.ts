@@ -1,7 +1,12 @@
 "use server"
 
-import { headers } from "next/headers"
-import { createClient } from "@/lib/supabase/server"
+import {
+    type ActionError,
+    buildApiContext,
+    getAccessToken,
+    getApiUrl,
+    parseApiError,
+} from "./api-client"
 
 export interface ConnectStatus {
     accountId: string | null
@@ -41,143 +46,84 @@ export interface OrgIssuingStatus {
     chargesEnabled: boolean
 }
 
-type ActionError = { success: false; error: string }
-
-async function getAuthHeaders(): Promise<{ accessToken: string } | { error: string }> {
-    const supabase = await createClient()
-    const { data: sessionData } = await supabase.auth.getSession()
-    const accessToken = sessionData?.session?.access_token
-    if (!accessToken) return { error: "Session expired. Please log in again." }
-    return { accessToken }
-}
-
-function getApiUrl(): string | null {
-    return process.env.NEXT_PUBLIC_HIKYAKU_API_URL ?? null
-}
-
-async function getOrgSlug(): Promise<string | null> {
-    const h = await headers()
-    return h.get("x-org-slug")
-}
-
-async function buildHeaders(): Promise<
-    { headers: Record<string, string> } | ActionError
-> {
-    const auth = await getAuthHeaders()
-    if ("error" in auth) return { success: false, error: auth.error }
-    const orgSlug = await getOrgSlug()
-    if (!orgSlug) return { success: false, error: "No active organisation." }
-    return {
-        headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${auth.accessToken}`,
-            "X-Organisation-Slug": orgSlug,
-        },
-    }
-}
-
-async function parseError(res: Response): Promise<string> {
-    let message = `Request failed (${res.status})`
-    try {
-        const body = await res.json()
-        if (typeof body?.message === "string") message = body.message
-        else if (Array.isArray(body?.message)) message = body.message.join(", ")
-    } catch {
-        /* ignore */
-    }
-    return message
-}
-
 export async function getConnectStatus(): Promise<
     { success: true; data: ConnectStatus } | ActionError
 > {
-    const hResult = await buildHeaders()
-    if ("error" in hResult) return { success: false, error: hResult.error }
-
-    const apiUrl = getApiUrl()
-    if (!apiUrl) return { success: false, error: "API is not configured." }
+    const ctx = await buildApiContext()
+    if ("error" in ctx) return ctx
 
     let res: Response
     try {
-        res = await fetch(`${apiUrl}/api/v1/connect/status`, {
-            headers: hResult.headers,
+        res = await fetch(`${ctx.apiUrl}/api/v1/connect/status`, {
+            headers: ctx.headers,
             cache: "no-store",
         })
     } catch {
         return { success: false, error: "Could not reach the server. Check your connection." }
     }
 
-    if (!res.ok) return { success: false, error: await parseError(res) }
+    if (!res.ok) return { success: false, error: await parseApiError(res) }
     return { success: true, data: await res.json() }
 }
 
 export async function createAccountSession(
     country: string,
 ): Promise<{ success: true; data: AccountSession } | ActionError> {
-    const hResult = await buildHeaders()
-    if ("error" in hResult) return { success: false, error: hResult.error }
-
-    const apiUrl = getApiUrl()
-    if (!apiUrl) return { success: false, error: "API is not configured." }
+    const ctx = await buildApiContext()
+    if ("error" in ctx) return ctx
 
     let res: Response
     try {
-        res = await fetch(`${apiUrl}/api/v1/connect/account-session`, {
+        res = await fetch(`${ctx.apiUrl}/api/v1/connect/account-session`, {
             method: "POST",
-            headers: hResult.headers,
+            headers: ctx.headers,
             body: JSON.stringify({ country }),
         })
     } catch {
         return { success: false, error: "Could not reach the server. Check your connection." }
     }
 
-    if (!res.ok) return { success: false, error: await parseError(res) }
+    if (!res.ok) return { success: false, error: await parseApiError(res) }
     return { success: true, data: await res.json() }
 }
 
 export async function getFundingInstructions(): Promise<
     { success: true; data: FundingInstructions } | ActionError
 > {
-    const hResult = await buildHeaders()
-    if ("error" in hResult) return { success: false, error: hResult.error }
-
-    const apiUrl = getApiUrl()
-    if (!apiUrl) return { success: false, error: "API is not configured." }
+    const ctx = await buildApiContext()
+    if ("error" in ctx) return ctx
 
     let res: Response
     try {
-        res = await fetch(`${apiUrl}/api/v1/connect/funding-instructions`, {
+        res = await fetch(`${ctx.apiUrl}/api/v1/connect/funding-instructions`, {
             method: "POST",
-            headers: hResult.headers,
+            headers: ctx.headers,
         })
     } catch {
         return { success: false, error: "Could not reach the server. Check your connection." }
     }
 
-    if (!res.ok) return { success: false, error: await parseError(res) }
+    if (!res.ok) return { success: false, error: await parseApiError(res) }
     return { success: true, data: await res.json() }
 }
 
 export async function getIssuingBalance(): Promise<
     { success: true; data: IssuingBalance[] } | ActionError
 > {
-    const hResult = await buildHeaders()
-    if ("error" in hResult) return { success: false, error: hResult.error }
-
-    const apiUrl = getApiUrl()
-    if (!apiUrl) return { success: false, error: "API is not configured." }
+    const ctx = await buildApiContext()
+    if ("error" in ctx) return ctx
 
     let res: Response
     try {
-        res = await fetch(`${apiUrl}/api/v1/connect/issuing-balance`, {
-            headers: hResult.headers,
+        res = await fetch(`${ctx.apiUrl}/api/v1/connect/issuing-balance`, {
+            headers: ctx.headers,
             cache: "no-store",
         })
     } catch {
         return { success: false, error: "Could not reach the server. Check your connection." }
     }
 
-    if (!res.ok) return { success: false, error: await parseError(res) }
+    if (!res.ok) return { success: false, error: await parseApiError(res) }
     return { success: true, data: await res.json() }
 }
 
@@ -186,7 +132,7 @@ export async function getIssuingBalance(): Promise<
  * Used by the org switcher — no active-org context needed, only a valid JWT.
  */
 export async function getIssuingStatuses(): Promise<OrgIssuingStatus[]> {
-    const auth = await getAuthHeaders()
+    const auth = await getAccessToken()
     if ("error" in auth) return []
 
     const apiUrl = getApiUrl()

@@ -1,7 +1,6 @@
 "use server"
 
-import { headers } from "next/headers"
-import { createClient } from "@/lib/supabase/server"
+import { type ActionError, buildApiContext, parseApiError } from "./api-client"
 
 export interface IssuingCard {
     id: string
@@ -47,69 +46,23 @@ export interface IssueCardInput {
     currency: string
 }
 
-type ActionError = { success: false; error: string }
-
-async function getAuthHeaders(): Promise<{ accessToken: string } | { error: string }> {
-    const supabase = await createClient()
-    const { data: sessionData } = await supabase.auth.getSession()
-    const accessToken = sessionData?.session?.access_token
-    if (!accessToken) return { error: "Session expired. Please log in again." }
-    return { accessToken }
-}
-
-function getApiUrl(): string | null {
-    return process.env.NEXT_PUBLIC_HIKYAKU_API_URL ?? null
-}
-
-async function getOrgSlug(): Promise<string | null> {
-    const h = await headers()
-    return h.get("x-org-slug")
-}
-
-async function buildHeaders(): Promise<
-    { headers: Record<string, string> } | ActionError
-> {
-    const auth = await getAuthHeaders()
-    if ("error" in auth) return { success: false, error: auth.error }
-    const orgSlug = await getOrgSlug()
-    if (!orgSlug) return { success: false, error: "No active organisation." }
-    return {
-        headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${auth.accessToken}`,
-            "X-Organisation-Slug": orgSlug,
-        },
-    }
-}
-
 export async function listFuelCards(): Promise<
     { success: true; data: IssuingCard[] } | ActionError
 > {
-    const hResult = await buildHeaders()
-    if ("error" in hResult) return { success: false, error: hResult.error }
-
-    const apiUrl = getApiUrl()
-    if (!apiUrl) return { success: false, error: "API is not configured." }
+    const ctx = await buildApiContext()
+    if ("error" in ctx) return ctx
 
     let res: Response
     try {
-        res = await fetch(`${apiUrl}/api/v1/issuing/cards`, {
-            headers: hResult.headers,
+        res = await fetch(`${ctx.apiUrl}/api/v1/issuing/cards`, {
+            headers: ctx.headers,
             cache: "no-store",
         })
     } catch {
         return { success: false, error: "Could not reach the server. Check your connection." }
     }
 
-    if (!res.ok) {
-        let message = `Request failed (${res.status})`
-        try {
-            const body = await res.json()
-            if (typeof body?.message === "string") message = body.message
-            else if (Array.isArray(body?.message)) message = body.message.join(", ")
-        } catch { /* ignore */ }
-        return { success: false, error: message }
-    }
+    if (!res.ok) return { success: false, error: await parseApiError(res) }
 
     const data = await res.json()
     return { success: true, data }
@@ -118,32 +71,21 @@ export async function listFuelCards(): Promise<
 export async function issueFuelCard(
     input: IssueCardInput,
 ): Promise<{ success: true; data: IssuingCard } | ActionError> {
-    const hResult = await buildHeaders()
-    if ("error" in hResult) return { success: false, error: hResult.error }
-
-    const apiUrl = getApiUrl()
-    if (!apiUrl) return { success: false, error: "API is not configured." }
+    const ctx = await buildApiContext()
+    if ("error" in ctx) return ctx
 
     let res: Response
     try {
-        res = await fetch(`${apiUrl}/api/v1/issuing/cards`, {
+        res = await fetch(`${ctx.apiUrl}/api/v1/issuing/cards`, {
             method: "POST",
-            headers: hResult.headers,
+            headers: ctx.headers,
             body: JSON.stringify(input),
         })
     } catch {
         return { success: false, error: "Could not reach the server. Check your connection." }
     }
 
-    if (!res.ok) {
-        let message = `Request failed (${res.status})`
-        try {
-            const body = await res.json()
-            if (typeof body?.message === "string") message = body.message
-            else if (Array.isArray(body?.message)) message = body.message.join(", ")
-        } catch { /* ignore */ }
-        return { success: false, error: message }
-    }
+    if (!res.ok) return { success: false, error: await parseApiError(res) }
 
     const data = await res.json()
     return { success: true, data }
@@ -153,11 +95,8 @@ export async function listFuelTransactions(filters?: {
     driverId?: string
     vehicleId?: string
 }): Promise<{ success: true; data: IssuingTransaction[] } | ActionError> {
-    const hResult = await buildHeaders()
-    if ("error" in hResult) return { success: false, error: hResult.error }
-
-    const apiUrl = getApiUrl()
-    if (!apiUrl) return { success: false, error: "API is not configured." }
+    const ctx = await buildApiContext()
+    if ("error" in ctx) return ctx
 
     const params = new URLSearchParams()
     if (filters?.driverId) params.set("driverId", filters.driverId)
@@ -166,23 +105,15 @@ export async function listFuelTransactions(filters?: {
 
     let res: Response
     try {
-        res = await fetch(`${apiUrl}/api/v1/issuing/transactions${qs}`, {
-            headers: hResult.headers,
+        res = await fetch(`${ctx.apiUrl}/api/v1/issuing/transactions${qs}`, {
+            headers: ctx.headers,
             cache: "no-store",
         })
     } catch {
         return { success: false, error: "Could not reach the server. Check your connection." }
     }
 
-    if (!res.ok) {
-        let message = `Request failed (${res.status})`
-        try {
-            const body = await res.json()
-            if (typeof body?.message === "string") message = body.message
-            else if (Array.isArray(body?.message)) message = body.message.join(", ")
-        } catch { /* ignore */ }
-        return { success: false, error: message }
-    }
+    if (!res.ok) return { success: false, error: await parseApiError(res) }
 
     const data = await res.json()
     return { success: true, data }
@@ -192,32 +123,21 @@ export async function setFuelCardStatus(
     cardId: string,
     status: "active" | "inactive" | "canceled",
 ): Promise<{ success: true; data: IssuingCard } | ActionError> {
-    const hResult = await buildHeaders()
-    if ("error" in hResult) return { success: false, error: hResult.error }
-
-    const apiUrl = getApiUrl()
-    if (!apiUrl) return { success: false, error: "API is not configured." }
+    const ctx = await buildApiContext()
+    if ("error" in ctx) return ctx
 
     let res: Response
     try {
-        res = await fetch(`${apiUrl}/api/v1/issuing/cards/${cardId}/status`, {
+        res = await fetch(`${ctx.apiUrl}/api/v1/issuing/cards/${cardId}/status`, {
             method: "PATCH",
-            headers: hResult.headers,
+            headers: ctx.headers,
             body: JSON.stringify({ status }),
         })
     } catch {
         return { success: false, error: "Could not reach the server. Check your connection." }
     }
 
-    if (!res.ok) {
-        let message = `Request failed (${res.status})`
-        try {
-            const body = await res.json()
-            if (typeof body?.message === "string") message = body.message
-            else if (Array.isArray(body?.message)) message = body.message.join(", ")
-        } catch { /* ignore */ }
-        return { success: false, error: message }
-    }
+    if (!res.ok) return { success: false, error: await parseApiError(res) }
 
     const data = await res.json()
     return { success: true, data }

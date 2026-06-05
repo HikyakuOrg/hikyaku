@@ -1,6 +1,6 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
+import { getAccessToken, getApiUrl, parseApiError } from "./api-client"
 
 export interface CreateUserPayload {
     user_email: string
@@ -31,15 +31,12 @@ export interface CreateUserError {
 export async function createUser(
     payload: CreateUserPayload
 ): Promise<CreateUserResult | CreateUserError> {
-    const supabase = await createClient()
-    const { data: sessionData } = await supabase.auth.getSession()
-    const accessToken = sessionData?.session?.access_token
-
-    if (!accessToken) {
-        return { success: false, error: "Session expired. Please log in again." }
+    const auth = await getAccessToken()
+    if ("error" in auth) {
+        return { success: false, error: auth.error }
     }
 
-    const apiUrl = process.env.WHENDAN_API_URL
+    const apiUrl = getApiUrl()
     if (!apiUrl) {
         return { success: false, error: "API is not configured." }
     }
@@ -50,7 +47,7 @@ export async function createUser(
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${accessToken}`,
+                Authorization: `Bearer ${auth.accessToken}`,
             },
             body: JSON.stringify(payload),
         })
@@ -59,15 +56,7 @@ export async function createUser(
     }
 
     if (!res.ok) {
-        let message = `Request failed (${res.status})`
-        try {
-            const body = await res.json()
-            if (typeof body?.message === "string") message = body.message
-            else if (Array.isArray(body?.message)) message = body.message.join(", ")
-        } catch {
-            // ignore parse errors
-        }
-        return { success: false, error: message }
+        return { success: false, error: await parseApiError(res) }
     }
 
     let data: Record<string, unknown> = {}

@@ -1,9 +1,9 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { headers } from "next/headers"
 import { getSupabaseServerClaims } from "@/lib/supabase/server"
 import { createClient } from "@/lib/supabase/server"
+import { getOrgSlug } from "./api-client"
 
 /** Statuses that are immovable/undeletable */
 const LOCKED_STATUSES = ["DELIVERED", "IN_TRANSIT"] as const
@@ -216,7 +216,7 @@ export async function adjustRoute(params: AdjustRouteParams): Promise<AdjustRout
         return { success: false, error: message }
     }
 
-    const slug = (await headers()).get('x-org-slug')
+    const slug = await getOrgSlug()
     if (slug) revalidatePath(`/orgs/${slug}/dashboard/driver-shifts/${routeId}`)
     return { success: true }
 }

@@ -1,8 +1,7 @@
 "use server"
 
-import { headers } from "next/headers"
 import { revalidatePath, updateTag } from "next/cache"
-import { createClient } from "@/lib/supabase/server"
+import { type ActionError, buildApiContext, parseApiError } from "./api-client"
 
 export type PricingUnit =
     | "per_delivery"
@@ -32,57 +31,7 @@ export interface UpdateCatalogItemInput {
     pricingUnit?: PricingUnit
 }
 
-type ActionError = { success: false; error: string }
 type ActionOk<T> = { success: true; data: T }
-
-async function getAuthHeaders(): Promise<{ accessToken: string } | { error: string }> {
-    const supabase = await createClient()
-    const { data: sessionData } = await supabase.auth.getSession()
-    const accessToken = sessionData?.session?.access_token
-    if (!accessToken) return { error: "Session expired. Please log in again." }
-    return { accessToken }
-}
-
-function getApiUrl(): string | null {
-    return process.env.NEXT_PUBLIC_HIKYAKU_API_URL ?? null
-}
-
-async function getOrgSlug(): Promise<string | null> {
-    const h = await headers()
-    return h.get("x-org-slug")
-}
-
-async function buildContext(): Promise<
-    { headers: Record<string, string>; apiUrl: string; slug: string } | ActionError
-> {
-    const auth = await getAuthHeaders()
-    if ("error" in auth) return { success: false, error: auth.error }
-    const slug = await getOrgSlug()
-    if (!slug) return { success: false, error: "No active organisation." }
-    const apiUrl = getApiUrl()
-    if (!apiUrl) return { success: false, error: "API is not configured." }
-    return {
-        apiUrl,
-        slug,
-        headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${auth.accessToken}`,
-            "X-Organisation-Slug": slug,
-        },
-    }
-}
-
-async function parseError(res: Response): Promise<string> {
-    let message = `Request failed (${res.status})`
-    try {
-        const body = await res.json()
-        if (typeof body?.message === "string") message = body.message
-        else if (Array.isArray(body?.message)) message = body.message.join(", ")
-    } catch {
-        /* ignore */
-    }
-    return message
-}
 
 /**
  * Invalidate the catalog cache + dashboard page after a mutation. `updateTag`
@@ -99,8 +48,8 @@ async function mutate(
     method: "POST" | "PATCH" | "DELETE",
     body?: unknown,
 ): Promise<ActionOk<unknown> | ActionError> {
-    const ctx = await buildContext()
-    if ("success" in ctx) return ctx
+    const ctx = await buildApiContext()
+    if ("error" in ctx) return ctx
 
     let res: Response
     try {
@@ -113,7 +62,7 @@ async function mutate(
         return { success: false, error: "Could not reach the server. Check your connection." }
     }
 
-    if (!res.ok) return { success: false, error: await parseError(res) }
+    if (!res.ok) return { success: false, error: await parseApiError(res) }
     revalidateCatalog(ctx.slug)
     const data = method === "DELETE" ? null : await res.json().catch(() => null)
     return { success: true, data }

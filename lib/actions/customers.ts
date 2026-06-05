@@ -1,24 +1,20 @@
 "use server"
 
-import { headers } from "next/headers"
-import { createClient } from "@/lib/supabase/server"
+import { getAccessToken, getApiUrl, getOrgSlug } from "./api-client"
 import type { CustomerFormValues } from "@/components/customers/customer-schema"
 
-const API_URL = process.env.NEXT_PUBLIC_HIKYAKU_API_URL ?? "http://localhost:3002"
+const API_URL = getApiUrl() ?? "http://localhost:3002"
 
 async function buildHeaders(): Promise<Record<string, string>> {
-    const supabase = await createClient()
-    const { data: sessionData } = await supabase.auth.getSession()
-    const accessToken = sessionData?.session?.access_token
-    if (!accessToken) throw new Error("Session expired. Please log in again.")
+    const auth = await getAccessToken()
+    if ("error" in auth) throw new Error(auth.error)
 
-    const h = await headers()
-    const orgSlug = h.get("x-org-slug")
+    const orgSlug = await getOrgSlug()
     if (!orgSlug) throw new Error("No active organisation.")
 
     return {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${auth.accessToken}`,
         "X-Organisation-Slug": orgSlug,
     }
 }
