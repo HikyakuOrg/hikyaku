@@ -814,38 +814,6 @@ export type Database = {
           },
         ]
       }
-      service_addons: {
-        Row: {
-          id: string
-          pricing_unit: string
-          service_id: string
-          stripe_price_id: string
-          stripe_product_id: string
-        }
-        Insert: {
-          id?: string
-          pricing_unit: string
-          service_id: string
-          stripe_price_id: string
-          stripe_product_id: string
-        }
-        Update: {
-          id?: string
-          pricing_unit?: string
-          service_id?: string
-          stripe_price_id?: string
-          stripe_product_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "service_addons_service_id_fkey"
-            columns: ["service_id"]
-            isOneToOne: false
-            referencedRelation: "services"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       service_areas: {
         Row: {
           geometry: unknown
@@ -868,38 +836,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "service_areas_organisation_id_fkey"
-            columns: ["organisation_id"]
-            isOneToOne: false
-            referencedRelation: "organisations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      services: {
-        Row: {
-          id: string
-          organisation_id: string
-          pricing_unit: string
-          stripe_price_id: string
-          stripe_product_id: string
-        }
-        Insert: {
-          id?: string
-          organisation_id: string
-          pricing_unit: string
-          stripe_price_id: string
-          stripe_product_id: string
-        }
-        Update: {
-          id?: string
-          organisation_id?: string
-          pricing_unit?: string
-          stripe_price_id?: string
-          stripe_product_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "services_organisation_id_fkey"
             columns: ["organisation_id"]
             isOneToOne: false
             referencedRelation: "organisations"

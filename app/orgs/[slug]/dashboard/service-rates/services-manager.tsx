@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Controller, useForm, type Control, type FieldErrors } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
-import { Plus, Trash2, Loader2 } from "lucide-react"
+import { Plus, Pencil, Trash2, Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -41,12 +41,15 @@ import {
 import type { CatalogAddon, CatalogService, ServiceCatalog } from "@/lib/api/services"
 import {
     createService,
+    updateService,
     deleteService,
     createServiceAddon,
+    updateServiceAddon,
     deleteServiceAddon,
+    type UpdateCatalogItemInput,
 } from "@/lib/actions/services"
 import { getConnectStatus } from "@/lib/actions/connect"
-import { PRICING_UNIT_OPTIONS, formatRate, unitSuffix } from "@/lib/pricing"
+import { PRICING_UNIT_OPTIONS, formatRate, unitSuffix, minorToMajor } from "@/lib/pricing"
 import { formatCurrency } from "@/lib/currency"
 import {
     catalogItemSchema,
@@ -323,6 +326,92 @@ function DeleteButton({
     )
 }
 
+type SaveResult = { success: true; data: unknown } | { success: false; error: string }
+
+function EditItemDialog({
+    title,
+    item,
+    onSave,
+    onDone,
+}: {
+    title: string
+    item: CatalogAddon
+    onSave: (input: UpdateCatalogItemInput) => Promise<SaveResult>
+    onDone: () => void
+}) {
+    const [open, setOpen] = useState(false)
+    const [isPending, startTransition] = useTransition()
+    const {
+        control,
+        handleSubmit,
+        reset,
+        formState: { errors },
+    } = useForm<CatalogItemFormValues>({
+        resolver: zodResolver(catalogItemSchema),
+        defaultValues: {
+            name: item.name,
+            amount: minorToMajor(item.amount_minor, item.currency),
+            pricingUnit: item.pricing_unit as CatalogItemFormValues["pricingUnit"],
+        },
+    })
+
+    // Re-sync the form when the dialog opens so it reflects the latest catalog
+    // values (a prior edit may have changed them).
+    useEffect(() => {
+        if (open) {
+            reset({
+                name: item.name,
+                amount: minorToMajor(item.amount_minor, item.currency),
+                pricingUnit: item.pricing_unit as CatalogItemFormValues["pricingUnit"],
+            })
+        }
+    }, [open, item.name, item.amount_minor, item.currency, item.pricing_unit, reset])
+
+    const submit = (values: CatalogItemFormValues) => {
+        startTransition(async () => {
+            const result = await onSave({
+                name: values.name,
+                amountMajor: values.amount,
+                pricingUnit: values.pricingUnit,
+            })
+            if (!result.success) {
+                toast.error(result.error)
+                return
+            }
+            toast.success("Changes saved")
+            setOpen(false)
+            onDone()
+        })
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger
+                render={
+                    <Button variant="ghost" size="icon" aria-label={title}>
+                        <Pencil className="size-4 text-muted-foreground" />
+                    </Button>
+                }
+            />
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{title}</DialogTitle>
+                    <DialogDescription>Charged in {item.currency.toUpperCase()}.</DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSubmit(submit)} className="space-y-4">
+                    <CatalogItemFields control={control} errors={errors} currency={item.currency} />
+                    <DialogFooter>
+                        <Button type="submit" disabled={isPending}>
+                            {isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+                            Save changes
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 function AddonRow({ addon, onDone }: { addon: CatalogAddon; onDone: () => void }) {
     return (
         <div className="flex items-center justify-between gap-4 py-2 pl-6">
@@ -331,6 +420,12 @@ function AddonRow({ addon, onDone }: { addon: CatalogAddon; onDone: () => void }
                 <span className="tabular-nums font-mono text-sm text-muted-foreground">
                     {formatRate(addon.amount_minor, addon.currency, addon.pricing_unit)}
                 </span>
+                <EditItemDialog
+                    title="Edit add-on"
+                    item={addon}
+                    onSave={(input) => updateServiceAddon(addon.id, input)}
+                    onDone={onDone}
+                />
                 <DeleteButton
                     label="Delete add-on"
                     description={`Remove "${addon.name}" from this service.`}
@@ -367,19 +462,27 @@ function ServiceCard({
                         {formatRate(service.amount_minor, service.currency, service.pricing_unit)}
                     </p>
                 </div>
-                <DeleteButton
-                    label="Delete service"
-                    description={`This removes "${service.name}" and all its add-ons. This cannot be undone.`}
-                    onConfirm={async () => {
-                        const result = await deleteService(service.id)
-                        if (!result.success) {
-                            toast.error(result.error)
-                            return
-                        }
-                        toast.success("Service deleted")
-                        onDone()
-                    }}
-                />
+                <div className="flex items-center">
+                    <EditItemDialog
+                        title="Edit service"
+                        item={service}
+                        onSave={(input) => updateService(service.id, input)}
+                        onDone={onDone}
+                    />
+                    <DeleteButton
+                        label="Delete service"
+                        description={`This removes "${service.name}" and all its add-ons. This cannot be undone.`}
+                        onConfirm={async () => {
+                            const result = await deleteService(service.id)
+                            if (!result.success) {
+                                toast.error(result.error)
+                                return
+                            }
+                            toast.success("Service deleted")
+                            onDone()
+                        }}
+                    />
+                </div>
             </div>
 
             {service.addons.length > 0 && (

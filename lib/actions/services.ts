@@ -25,6 +25,13 @@ export interface CreateAddonInput {
     pricingUnit: PricingUnit
 }
 
+/** Edit a service/add-on. Only the supplied fields change; currency is fixed. */
+export interface UpdateCatalogItemInput {
+    name?: string
+    amountMajor?: number
+    pricingUnit?: PricingUnit
+}
+
 type ActionError = { success: false; error: string }
 type ActionOk<T> = { success: true; data: T }
 
@@ -89,7 +96,7 @@ function revalidateCatalog(slug: string) {
 
 async function mutate(
     path: string,
-    method: "POST" | "DELETE",
+    method: "POST" | "PATCH" | "DELETE",
     body?: unknown,
 ): Promise<ActionOk<unknown> | ActionError> {
     const ctx = await buildContext()
@@ -116,12 +123,20 @@ export async function createService(input: CreateServiceInput) {
     return mutate("/api/v1/services", "POST", input)
 }
 
+export async function updateService(id: string, input: UpdateCatalogItemInput) {
+    return mutate(`/api/v1/services/${id}`, "PATCH", input)
+}
+
 export async function deleteService(id: string) {
     return mutate(`/api/v1/services/${id}`, "DELETE")
 }
 
 export async function createServiceAddon(serviceId: string, input: CreateAddonInput) {
     return mutate(`/api/v1/services/${serviceId}/addons`, "POST", input)
+}
+
+export async function updateServiceAddon(addonId: string, input: UpdateCatalogItemInput) {
+    return mutate(`/api/v1/services/addons/${addonId}`, "PATCH", input)
 }
 
 export async function deleteServiceAddon(addonId: string) {
