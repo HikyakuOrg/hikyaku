@@ -3,11 +3,11 @@
 import { createClient } from "@/lib/supabase/server"
 import type { BookingFormData } from "@/app/booking/booking-stepper"
 
-export async function createBooking(formData: BookingFormData, serviceResult: unknown) {
+export async function createBooking(formData: BookingFormData, orgId: string, serviceResult: unknown) {
     const supabase = await createClient()
 
-    const { data: { session } } = await supabase.auth.getSession()
-    const userId = session?.user?.id
+    const { data: claimsData } = await supabase.auth.getClaims()
+    const userId = claimsData?.claims?.sub
 
     if (!userId || !formData.package || !formData.addresses || !formData.schedule) {
         throw new Error("Missing required booking data")
@@ -20,11 +20,12 @@ export async function createBooking(formData: BookingFormData, serviceResult: un
         .from("packages")
         .insert([
             {
-                to_customer_id: userId,
-                warehouse_id: null,
-                weight_kg: pkg.weight,
-                description: pkg.description,
+                from_customer: userId,
+                to_customer: userId,
+                organisation_id: orgId,
                 tracking_number: `PKG-${Date.now()}`,
+                delivery_notes: pkg.description || null,
+                warehouse_id: null,
             },
         ])
         .select()

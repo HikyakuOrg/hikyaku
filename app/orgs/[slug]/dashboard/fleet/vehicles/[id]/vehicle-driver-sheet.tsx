@@ -76,9 +76,7 @@ export function VehicleDriverSheet({ vehicleId, onDriverAssigned }: VehicleDrive
 
     return (
         <Sheet open={open} onOpenChange={handleOpenChange}>
-            <SheetTrigger asChild>
-                <Button size="sm" variant="outline">Assign Now</Button>
-            </SheetTrigger>
+            <SheetTrigger render={<Button size="sm" variant="outline">Assign Now</Button>} />
             <SheetContent className="w-screen flex flex-col h-screen">
                 <SheetHeader>
                     <SheetTitle>Assign Driver</SheetTitle>

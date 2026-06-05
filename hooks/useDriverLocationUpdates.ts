@@ -17,7 +17,7 @@ export function useDriverLocationUpdates(driverId: string) {
         const channel = subscribeToDriverLocationUpdates(
             driverId,
             (payload) => {
-                setLocation(payload.new)
+                setLocation(payload.new as DriverCurrentLocation)
             }
         )
 

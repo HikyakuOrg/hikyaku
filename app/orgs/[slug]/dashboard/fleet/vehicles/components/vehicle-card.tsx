@@ -13,7 +13,7 @@ export interface VehicleCardData {
     vehicle_plate?: string | null
     vehicle_make?: string | null
     vehicle_model?: string | null
-    vehicle_year?: string | null
+    vehicle_year?: number | string | null
     vehicle_identification_number?: string | null
     is_deleted?: boolean
 }

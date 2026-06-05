@@ -272,6 +272,7 @@ export async function getVehiclesNotAssigned(page: number, pageSize: number) {
 
     const { data, error, count } = await supabase.from("vehicles").select(`
         id,
+        organisation_id,
         vehicle_plate,
         vehicle_identification_number,
         vehicle_make,
