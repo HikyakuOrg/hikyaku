@@ -4,6 +4,7 @@ import { Tables } from "./supabase"
 import { createClient } from "./server"
 import { PackageOptimisation, Location } from "@/app/models/package-optimisation"
 import { listCustomersAction, getCustomerAction } from "@/lib/actions/customers"
+import { TrackingDetails } from "@/app/models/tracking"
 
 type ServiceAreaViewportBounds = {
     minLat: number
@@ -351,6 +352,25 @@ export async function getRouteSteps(routeId: string) {
     if (error) throw error
 
     return data as PackageOptimisation[]
+}
+
+/**
+ * Public package tracking. Backed by the `get_tracking_details` SECURITY DEFINER
+ * RPC (migration 0025), scoped to the organisation slug. Returns null when the
+ * tracking number doesn't belong to that org. Driver name/vehicle/location are
+ * only present while the package is IN_TRANSIT.
+ */
+export async function getTrackingDetails(
+    trackingNumber: string,
+    slug: string
+): Promise<TrackingDetails | null> {
+    const supabase = await createClient()
+    const { data, error } = await supabase.rpc("get_tracking_details", {
+        p_tracking_number: trackingNumber,
+        p_slug: slug,
+    })
+    if (error) throw error
+    return (data as unknown as TrackingDetails | null) ?? null
 }
 
 export async function getDriverCurrentLocation(driverId: string): Promise<[number, number] | null> {

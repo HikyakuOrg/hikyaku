@@ -18,10 +18,11 @@ export async function updateServiceArea(id: string, name: string, geometry: stri
     if (error) throw error
     return data
 }
-import { QueryData, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+import { QueryData, RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { createClient } from "./client";
 import { Database, Tables, TablesInsert } from "./supabase";
 import { PackageOptimisation } from "@/app/models/package-optimisation";
+import { TrackingLocationBroadcast } from "@/app/models/tracking";
 
 
 const supabase = createClient()
@@ -94,6 +95,35 @@ export function subscribeToDriverLocationUpdates(driverId: string, onUpdate: (pa
             (payload) => {
                 onUpdate(payload)
             }
+        )
+        .subscribe()
+
+    return channel
+}
+
+/**
+ * Public live-tracking subscription for the customer tracking page.
+ *
+ * Listens on the private Realtime channel `tracking:<trackingNumber>`. The DB
+ * trigger (migration 0025) only broadcasts to this topic while the package is
+ * IN_TRANSIT, and the realtime.messages RLS policy only lets `anon` join it
+ * while IN_TRANSIT — so this never leaks location for other states, and the
+ * payload carries lng/lat/updated_at only (never the driver id).
+ */
+export function subscribeToTrackingLocation(
+    trackingNumber: string,
+    onLocation: (location: TrackingLocationBroadcast) => void
+): RealtimeChannel {
+    // Realtime Authorization needs an auth token; for the anon page this is the
+    // publishable/anon key the browser client already carries.
+    void supabase.realtime.setAuth()
+
+    const channel = supabase
+        .channel(`tracking:${trackingNumber}`, { config: { private: true } })
+        .on(
+            "broadcast",
+            { event: "location" },
+            (message) => onLocation(message.payload as TrackingLocationBroadcast)
         )
         .subscribe()
 

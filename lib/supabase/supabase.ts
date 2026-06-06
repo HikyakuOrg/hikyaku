@@ -1522,10 +1522,22 @@ export type Database = {
               total_pages: number
             }[]
           }
+      get_tracking_details: {
+        Args: { p_slug: string; p_tracking_number: string }
+        Returns: Json
+      }
       has_permission: { Args: { p_permission: string }; Returns: boolean }
       insert_package_timeline: {
         Args: { p_package_id: string; p_status_enum: string }
         Returns: undefined
+      }
+      is_tracking_topic_in_transit: {
+        Args: { p_topic: string }
+        Returns: boolean
+      }
+      package_folder_is_delivered: {
+        Args: { p_name: string }
+        Returns: boolean
       }
       list_drivers_by_warehouse: {
         Args: { p_limit: number; p_page: number; p_warehouse_id: string }
