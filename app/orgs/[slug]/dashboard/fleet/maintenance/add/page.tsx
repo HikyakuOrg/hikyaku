@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -49,14 +49,17 @@ function vehicleLabel(v: VehicleOption) {
 export default function AddMaintenancePage() {
     const router = useRouter()
     const slug = useOrgSlug()
+    const searchParams = useSearchParams()
+    const preselectedVehicleId = searchParams.get('vehicleId') ?? ''
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [vehicles, setVehicles] = useState<VehicleOption[]>([])
+    const [isLoadingVehicles, setIsLoadingVehicles] = useState(true)
     const [serviceDate, setServiceDate] = useState<Date | undefined>(undefined)
 
     const form = useForm<MaintenanceFormValues>({
         resolver: zodResolver(maintenanceSchema),
         defaultValues: {
-            vehicle_id: '',
+            vehicle_id: preselectedVehicleId,
             odometer: undefined as unknown as number,
             description: '',
             date_serviced: '',
@@ -73,7 +76,9 @@ export default function AddMaintenancePage() {
     })
 
     useEffect(() => {
-        getVehicles().then((data) => setVehicles(data as VehicleOption[]))
+        getVehicles()
+            .then((data) => setVehicles(data as VehicleOption[]))
+            .finally(() => setIsLoadingVehicles(false))
     }, [])
 
     function handleDateSelect(date: Date | undefined) {
@@ -143,25 +148,31 @@ export default function AddMaintenancePage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <Label htmlFor="vehicle">Vehicle serviced</Label>
-                                <Select
-                                    onValueChange={(val) =>
-                                        form.setValue('vehicle_id', val ?? '', { shouldValidate: true })
-                                    }
-                                    value={form.watch('vehicle_id')}
-                                >
-                                    <SelectTrigger id="vehicle">
-                                        <SelectValue placeholder="Select a vehicle">
-                                            {selectedVehicle ? vehicleLabel(selectedVehicle) : undefined}
-                                        </SelectValue>
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {vehicles.map((v) => (
-                                            <SelectItem key={v.id} value={v.id}>
-                                                {vehicleLabel(v)}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                {preselectedVehicleId && (isLoadingVehicles || selectedVehicle) ? (
+                                    <div className="h-10 rounded-md border bg-muted/50 px-3 py-2 text-sm flex items-center">
+                                        {isLoadingVehicles ? '—' : vehicleLabel(selectedVehicle!)}
+                                    </div>
+                                ) : (
+                                    <Select
+                                        onValueChange={(val) =>
+                                            form.setValue('vehicle_id', val ?? '', { shouldValidate: true })
+                                        }
+                                        value={form.watch('vehicle_id')}
+                                    >
+                                        <SelectTrigger id="vehicle">
+                                            <SelectValue placeholder="Select a vehicle">
+                                                {selectedVehicle ? vehicleLabel(selectedVehicle) : undefined}
+                                            </SelectValue>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {vehicles.map((v) => (
+                                                <SelectItem key={v.id} value={v.id}>
+                                                    {vehicleLabel(v)}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                )}
                                 {errors.vehicle_id && (
                                     <p className="text-xs text-destructive">{errors.vehicle_id.message}</p>
                                 )}

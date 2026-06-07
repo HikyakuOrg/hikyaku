@@ -361,7 +361,7 @@ export default function VehicleOverviewPage() {
                         <CardTitle>Maintenance Records</CardTitle>
                         <CardDescription>Service history logged for this vehicle.</CardDescription>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => router.push(`/orgs/${slug}/dashboard/fleet/maintenance/add`)}>
+                    <Button variant="outline" size="sm" onClick={() => router.push(`/orgs/${slug}/dashboard/fleet/maintenance/add?vehicleId=${id}`)}>
                         <Plus className="w-4 h-4 mr-2" />
                         Add Record
                     </Button>
