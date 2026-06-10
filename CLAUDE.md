@@ -19,7 +19,7 @@ Run a single test: `pnpm exec playwright test tests/e2e/<file>.spec.ts --project
 
 ## Stack
 
-Next.js 16 (App Router, `cacheComponents: true`), React 19, TypeScript (strict), Tailwind v4, Supabase (SSR auth + Postgres), Stripe Connect, MapLibre GL + OpenRouteService for routing/maps. Import alias `@/*` maps to the repo root (`tsconfig.json`).
+Next.js 16 (App Router, `cacheComponents: true`), React 19, TypeScript (strict), Tailwind v4, Supabase (SSR auth + Postgres), Stripe Connect, MapLibre GL + Valhalla for routing/maps. Import alias `@/*` maps to the repo root (`tsconfig.json`).
 
 ## Architecture
 

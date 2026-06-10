@@ -5,7 +5,7 @@ import { getSupabaseServerClaims } from "@/lib/supabase/server"
 import { insertPackageTimeline } from "@/lib/supabase/supabase-rpc"
 import { getAvailableDriverVehiclePairs, getUnassignedPackagesByWarehouse } from "@/lib/supabase/db-server"
 import type { DriverVehiclePair, UnassignedPackage } from "@/lib/supabase/db-server"
-import { DirectionsResponse, type RouteSegment } from "ors-client"
+import type { RoutePreview } from "@/app/models/route-preview"
 import { getErrorMessage } from "@/lib/utils"
 import type { Database } from "@/lib/supabase/supabase"
 
@@ -32,7 +32,7 @@ export interface ManualShiftParams {
         customerLng: number
         customerLat: number
     }[]
-    orsRoute: DirectionsResponse
+    routePreview: RoutePreview
 }
 
 export async function createManualShift(params: ManualShiftParams): Promise<{ success: true; routeId: string } | { success: false; error: string }> {
@@ -65,7 +65,7 @@ export async function createManualShift(params: ManualShiftParams): Promise<{ su
                 optimization_id: optimization.id,
                 routes_count: 1,
                 unassigned_count: 0,
-                duration: params.orsRoute.routes?.[0]?.summary?.duration ?? 0,
+                duration: params.routePreview.summary.duration,
             })
             .select("id")
             .single()
@@ -77,7 +77,7 @@ export async function createManualShift(params: ManualShiftParams): Promise<{ su
             .from("vrp_route")
             .insert({
                 solution_id: solution.id,
-                duration: params.orsRoute.routes?.[0]?.summary?.duration ?? 0,
+                duration: params.routePreview.summary.duration,
             })
             .select("id")
             .single()
@@ -98,12 +98,9 @@ export async function createManualShift(params: ManualShiftParams): Promise<{ su
         }
 
         // 5. Build vrp_route_step rows
-        // ORS segments: waypoints[i] → waypoints[i+1] gives index ranges
-        const orsRoute = params.orsRoute.routes?.[0]
-        const waypoints = orsRoute?.way_points ?? []
-        // arrival seconds per stop index come from "segments[i].steps"
-        // We use the ORS duration per waypoint segment to derive arrival
-        const segmentDurations: number[] = (orsRoute?.segments ?? []).map((s: RouteSegment) => s.duration ?? 0)
+        // Arrival per stop is derived from the cumulative leg durations
+        // (legs[i] connects stop i to stop i+1).
+        const segmentDurations: number[] = params.routePreview.legs.map((leg) => leg.duration)
 
         const routeStepInserts: Database["public"]["Tables"]["vrp_route_step"]["Insert"][] = []
 

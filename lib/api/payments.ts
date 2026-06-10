@@ -94,7 +94,7 @@ async function postOrThrow<T>(path: string, slug: string, body: unknown): Promis
 
 /**
  * Itemised quote for the review step. Distance can't be computed client-side, so
- * the server measures it (ORS) and returns the per-line breakdown. No charge.
+ * the server measures it (Valhalla) and returns the per-line breakdown. No charge.
  */
 export async function getQuote(
     formData: BookingFormData,

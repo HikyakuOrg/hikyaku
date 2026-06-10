@@ -9,7 +9,7 @@ import { UnassignedPackage } from "@/lib/supabase/db-server"
 import { WarehouseStepData } from "@/app/orgs/[slug]/dashboard/driver-shifts/add/steps/warehouse-step"
 import { getRoutePreview } from "@/lib/actions/route"
 import { fetchUnassignedPackages } from "@/lib/actions/shift"
-import { DirectionsResponse } from "ors-client"
+import type { RoutePreview } from "@/app/models/route-preview"
 import { cn } from "@/lib/utils"
 import { GripVertical, X, Loader2 } from "lucide-react"
 import {
@@ -36,7 +36,7 @@ export interface PackagesRouteStepData {
         customerLng: number
         customerLat: number
     }>
-    orsRoute: DirectionsResponse
+    routePreview: RoutePreview
 }
 
 const columns: ColumnDef<UnassignedPackage>[] = [
@@ -147,8 +147,8 @@ export function PackagesRouteStep({
     const [packagesLoading, setPackagesLoading] = useState(true)
     const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
     const [routeList, setRouteList] = useState<UnassignedPackage[]>([])
-    const [orsRoute, setOrsRoute] = useState<DirectionsResponse | null>(
-        defaultValues?.orsRoute ?? null
+    const [routePreview, setRoutePreview] = useState<RoutePreview | null>(
+        defaultValues?.routePreview ?? null
     )
     const [routeLoading, setRouteLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -205,7 +205,7 @@ export function PackagesRouteStep({
         (list: UnassignedPackage[]) => {
             if (debounceRef.current) clearTimeout(debounceRef.current)
             if (list.length === 0) {
-                setOrsRoute(null)
+                setRoutePreview(null)
                 return
             }
 
@@ -218,7 +218,7 @@ export function PackagesRouteStep({
                         [warehouse.warehouseLocation[0], warehouse.warehouseLocation[1]],
                     ]
                     const route = await getRoutePreview(vehicleOrsType, coords)
-                    setOrsRoute(route)
+                    setRoutePreview(route)
                 } catch {
                     // Route preview failed silently — user can still submit
                 } finally {
@@ -273,7 +273,7 @@ export function PackagesRouteStep({
             )
             return
         }
-        if (!orsRoute) {
+        if (!routePreview) {
             setError("Route preview not available. Please wait for the map to load.")
             return
         }
@@ -283,7 +283,7 @@ export function PackagesRouteStep({
                 customerLng: p.customer_lng!,
                 customerLat: p.customer_lat!,
             })),
-            orsRoute,
+            routePreview,
         })
     }
 
@@ -379,10 +379,10 @@ export function PackagesRouteStep({
             </div>
 
             {/* Route map */}
-            {(routeList.length > 0 || orsRoute) && (
+            {(routeList.length > 0 || routePreview) && (
                 <RouteMap
                     routeSteps={routeSteps}
-                    route={orsRoute}
+                    route={routePreview}
                     isLoading={routeLoading}
                     height="400px"
                 />

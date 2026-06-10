@@ -2,7 +2,7 @@ import { Path } from '@/app/models/path';
 
 
 export function calculateDistance(pointA: Path, pointB: Path){
-    var radius = 6371; // km     
+    const radius = 6371; // km
 
     const deltaLatitude = (pointB.lat - pointA.lat) * Math.PI / 180;
     const deltaLongitude = (pointB.lng - pointA.lng) * Math.PI / 180;
@@ -19,9 +19,10 @@ export function calculateDistance(pointA: Path, pointB: Path){
 }
 
 
-export function decodePolyline(encoded: string): [number, number][] {
+export function decodePolyline(encoded: string, precision: number = 1e5): [number, number][] {
     const points: [number, number][] = [];
-    let index = 0, len = encoded.length;
+    const len = encoded.length;
+    let index = 0;
     let lat = 0, lng = 0;
 
     while (index < len) {
@@ -44,7 +45,7 @@ export function decodePolyline(encoded: string): [number, number][] {
         const dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
         lng += dlng;
 
-        points.push([lng / 1E5, lat / 1E5]);
+        points.push([lng / precision, lat / precision]);
     }
     return points;
 }

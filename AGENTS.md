@@ -21,7 +21,7 @@
 ## Commands And Environment
 - Main app commands are `pnpm dev`, `pnpm build`, `pnpm lint`, `pnpm test:e2e`, `pnpm test:e2e:headed`, and `pnpm test:e2e:ui`.
 - There is no root `pnpm test` script even though some nested README snippets mention it; the checked-in automated coverage here is Playwright.
-- `.env.example` documents the main runtime keys: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY`, `NEXT_PUBLIC_ORS_SERVER`, `NEXT_PUBLIC_OSM_TILE_URL`, and Playwright auth cookie vars.
+- `.env.example` documents the main runtime keys: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY`, `VALHALLA_URL`, `NEXT_PUBLIC_OSM_TILE_URL`, and Playwright auth cookie vars.
 - Playwright runs the Chrome project only, do not start `pnpm dev`(most of the time it has already been started). Bootstrap authenticated tests from `PLAYWRIGHT_EMAIL` and `PLAYWRIGHT_PASSWORD`.
 - When running playwright tests, do not restart the dev server
 ## Adjacent Repos And Generated Files

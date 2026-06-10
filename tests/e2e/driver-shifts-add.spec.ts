@@ -461,8 +461,8 @@ test.describe("Driver Shifts — Validation and error handling", () => {
         await checkboxes.nth(1).check()
         await page.getByRole("button", { name: /add to route/i }).click()
 
-        // Wait for the initial route to load (the PackagesRouteStep fetches ORS
-        // after a 1 s debounce; allow up to 20 s for the first render)
+        // Wait for the initial route to load (the PackagesRouteStep fetches the
+        // Valhalla route after a 1 s debounce; allow up to 20 s for the first render)
         await expect(page.locator("canvas")).toBeVisible({ timeout: 20000 })
 
         // Wait for the route-loading spinner to disappear (route fully loaded)

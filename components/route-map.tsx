@@ -3,8 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import maplibregl, { FilterSpecification } from "maplibre-gl"
 import "maplibre-gl/dist/maplibre-gl.css"
-import { DirectionsResponse } from "ors-client"
-import { decodePolyline } from "@/lib/maps/geo"
+import type { RoutePreview } from "@/app/models/route-preview"
 import { subscribeToDriverLocationUpdates, getDriverCurrentLocation } from "@/lib/supabase/db"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
@@ -70,7 +69,7 @@ export function RouteMap({
     driverLocation,
 }: {
     routeSteps: RouteStep[]
-    route: DirectionsResponse | null
+    route: RoutePreview | null
     isLoading?: boolean
     height?: string
     driverId?: string
@@ -85,7 +84,6 @@ export function RouteMap({
     const mapRef = useRef<maplibregl.Map | null>(null)
     const markersRef = useRef<{ element: HTMLElement; marker: maplibregl.Marker; type: "start" | "end" | "job" }[]>([])
     const driverMarkerRef = useRef<maplibregl.Marker | null>(null)
-    const routeFeature = route?.routes
 
     useEffect(() => {
         if (!mapContainer.current || mapRef.current) return
@@ -198,16 +196,9 @@ export function RouteMap({
         map.on("load", () => {
             map.fitBounds(bounds, { padding: 50, maxZoom: 12 })
 
-            if (routeFeature && routeFeature.length > 0) {
-                const geometryData = routeFeature[0].geometry
-                const waypoints = routeFeature[0].way_points
-                let coordinates: [number, number][] = []
-
-                if (typeof geometryData === "string") {
-                    coordinates = decodePolyline(geometryData)
-                } else if (geometryData && typeof geometryData === "object" && "coordinates" in geometryData) {
-                    coordinates = geometryData.coordinates as [number, number][]
-                }
+            if (route) {
+                const coordinates = route.coordinates
+                const waypoints = route.wayPoints
 
                 if (waypoints && waypoints.length >= 2) {
                     const features: GeoJSON.Feature<GeoJSON.LineString>[] = []
@@ -283,7 +274,7 @@ export function RouteMap({
             map.remove()
             mapRef.current = null
         }
-    }, [routeSteps, routeFeature])
+    }, [routeSteps, route])
 
     useEffect(() => {
         if (!driverId) return

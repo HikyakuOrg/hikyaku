@@ -3,8 +3,7 @@
 import { useEffect, useRef } from "react"
 import maplibregl from "maplibre-gl"
 import "maplibre-gl/dist/maplibre-gl.css"
-import { DirectionsResponse } from "ors-client"
-import { calculateDistance, decodePolyline } from "@/lib/maps/geo"
+import { calculateDistance } from "@/lib/maps/geo"
 import { subscribeToTrackingLocation } from "@/lib/supabase/db"
 import { getRoutePreview } from "@/lib/actions/route"
 import type { PackageStatus } from "@/app/models/package-status"
@@ -56,17 +55,6 @@ function driverMarkerEl(): HTMLElement {
     return el
 }
 
-function routeGeometryToCoords(route: DirectionsResponse | null): [number, number][] {
-    const feature = route?.routes?.[0]
-    if (!feature) return []
-    const geometry = feature.geometry
-    if (typeof geometry === "string") return decodePolyline(geometry)
-    if (geometry && typeof geometry === "object" && "coordinates" in geometry) {
-        return (geometry as { coordinates: [number, number][] }).coordinates
-    }
-    return []
-}
-
 export function TrackingMap({
     trackingNumber,
     status,
@@ -108,7 +96,7 @@ export function TrackingMap({
                 [from.lng, from.lat],
                 [destination.lng, destination.lat],
             ])
-            const coords = routeGeometryToCoords(route)
+            const coords = route.coordinates
             const source = mapRef.current?.getSource("tracking-route") as
                 | maplibregl.GeoJSONSource
                 | undefined

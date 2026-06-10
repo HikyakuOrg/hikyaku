@@ -75,7 +75,7 @@ export function OverviewStep({
                 driverId: driverVehicle.driverId,
                 vehicleId: driverVehicle.vehicleId,
                 orderedPackages: packagesRoute.orderedPackages,
-                orsRoute: packagesRoute.orsRoute,
+                routePreview: packagesRoute.routePreview,
             })
 
             if (!result.success) {
@@ -193,7 +193,7 @@ export function OverviewStep({
             {/* Route map */}
             <RouteMap
                 routeSteps={routeSteps}
-                route={packagesRoute.orsRoute}
+                route={packagesRoute.routePreview}
                 height="400px"
             />
 

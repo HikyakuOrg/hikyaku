@@ -1,4 +1,4 @@
-import { getRoute } from "@/lib/maps/openrouteservice";
+import { getRoute } from "@/lib/maps/valhalla";
 import { RouteMap, RouteStep } from "./route-map";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MapPin } from "lucide-react";
@@ -39,7 +39,7 @@ export default async function DriverShiftsDetails({ params }: { params: Promise<
 
     const vehicleType = vehicle?.vehicle_type.ors_vehicle_type ?? "driving-car"
     const route = await getRoute(vehicleType, routeCoords);
-    const summary = route.routes?.[0]?.summary;
+    const summary = route.summary;
 
     const driver = assignment?.driver;
 

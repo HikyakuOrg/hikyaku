@@ -1,5 +1,3 @@
-import { TruckIcon } from "@phosphor-icons/react/dist/ssr"
-
 export default function BookingLayout({
     children,
 }: {
@@ -8,7 +6,7 @@ export default function BookingLayout({
     return (
         <div className="min-h-svh bg-background">
             <header className="border-b">
-                <div className="mx-auto max-w-3xl px-2 py-4 flex items-center gap-2">
+                <div className="mx-auto max-w-3xl px-6 py-4 flex items-center gap-2">
                     <span className="flex flex-col leading-none">
                         <span className="text-[10px] font-medium tracking-[0.25em] text-slate-400">飛脚</span>
                         <span className="text-xl font-extrabold tracking-tight text-slate-900">
