@@ -19,7 +19,7 @@ const MENU_ITEMS = [
         icon: <SparkleIcon size={20} weight="duotone" />,
         title: "Delight recipients",
         desc: "Notifications & tracking",
-        href: "/#features",
+        href: "/features/notifications-and-track",
     },
     {
         icon: <WifiHighIcon size={20} weight="duotone" />,
