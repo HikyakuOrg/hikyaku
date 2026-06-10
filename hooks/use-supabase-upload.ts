@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useDropzone, type FileError, type FileRejection } from 'react-dropzone'
 
-import { createClient } from '@/lib/supabase/client'
+import { createLazyClient } from '@/lib/supabase/client'
 
-const supabase = createClient()
+const supabase = createLazyClient()
 
 interface FileWithPreview extends File {
   preview?: string

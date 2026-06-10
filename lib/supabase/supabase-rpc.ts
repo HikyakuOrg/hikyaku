@@ -1,10 +1,10 @@
 import { PackageStatus, STATUS_OPTIONS } from "@/app/models/package-status";
 import { CreateDriverDto, ListDriverDto, ListDriverResponseDto } from "../api"
-import { createClient } from "./client"
+import { createLazyClient } from "./client"
 import { SupabaseClient } from "@supabase/supabase-js"
 import { Database } from "./supabase"
 
-const supabase = createClient();
+const supabase = createLazyClient();
 
 export async function getDrivers(page: number, pageSize: number, supabaseClient?: SupabaseClient<Database>) {
     const client = supabaseClient ?? supabase;

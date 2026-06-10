@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { createClient } from "@/lib/supabase/client"
+import { createLazyClient } from "@/lib/supabase/client"
 
 type DriverPresencePayload = {
     online_at?: string
@@ -12,7 +12,7 @@ type DriverPresenceStatus = {
     onlineCount: number
 }
 
-const supabase = createClient()
+const supabase = createLazyClient()
 
 function emptyStatus(isLoading: boolean): DriverPresenceStatus {
     return {

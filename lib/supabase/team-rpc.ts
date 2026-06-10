@@ -1,8 +1,8 @@
 import { SupabaseClient } from "@supabase/supabase-js"
 import { Database } from "./supabase"
-import { createClient } from "./client"
+import { createLazyClient } from "./client"
 
-const supabase = createClient();
+const supabase = createLazyClient();
 
 export interface ListTeamMemberDto {
     id: string;

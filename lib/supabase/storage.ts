@@ -1,6 +1,6 @@
-import { createClient } from "./client";
+import { createLazyClient } from "./client";
 
-const supabase = createClient()
+const supabase = createLazyClient()
 
 export async function addAvatar(userId: string, file: File) {
     const fileExtension = file.name.split('.').pop();

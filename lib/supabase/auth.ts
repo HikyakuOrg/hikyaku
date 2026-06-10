@@ -1,7 +1,7 @@
-import { createClient } from "./client";
+import { createLazyClient } from "./client";
 
 
-const supabase = createClient()
+const supabase = createLazyClient()
 
 export async function createUser(email: string, password: string, displayName: string) {
     const { data, error } = await supabase.auth.signUp({

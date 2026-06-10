@@ -19,13 +19,13 @@ export async function updateServiceArea(id: string, name: string, geometry: stri
     return data
 }
 import { QueryData, RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
-import { createClient } from "./client";
+import { createLazyClient } from "./client";
 import { Database, Tables, TablesInsert } from "./supabase";
 import { PackageOptimisation } from "@/app/models/package-optimisation";
 import { TrackingLocationBroadcast } from "@/app/models/tracking";
 
 
-const supabase = createClient()
+const supabase = createLazyClient()
 
 
 export async function getVehicleTypes() {
