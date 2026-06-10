@@ -37,6 +37,7 @@ export default function NewOrganisationPage() {
       setIsLoading(false)
       return
     }
+    setIsLoading(false)
     router.push(orgPath(result.slug, '/dashboard'))
   }
 
@@ -54,6 +55,8 @@ export default function NewOrganisationPage() {
       setIsLoading(false)
       return
     }
+    setIsLoading(false)
+    setName('')
     router.push(orgPath(result.slug, '/dashboard'))
   }
 

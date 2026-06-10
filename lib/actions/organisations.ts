@@ -56,7 +56,10 @@ export async function createOrganisation(
     .insert({ name: name.trim(), org_type: 'company' })
     .select('slug')
     .maybeSingle()
-  if (error) return error.message
+  if (error) {
+    if (error.code === '23505') return 'An organisation with that name already exists. Try a different name.'
+    return error.message
+  }
   return { slug: data?.slug || '' }
 }
 
