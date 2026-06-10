@@ -7,7 +7,7 @@ export interface RouteLeg {
 
 /**
  * Normalised routing result consumed by the route maps and shift creation.
- * Built from the Valhalla /route response in lib/maps/valhalla.ts.
+ * Returned by the whendan-api routing endpoint (see lib/api/routing.ts).
  */
 export interface RoutePreview {
     /** Whole-route path as [lng, lat] pairs (legs concatenated, shared boundary points de-duplicated). */
