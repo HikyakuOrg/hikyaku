@@ -83,6 +83,7 @@ export async function updateSession(request: NextRequest) {
     if (pathname.startsWith('/orgs') || (!isAuthRoute && !isBookingRoute && !isMarketingRoute)) {
       const url = request.nextUrl.clone()
       url.pathname = '/auth/login'
+      url.search = ''
       return NextResponse.redirect(url)
     }
   }

@@ -45,7 +45,7 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/orgs`,
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
           data: { display_name: displayName },
         },
       })
