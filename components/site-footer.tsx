@@ -10,9 +10,9 @@ export function SiteFooter() {
                     <span className="font-bold text-slate-900">Hikyaku</span>
                 </Link>
                 <div className="flex gap-6">
+                    <a href="mailto:hello@hikyaku.org" className="hover:text-slate-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 rounded">hello@hikyaku.org</a>
                     <Link href="#" className="hover:text-slate-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 rounded">Privacy</Link>
                     <Link href="#" className="hover:text-slate-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 rounded">Terms</Link>
-                    <Link href="/auth/login" className="hover:text-slate-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 rounded">Dashboard</Link>
                     <a
                         href="https://github.com/Hikyakuorg"
                         target="_blank"
