@@ -73,7 +73,7 @@ export function ForgotPasswordForm({ className, ...props }: React.ComponentProps
                   <Input
                     id="email"
                     type="email"
-                    placeholder="email@whendan.com"
+                    placeholder="email@hikyaku.org"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}

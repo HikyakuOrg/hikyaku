@@ -112,7 +112,7 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
                   <Input
                     id="email"
                     type="email"
-                    placeholder="email@whendan.com"
+                    placeholder="email@hikyaku.com"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
