@@ -1391,6 +1391,14 @@ export type Database = {
         }[]
       }
       generate_tracking_number: { Args: never; Returns: string }
+      get_booking_organisation: {
+        Args: { p_slug: string }
+        Returns: {
+          id: string
+          name: string
+          slug: string
+        }[]
+      }
       get_driver_location_history: {
         Args: { from_ts: string; p_driver_id: string; to_ts: string }
         Returns: {
@@ -1535,10 +1543,6 @@ export type Database = {
         Args: { p_topic: string }
         Returns: boolean
       }
-      package_folder_is_delivered: {
-        Args: { p_name: string }
-        Returns: boolean
-      }
       list_drivers_by_warehouse: {
         Args: { p_limit: number; p_page: number; p_warehouse_id: string }
         Returns: {
@@ -1575,6 +1579,10 @@ export type Database = {
           total: number
           total_pages: number
         }[]
+      }
+      package_folder_is_delivered: {
+        Args: { p_name: string }
+        Returns: boolean
       }
       update_driver_profile: {
         Args: {
