@@ -26,6 +26,7 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
   const [repeatPassword, setRepeatPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [pendingConfirmation, setPendingConfirmation] = useState(false)
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -77,10 +78,43 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
 
       router.push(orgPath(slug, '/dashboard'))
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : 'An error occurred')
+      const message = error instanceof Error ? error.message : 'An error occurred'
+      if (message.toLowerCase().includes('email not confirmed')) {
+        setPendingConfirmation(true)
+      } else {
+        setError(message)
+      }
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (pendingConfirmation) {
+    return (
+      <div className={cn("flex flex-col gap-6", className)} {...props}>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl">Check your inbox</CardTitle>
+            <CardDescription>Almost there — one small step left</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <p className="text-sm text-muted-foreground">
+              We sent a confirmation link to <span className="font-medium text-foreground">{email}</span>.
+              Click the link in that email to activate your account and you&apos;ll be all set.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Can&apos;t find it? Check your spam folder — it sometimes ends up there.
+            </p>
+            <div className="mt-2 text-center text-sm">
+              Already confirmed?{' '}
+              <Link href="/auth/login" className="underline underline-offset-4">
+                Log in
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
