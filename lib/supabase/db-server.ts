@@ -196,15 +196,15 @@ export type BookingOrganisation = {
 }
 
 // Resolve an organisation by its public slug. Used by the unauthenticated
-// booking page (<slug>.hikyaku.org/booking), so it runs under the anon client —
-// organisations has no RLS and anon holds the table grant. Returns null when no
-// org matches the slug.
+// booking page (<slug>.hikyaku.org/booking), so it runs under the anon client.
+// organisations has RLS with an authenticated-only SELECT policy, so anon can't
+// read the table directly; the get_booking_organisation RPC is SECURITY DEFINER
+// and granted to anon, exposing only id/name/slug. Returns null when no org
+// matches the slug.
 export async function getOrganisationBySlug(slug: string): Promise<BookingOrganisation | null> {
     const supabase = await createClient()
     const { data, error } = await supabase
-        .from("organisations")
-        .select("id, name, slug")
-        .eq("slug", slug)
+        .rpc("get_booking_organisation", { p_slug: slug })
         .maybeSingle()
 
     if (error) {
