@@ -76,7 +76,7 @@ export function LandingStepper({ className }: { className?: string }) {
     const StepperTitleWrapper = ({ title }: { title: string }) => (
         <Stepper.Title
             render={(domProps) => (
-                <h4 className="text-base font-medium" {...domProps}>
+                <h4 className="text-xs sm:text-base font-medium" {...domProps}>
                     {title}
                 </h4>
             )}
@@ -148,9 +148,11 @@ export function LandingStepper({ className }: { className?: string }) {
                                             <StepperTriggerWrapper />
                                             <div className="flex flex-col items-start gap-1">
                                                 <StepperTitleWrapper title={data.title} />
-                                                <StepperDescriptionWrapper
-                                                    description={data.description}
-                                                />
+                                                <div className="hidden sm:block">
+                                                    <StepperDescriptionWrapper
+                                                        description={data.description}
+                                                    />
+                                                </div>
                                             </div>
                                         </Stepper.Item>
                                         <StepperSeparatorWithStatus

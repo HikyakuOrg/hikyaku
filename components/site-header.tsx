@@ -7,6 +7,7 @@ import {
     WifiHighIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import { GithubStarButton } from "@/components/github-star-button";
+import { MobileNav } from "@/components/mobile-nav";
 
 const MENU_ITEMS = [
     {
@@ -102,16 +103,17 @@ export function SiteHeader() {
                     <GithubStarButton />
                     <Link
                         href="/auth/login"
-                        className="hidden sm:inline-flex rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                        className="hidden md:inline-flex rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                     >
                         Log in
                     </Link>
                     <Link
                         href="/auth/signup"
-                        className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                        className="hidden md:inline-flex rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                     >
                         Start free trial
                     </Link>
+                    <MobileNav />
                 </div>
             </nav>
         </header>
