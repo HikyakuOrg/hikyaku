@@ -1,5 +1,3 @@
-import { SupabaseClient } from "@supabase/supabase-js"
-import { Database } from "./supabase"
 import { createLazyClient } from "./client"
 
 const supabase = createLazyClient();
@@ -30,23 +28,10 @@ export async function getTeamMembers(page: number, pageSize: number, search?: st
     const { data, error } = await supabase.rpc("get_team_members_paginated", {
         p_page: page,
         p_limit: pageSize,
-        p_search: search || null,
+        p_search: search || undefined,
     });
 
     if (error) throw error;
     if (!data) return [];
     return data as ListTeamMemberDto[];
-}
-
-export async function addTeamMember(createDto: CreateTeamMemberDto, supabaseClient?: SupabaseClient<Database>) {
-    // const client = supabaseClient ?? supabase;
-    // const { data, error } = await client.rpc('create_team_member', {
-    //     p_email: createDto.email,
-    //     p_display_name: createDto.displayName,
-    //     p_phone: createDto.phoneNumber,
-    //     p_permissions: createDto.permissions
-    // });
-
-    // if (error) throw error;
-    // return data;
 }
