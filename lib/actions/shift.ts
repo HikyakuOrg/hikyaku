@@ -45,11 +45,24 @@ export async function createManualShift(params: ManualShiftParams): Promise<{ su
     const supabase = await createClient()
 
     try {
+        // 0. Resolve the org owning this shift. The vrp_optimization RLS
+        // insert policy (migration 0031) requires organisation_id to be set.
+        const { data: warehouse, error: warehouseError } = await supabase
+            .from("warehouse")
+            .select("organisation_id")
+            .eq("id", params.warehouseId)
+            .single()
+
+        if (warehouseError || !warehouse) {
+            throw new Error(`warehouse lookup (${params.warehouseId}): ${warehouseError?.message ?? "not found"}`)
+        }
+
         // 1. Insert vrp_optimization
         const { data: optimization, error: optError } = await supabase
             .from("vrp_optimization")
             .insert({
                 provider: "manual",
+                organisation_id: warehouse.organisation_id,
                 request: { _meta: { created_by: userId, created_at: new Date().toISOString() } },
                 response: { _meta: { manual: true } },
             })

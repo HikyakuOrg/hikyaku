@@ -1049,6 +1049,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          organisation_id: string | null
           provider: string
           request: Json
           response: Json
@@ -1056,6 +1057,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          organisation_id?: string | null
           provider: string
           request: Json
           response: Json
@@ -1063,11 +1065,20 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          organisation_id?: string | null
           provider?: string
           request?: Json
           response?: Json
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "vrp_optimization_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vrp_route: {
         Row: {
@@ -1372,24 +1383,11 @@ export type Database = {
       }
     }
     Functions: {
-      create_driver: {
-        Args: {
-          p_display_name: string
-          p_driver_license?: string
-          p_email: string
-          p_license_expiry?: string
-          p_phone: string
-        }
-        Returns: {
-          avatar_url: string
-          display_name: string
-          driver_license: string
-          email: string
-          id: string
-          license_expiry: string
-          phone_number: string
-        }[]
+      driver_vehicle_same_org: {
+        Args: { p_driver: string; p_vehicle: string }
+        Returns: boolean
       }
+      folder_package_id: { Args: { p_name: string }; Returns: string }
       generate_tracking_number: { Args: never; Returns: string }
       get_booking_organisation: {
         Args: { p_slug: string }
@@ -1497,48 +1495,45 @@ export type Database = {
           name: string
         }[]
       }
-      get_team_members_paginated:
-        | {
-            Args: { p_limit: number; p_page: number }
-            Returns: {
-              avatar_url: string
-              display_name: string
-              email: string
-              id: string
-              page_number: number
-              page_size: number
-              phone_number: string
-              role: string
-              total: number
-              total_pages: number
-            }[]
-          }
-        | {
-            Args: { p_limit: number; p_page: number; p_search?: string }
-            Returns: {
-              avatar_url: string
-              display_name: string
-              email: string
-              email_confirmed_at: string
-              id: string
-              is_admin: boolean
-              page_number: number
-              page_size: number
-              phone_number: string
-              role: string
-              total: number
-              total_pages: number
-            }[]
-          }
+      get_team_members_paginated: {
+        Args: { p_limit: number; p_page: number; p_search?: string }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          email: string
+          email_confirmed_at: string
+          id: string
+          is_admin: boolean
+          page_number: number
+          page_size: number
+          phone_number: string
+          role: string
+          total: number
+          total_pages: number
+        }[]
+      }
       get_tracking_details: {
         Args: { p_slug: string; p_tracking_number: string }
         Returns: Json
       }
+      has_org_permission: {
+        Args: { p_org: string; p_permission: string }
+        Returns: boolean
+      }
       has_permission: { Args: { p_permission: string }; Returns: boolean }
+      has_permission_for_driver: {
+        Args: { p_driver: string; p_permission: string }
+        Returns: boolean
+      }
       insert_package_timeline: {
         Args: { p_package_id: string; p_status_enum: string }
         Returns: undefined
       }
+      is_assigned_driver: { Args: { p_package_id: string }; Returns: boolean }
+      is_optimization_driver: { Args: { p_opt_id: string }; Returns: boolean }
+      is_org_member: { Args: { p_org: string }; Returns: boolean }
+      is_route_driver: { Args: { p_route_id: string }; Returns: boolean }
+      is_solution_driver: { Args: { p_solution_id: string }; Returns: boolean }
       is_tracking_topic_in_transit: {
         Args: { p_topic: string }
         Returns: boolean
@@ -1580,10 +1575,17 @@ export type Database = {
           total_pages: number
         }[]
       }
+      maintenance_folder_org: { Args: { p_name: string }; Returns: string }
+      member_role_name: {
+        Args: { p_org: string; p_user: string }
+        Returns: string
+      }
       package_folder_is_delivered: {
         Args: { p_name: string }
         Returns: boolean
       }
+      package_latest_status: { Args: { p_package_id: string }; Returns: string }
+      package_org: { Args: { p_package_id: string }; Returns: string }
       update_driver_profile: {
         Args: {
           p_avatar_url?: string
@@ -1597,6 +1599,9 @@ export type Database = {
         }
         Returns: Json
       }
+      vehicle_folder_org: { Args: { p_name: string }; Returns: string }
+      vrp_optimization_org: { Args: { p_opt_id: string }; Returns: string }
+      vrp_solution_org: { Args: { p_solution_id: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never

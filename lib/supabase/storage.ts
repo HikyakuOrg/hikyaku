@@ -6,8 +6,10 @@ export async function addAvatar(userId: string, file: File) {
     const fileExtension = file.name.split('.').pop();
     const fileName = `${userId}.${fileExtension}`;
     const fileBuffer = await file.arrayBuffer()
-    const { data, error } = await supabase.storage
-        .from('avatars')
+    // NB: the live bucket id is 'avatar' (singular) - 'avatars' never existed,
+    // so uploads silently targeted a nonexistent bucket.
+    const { error } = await supabase.storage
+        .from('avatar')
         .upload(fileName, fileBuffer, {
             contentType: file.type,
             upsert: true,
@@ -15,7 +17,7 @@ export async function addAvatar(userId: string, file: File) {
 
     if (error) throw error;
 
-    const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
+    const { data: publicUrlData } = supabase.storage.from('avatar').getPublicUrl(fileName);
 
     return publicUrlData.publicUrl;
 
