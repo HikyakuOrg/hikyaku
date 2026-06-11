@@ -5,7 +5,14 @@
 // Local testing: lvh.me and *.localhost both resolve to 127.0.0.1 with no
 // /etc/hosts edits. Set NEXT_PUBLIC_ROOT_DOMAIN=lvh.me:3000 locally.
 
-export const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'hikyaku.org'
+// On Vercel preview deployments VERCEL_URL is the unique deployment hostname
+// (e.g. hikyaku-abc123-org.vercel.app). Use it as the root so the preview URL
+// is treated as the apex domain, not a tenant subdomain that would redirect away.
+const vercelPreviewUrl =
+  process.env.VERCEL_ENV === 'preview' ? process.env.VERCEL_URL : undefined
+
+export const ROOT_DOMAIN =
+  vercelPreviewUrl ?? process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'hikyaku.org'
 
 // Hosts under the root that are NOT tenants (must mirror the API's RESERVED_SLUGS).
 const RESERVED = new Set(['www', 'app', 'api', 'admin', 'auth', 'static'])
