@@ -11,7 +11,6 @@ import {
 import {
   Avatar,
   AvatarFallback,
-  AvatarImage,
 } from "@/components/ui/avatar"
 import {
   SidebarMenu,
@@ -19,7 +18,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { CaretUpDownIcon, SparkleIcon, CheckCircleIcon, CreditCardIcon, BellIcon, SignOutIcon } from "@phosphor-icons/react"
+import { CaretUpDownIcon, GearIcon, SignOutIcon } from "@phosphor-icons/react"
 import { JwtPayload } from "@supabase/supabase-js"
 import { createClient } from '@/lib/supabase/client'
 import { useOrgPath } from "@/lib/use-org"
@@ -87,9 +86,9 @@ export function NavUser({
           >
             <DropdownMenuGroup>
               <DropdownMenuItem onClick={() => router.push(accountPath)}>
-                <CheckCircleIcon
+                <GearIcon
                 />
-                Account
+                Settings
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

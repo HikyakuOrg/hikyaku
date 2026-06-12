@@ -31,6 +31,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
     getConnectStatus,
     createAccountSession,
@@ -141,54 +142,24 @@ export function BusinessInformationClient({
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="inline-flex rounded-md border bg-background p-1">
-                        <TypeButton
-                            label="Personal"
-                            active={orgType === "personal"}
-                            disabled={typeSwitching}
-                            onClick={() => handleToggle("personal")}
-                        />
-                        <TypeButton
-                            label="Company"
-                            active={orgType === "company"}
-                            disabled={typeSwitching}
-                            onClick={() => handleToggle("company")}
-                        />
-                    </div>
+                    <Tabs
+                        value={orgType}
+                        onValueChange={(v) => handleToggle(v as OrgType)}
+                    >
+                        <TabsList>
+                            <TabsTrigger value="personal" disabled={typeSwitching}>
+                                Personal
+                            </TabsTrigger>
+                            <TabsTrigger value="company" disabled={typeSwitching}>
+                                Company
+                            </TabsTrigger>
+                        </TabsList>
+                    </Tabs>
                 </CardContent>
             </Card>
 
             {orgType === "company" ? <CompanySection /> : <PersonalHint />}
         </div>
-    )
-}
-
-function TypeButton({
-    label,
-    active,
-    disabled,
-    onClick,
-}: {
-    label: string
-    active: boolean
-    disabled: boolean
-    onClick: () => void
-}) {
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            disabled={disabled}
-            className={
-                "px-4 py-1.5 text-sm rounded-sm transition-colors " +
-                (active
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground")
-            }
-            aria-pressed={active}
-        >
-            {label}
-        </button>
     )
 }
 
