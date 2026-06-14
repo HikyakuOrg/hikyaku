@@ -81,7 +81,7 @@ export async function updateSession(request: NextRequest) {
   // (served on a tenant subdomain) and stays public: let the apex /booking
   // request reach the page so it can render a 404 (no org slug to book with).
   if (!user) {
-    if (pathname.startsWith('/orgs') || (!isAuthRoute && !isBookingRoute && !isMarketingRoute && isApiEnvironmentRoute)) {
+    if (pathname.startsWith('/orgs') || (!isAuthRoute && !isBookingRoute && !isMarketingRoute && !isApiEnvironmentRoute)) {
       const url = request.nextUrl.clone()
       url.pathname = '/auth/login'
       url.search = ''
