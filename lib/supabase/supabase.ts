@@ -769,6 +769,64 @@ export type Database = {
           },
         ]
       }
+      optimisation_run: {
+        Row: {
+          error: string | null
+          id: string
+          optimisation_id: string | null
+          organisation_id: string
+          requested_at: string
+          requested_by: string | null
+          status: string
+          trigger: string
+          warehouse_id: string | null
+        }
+        Insert: {
+          error?: string | null
+          id?: string
+          optimisation_id?: string | null
+          organisation_id: string
+          requested_at?: string
+          requested_by?: string | null
+          status?: string
+          trigger?: string
+          warehouse_id?: string | null
+        }
+        Update: {
+          error?: string | null
+          id?: string
+          optimisation_id?: string | null
+          organisation_id?: string
+          requested_at?: string
+          requested_by?: string | null
+          status?: string
+          trigger?: string
+          warehouse_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "optimisation_run_optimisation_id_fkey"
+            columns: ["optimisation_id"]
+            isOneToOne: false
+            referencedRelation: "vrp_optimization"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "optimisation_run_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "optimisation_run_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scheduler_runs: {
         Row: {
           id: string

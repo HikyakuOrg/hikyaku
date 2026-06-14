@@ -480,7 +480,7 @@ export async function getAvailableDriverVehiclePairs(warehouseId: string, date: 
 
     // Enrich with display names from auth profile
     const driverIds = [...new Set(filteredPairs.map((p) => p.driver_id))]
-    let displayNameMap: Record<string, string> = {}
+    const displayNameMap: Record<string, string> = {}
     if (driverIds.length > 0) {
         const { data: driverProfiles } = await supabase.rpc("get_drivers_by_ids", {
             p_driver_ids: driverIds
@@ -511,6 +511,64 @@ export async function getAvailableDriverVehiclePairs(warehouseId: string, date: 
             orsVehicleType: vehicle?.vehicle_type?.ors_vehicle_type ?? "driving-car",
         }
     })
+}
+
+export interface OptimisationVehicleOption {
+    vehicleId: string
+    driverId: string
+    driverName: string
+    vehiclePlate: string
+}
+
+/**
+ * All non-deleted driver–vehicle pairs in a warehouse, for the on-demand
+ * optimisation set-off dialog. Unlike getAvailableDriverVehiclePairs this does
+ * NOT drop "busy" pairs: the optimiser plans a next wave for vehicles that are
+ * currently out, so the dispatcher may want to set their departure too.
+ */
+export async function getOptimisationVehicleOptions(warehouseId: string): Promise<OptimisationVehicleOption[]> {
+    const supabase = await createClient()
+
+    const { data, error } = await supabase
+        .from("driver_vehicle_assignment")
+        .select(`
+            driver_id,
+            vehicle_id,
+            vehicles:vehicles(
+                id,
+                vehicle_plate,
+                is_deleted,
+                warehouse_id
+            )
+        `)
+        .eq("vehicles.warehouse_id", warehouseId)
+        .eq("vehicles.is_deleted", false)
+
+    if (error) throw error
+
+    const validPairs = (data ?? []).filter(
+        (p) => p.vehicles && !p.vehicles.is_deleted && p.vehicles.warehouse_id === warehouseId
+    )
+
+    const driverIds = [...new Set(validPairs.map((p) => p.driver_id))]
+    const displayNameMap: Record<string, string> = {}
+    if (driverIds.length > 0) {
+        const { data: driverProfiles } = await supabase.rpc("get_drivers_by_ids", {
+            p_driver_ids: driverIds,
+        })
+        if (driverProfiles) {
+            for (const profile of driverProfiles) {
+                displayNameMap[profile.id] = profile.display_name ?? profile.email ?? profile.id
+            }
+        }
+    }
+
+    return validPairs.map((p) => ({
+        vehicleId: p.vehicle_id,
+        driverId: p.driver_id,
+        driverName: displayNameMap[p.driver_id] ?? p.driver_id,
+        vehiclePlate: p.vehicles?.vehicle_plate ?? "",
+    }))
 }
 
 export interface UnassignedPackage {

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Plus, Info } from "lucide-react"
 import { DriverShiftsCalendar } from "./driver-shifts-calendar"
+import { OptimiseRoutesButton } from "./optimise-routes-button"
 
 export default async function DriverShiftsPage({ params }: { params: Promise<{ slug: string }> }) {
     const { slug } = await params
@@ -19,6 +20,7 @@ export default async function DriverShiftsPage({ params }: { params: Promise<{ s
                     </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                    <OptimiseRoutesButton />
                     <Button render={<Link href={`/orgs/${slug}/dashboard/driver-shifts/add`} />}>
                         <Plus className="h-4 w-4" />
                         Add Shift
