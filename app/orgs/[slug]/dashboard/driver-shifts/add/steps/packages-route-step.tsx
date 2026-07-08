@@ -262,8 +262,13 @@ export function PackagesRouteStep({
     }
 
     function handleSubmit() {
+        // A shift can be created with no packages yet (the dispatcher fills it in
+        // later). An empty route submits a trivial preview — there is no route to fetch.
         if (routeList.length === 0) {
-            setError("Add at least one package to the route.")
+            onNext({
+                orderedPackages: [],
+                routePreview: { coordinates: [], wayPoints: [], legs: [], summary: { duration: 0, distance: 0 } },
+            })
             return
         }
         const missingCoords = routeList.filter((p) => p.customer_lng == null || p.customer_lat == null)
@@ -351,7 +356,8 @@ export function PackagesRouteStep({
 
                 {routeList.length === 0 ? (
                     <div className="rounded-md border border-dashed py-6 text-center text-sm text-muted-foreground">
-                        No packages in route. Select packages above and click "Add to Route".
+                        No packages in route. Select packages above and click &quot;Add to Route&quot;,
+                        or continue to create an empty shift and add packages later.
                     </div>
                 ) : (
                     <DndContext
@@ -392,7 +398,7 @@ export function PackagesRouteStep({
 
             <div className="flex justify-between">
                 <Button variant="outline" onClick={onPrev}>Back</Button>
-                <Button onClick={handleSubmit} disabled={routeList.length === 0}>
+                <Button onClick={handleSubmit} disabled={routeLoading}>
                     Next
                 </Button>
             </div>

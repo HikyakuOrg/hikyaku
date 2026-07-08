@@ -27,7 +27,7 @@ export interface ManualShiftParams {
     date: string // YYYY-MM-DD
     driverId: string
     vehicleId: string
-    orderedPackages: {
+    orderedPackages?: {
         packageId: string
         customerLng: number
         customerLat: number
@@ -43,6 +43,10 @@ export async function createManualShift(params: ManualShiftParams): Promise<{ su
     const userId = claimsData.claims.sub
 
     const supabase = await createClient()
+
+    // orderedPackages is optional — a shift can be created with no packages yet.
+    // All the per-package loops below no-op over an empty array.
+    const orderedPackages = params.orderedPackages ?? []
 
     try {
         // 0. Resolve the org owning this shift. The vrp_optimization RLS
@@ -63,7 +67,20 @@ export async function createManualShift(params: ManualShiftParams): Promise<{ su
             .insert({
                 provider: "manual",
                 organisation_id: warehouse.organisation_id,
-                request: { _meta: { created_by: userId, created_at: new Date().toISOString() } },
+                request: {
+                    _meta: {
+                        created_by: userId,
+                        created_at: new Date().toISOString(),
+                        // Anchor the shift to its driver/vehicle/warehouse/date. There is no
+                        // route->driver link in the schema (it is otherwise derived through
+                        // package_assignment), so a package-less shift relies on these to stay
+                        // tied to the driver and visible on the calendar.
+                        driver_id: params.driverId,
+                        vehicle_id: params.vehicleId,
+                        warehouse_id: params.warehouseId,
+                        shift_date: params.date,
+                    },
+                },
                 response: { _meta: { manual: true } },
             })
             .select("id")
@@ -98,7 +115,7 @@ export async function createManualShift(params: ManualShiftParams): Promise<{ su
         if (routeError) throw new Error(`vrp_route insert: ${routeError.message}`)
 
         // 4. Insert package_assignment rows
-        for (const pkg of params.orderedPackages) {
+        for (const pkg of orderedPackages) {
             const { error: paError } = await supabase
                 .from("package_assignment")
                 .insert({
@@ -129,9 +146,9 @@ export async function createManualShift(params: ManualShiftParams): Promise<{ su
 
         // job steps
         let cumulativeArrival = 0
-        for (let i = 0; i < params.orderedPackages.length; i++) {
+        for (let i = 0; i < orderedPackages.length; i++) {
             cumulativeArrival += segmentDurations[i] ?? 0
-            const pkg = params.orderedPackages[i]
+            const pkg = orderedPackages[i]
             routeStepInserts.push({
                 route_id: route.id,
                 solution_id: solution.id,
@@ -144,11 +161,11 @@ export async function createManualShift(params: ManualShiftParams): Promise<{ su
         }
 
         // end step
-        cumulativeArrival += segmentDurations[params.orderedPackages.length] ?? 0
+        cumulativeArrival += segmentDurations[orderedPackages.length] ?? 0
         routeStepInserts.push({
             route_id: route.id,
             solution_id: solution.id,
-            step_index: params.orderedPackages.length + 1,
+            step_index: orderedPackages.length + 1,
             type: "end",
             location: `SRID=4326;POINT(${params.warehouseLng} ${params.warehouseLat})`,
             arrival: Math.round(cumulativeArrival),
@@ -162,9 +179,9 @@ export async function createManualShift(params: ManualShiftParams): Promise<{ su
         const departureDate = new Date(Date.UTC(year, month - 1, day, 8, 0, 0))
 
         let cumSecs = 0
-        for (let i = 0; i < params.orderedPackages.length; i++) {
+        for (let i = 0; i < orderedPackages.length; i++) {
             cumSecs += segmentDurations[i] ?? 0
-            const pkg = params.orderedPackages[i]
+            const pkg = orderedPackages[i]
             const scheduledArrival = new Date(departureDate.getTime() + cumSecs * 1000)
 
             const { error: pdwError } = await supabase
@@ -179,7 +196,7 @@ export async function createManualShift(params: ManualShiftParams): Promise<{ su
         }
 
         // 7. Insert package_timeline ASSIGNED for each package
-        for (const pkg of params.orderedPackages) {
+        for (const pkg of orderedPackages) {
             await insertPackageTimeline(pkg.packageId, "ASSIGNED", supabase)
         }
 

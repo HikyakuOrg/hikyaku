@@ -675,6 +675,10 @@ export interface DeliveryRouteByDate {
         scheduled_departure: string | null;
         scheduled_arrival: string | null;
     }[]
+    /** Set only for empty (package-less) manual shifts, sourced from the _meta anchor. */
+    driver_id?: string | null;
+    /** YYYY-MM-DD, set only for empty manual shifts (no package windows to derive from). */
+    shift_date?: string;
 }
 
 export async function getDeliveryRoutesByDates(
@@ -748,6 +752,62 @@ export async function getDeliveryRoutesByDates(
     }
 
     return Array.from(routesMap.values()).filter((route) => route.package_assignment.length > 0);
+}
+
+
+export interface EmptyManualShift {
+    route_id: string;
+    driver_id: string | null;
+    shift_date: string; // YYYY-MM-DD
+}
+
+/**
+ * Manual shifts created with no packages (see createManualShift) have no
+ * package_delivery_window rows, so getDeliveryRoutesByDates cannot surface them.
+ * They are recovered here from the `_meta` anchor on vrp_optimization.request.
+ * Manual shifts are low-volume by design (the optimiser creates shifts normally),
+ * so we fetch the manual set and filter by shift_date in JS rather than filtering
+ * the jsonb column in SQL. Callers dedupe against package-ful routes by route_id.
+ */
+export async function getEmptyManualShiftsByDates(
+    startDate: string,
+    endDate: string,
+    driverId?: string
+): Promise<EmptyManualShift[]> {
+    const startDay = startDate.slice(0, 10)
+    const endDay = endDate.slice(0, 10)
+
+    const { data, error } = await supabase
+        .from('vrp_optimization')
+        .select(`
+            request,
+            vrp_solution ( vrp_route ( id ) )
+        `)
+        .eq('provider', 'manual')
+
+    if (error) throw error
+
+    const rows = (data ?? []) as unknown as Array<{
+        request: { _meta?: { driver_id?: string; shift_date?: string } } | null
+        vrp_solution: Array<{ vrp_route: Array<{ id: string }> | null }> | null
+    }>
+
+    const results: EmptyManualShift[] = []
+    for (const opt of rows) {
+        const meta = opt.request?._meta
+        const shiftDate = meta?.shift_date
+        if (!shiftDate || shiftDate < startDay || shiftDate > endDay) continue
+        if (driverId && meta?.driver_id !== driverId) continue
+
+        for (const sol of opt.vrp_solution ?? []) {
+            for (const r of sol.vrp_route ?? []) {
+                if (r?.id) {
+                    results.push({ route_id: r.id, driver_id: meta?.driver_id ?? null, shift_date: shiftDate })
+                }
+            }
+        }
+    }
+    return results
 }
 
 

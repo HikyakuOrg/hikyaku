@@ -354,6 +354,58 @@ export async function getRouteSteps(routeId: string) {
     return data as PackageOptimisation[]
 }
 
+export interface ShiftMeta {
+    created_by?: string
+    created_at?: string
+    driver_id?: string
+    vehicle_id?: string
+    warehouse_id?: string
+    shift_date?: string
+}
+
+/**
+ * Reads the `_meta` anchor a manual shift writes to vrp_optimization.request (see
+ * createManualShift). A manual shift created with no packages has no package_assignment
+ * rows, so its driver/vehicle/warehouse/date are recovered from here. Returns null for
+ * optimiser-generated routes (no `_meta`) or an unknown route.
+ */
+export async function getShiftMeta(routeId: string): Promise<ShiftMeta | null> {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+        .from("vrp_route")
+        .select(`
+            vrp_solution:vrp_solution!vrp_route_solution_id_fkey(
+                vrp_optimization:vrp_optimization!vrp_solution_optimization_id_fkey(
+                    request
+                )
+            )
+        `)
+        .eq("id", routeId)
+        .maybeSingle()
+
+    if (error || !data) return null
+
+    const row = data as unknown as {
+        vrp_solution?: { vrp_optimization?: { request?: { _meta?: ShiftMeta } | null } | null } | null
+    }
+    return row.vrp_solution?.vrp_optimization?.request?._meta ?? null
+}
+
+/** Server-side vehicle fetch for the shift detail card (satisfies VehicleCardData). */
+export async function getVehicleById(vehicleId: string) {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+        .from("vehicles")
+        .select("*")
+        .eq("id", vehicleId)
+        .maybeSingle()
+    if (error) {
+        console.error(error)
+        return null
+    }
+    return data
+}
+
 /**
  * Public package tracking. Backed by the `get_tracking_details` SECURITY DEFINER
  * RPC (migration 0025), scoped to the organisation slug. Returns null when the

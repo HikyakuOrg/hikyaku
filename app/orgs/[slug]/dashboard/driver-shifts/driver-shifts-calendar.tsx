@@ -12,7 +12,7 @@ import type { ToolbarProps } from 'react-big-calendar'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useOrgSlug } from '@/lib/use-org'
-import { getDeliveryRoutesByDates, DeliveryRouteByDate } from '@/lib/supabase/db'
+import { getDeliveryRoutesByDates, getEmptyManualShiftsByDates, DeliveryRouteByDate } from '@/lib/supabase/db'
 import { getDriversByIds } from '@/lib/supabase/supabase-rpc'
 import type { ListDriverDto } from '@/lib/api'
 
@@ -82,25 +82,35 @@ export function DriverShiftsCalendar({
 
     useEffect(() => {
         const fetchEvents = async () => {
-            const data = await getDeliveryRoutesByDates(
-                startDate.toISOString(),
-                endDate.toISOString(),
-                driverId
-            )
+            const [data, emptyShifts] = await Promise.all([
+                getDeliveryRoutesByDates(startDate.toISOString(), endDate.toISOString(), driverId),
+                getEmptyManualShiftsByDates(startDate.toISOString(), endDate.toISOString(), driverId),
+            ])
 
-            if (!data) {
-                setEvents([])
-                setDrivers({})
-                return
-            }
+            const packageful = data ?? []
 
-            setEvents(data)
+            // Empty (package-less) manual shifts have no package rows, so they arrive from a
+            // separate source. Dedupe against package-ful routes so a manual shift that later
+            // gains packages is not shown twice.
+            const packagefulIds = new Set(packageful.map(r => r.route_id))
+            const emptyEvents: DeliveryRouteByDate[] = emptyShifts
+                .filter(s => !packagefulIds.has(s.route_id))
+                .map(s => ({
+                    route_id: s.route_id,
+                    package_assignment: [],
+                    driver_id: s.driver_id,
+                    shift_date: s.shift_date,
+                }))
+
+            const allEvents = [...packageful, ...emptyEvents]
+            setEvents(allEvents)
 
             const driverIds = new Set<string>();
-            data.forEach(route => {
+            allEvents.forEach(route => {
                 route.package_assignment.forEach(p => {
                     if (p.driver_id) driverIds.add(p.driver_id);
                 });
+                if (route.driver_id) driverIds.add(route.driver_id);
             });
 
             if (driverIds.size > 0) {
@@ -149,6 +159,15 @@ export function DriverShiftsCalendar({
     };
 
     const getRouteStartEnd = (event: DeliveryRouteByDate) => {
+        // Empty manual shifts carry no package windows — anchor them at 08:00 UTC on their
+        // date (the departure convention createManualShift uses) as a 1h nominal block, so
+        // they land on the same day/time basis as package-ful shifts.
+        if (event.shift_date && event.package_assignment.length === 0) {
+            return {
+                start: new Date(`${event.shift_date}T08:00:00Z`),
+                end: new Date(`${event.shift_date}T09:00:00Z`),
+            };
+        }
         let start: Date | null = null;
         let end: Date | null = null;
         event.package_assignment.forEach(p => {
@@ -177,7 +196,7 @@ export function DriverShiftsCalendar({
         const startStr = format(depDate, 'HH:mm');
         const endStr = format(arrDate, 'HH:mm');
 
-        const driverId = event.package_assignment[0]?.driver_id;
+        const driverId = event.driver_id ?? event.package_assignment[0]?.driver_id;
         const driverAvatar = driverId ? (drivers[driverId]?.avatar_url ?? undefined) : undefined;
 
         return (
