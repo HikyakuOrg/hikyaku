@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useOrgSlug } from "@/lib/use-org";
 import { createClient } from "@/lib/supabase/client";
-import { insertPackage, insertPackageDimension, insertPackageDeliveryWindow } from "@/lib/supabase/db";
+import { insertPackage, insertPackageDimension, insertPackageDeliveryWindow, getOrganisationIdBySlug } from "@/lib/supabase/db";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
@@ -35,8 +35,10 @@ export function OverviewStep({ onPrev, formData }: {
         const packageId = packageInfo.packageId;
 
         try {
+            const organisationId = await getOrganisationIdBySlug(slug);
             await insertPackage(
                 packageId,
+                organisationId,
                 customerInfo.senderId,
                 customerInfo.receiverId,
                 logisticsAssignment.warehouseId,

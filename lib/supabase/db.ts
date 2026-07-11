@@ -577,10 +577,11 @@ export async function searchServiceArea(search: string) {
     return data
 }
 
-export async function insertPackage(packageId: string, fromCustomer: string, toCustomer: string,
+export async function insertPackage(packageId: string, organisationId: string, fromCustomer: string, toCustomer: string,
     warehouseId: string, trackingNumber?: string, deliveryNotes?: string | null) {
     const payload = {
         id: packageId,
+        organisation_id: organisationId,
         from_customer: fromCustomer,
         to_customer: toCustomer,
         warehouse_id: warehouseId,
