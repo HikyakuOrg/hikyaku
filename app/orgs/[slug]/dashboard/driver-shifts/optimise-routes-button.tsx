@@ -38,6 +38,7 @@ import {
     type OptimisationWarehouse,
 } from "@/lib/actions/optimisation"
 import type { OptimisationVehicleOption } from "@/lib/supabase/db-server"
+import { SHIFTS_REFRESH_EVENT } from "./shift-events"
 
 /** Current time, refreshed every second after mount (null during prerender). */
 function useTickingNow(): Date | null {
@@ -134,6 +135,9 @@ export function OptimiseRoutesButton() {
         if (s === "completed") {
             toast.success("Routes optimised.")
             router.refresh()
+            // The calendar fetches its shifts client-side, so router.refresh()
+            // (server components only) won't surface the new shift — signal it directly.
+            window.dispatchEvent(new Event(SHIFTS_REFRESH_EVENT))
         } else if (s === "skipped") {
             toast.message("No pending packages to optimise.")
         } else {

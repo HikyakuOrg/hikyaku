@@ -15,6 +15,7 @@ import { useOrgSlug } from '@/lib/use-org'
 import { getDeliveryRoutesByDates, getEmptyManualShiftsByDates, DeliveryRouteByDate } from '@/lib/supabase/db'
 import { getDriversByIds } from '@/lib/supabase/supabase-rpc'
 import type { ListDriverDto } from '@/lib/api'
+import { SHIFTS_REFRESH_EVENT } from './shift-events'
 
 
 interface DriverShiftsCalendarProps {
@@ -69,6 +70,9 @@ export function DriverShiftsCalendar({
     const [endDate, setEndDate] = useState(endOfWeek(new Date(), { weekStartsOn: 0 }))
     const [events, setEvents] = useState<DeliveryRouteByDate[]>([])
     const [drivers, setDrivers] = useState<Record<string, ListDriverDto>>({})
+    // Bumped whenever an external actor (e.g. a completed optimisation run) signals
+    // that shifts changed, forcing the fetch effect below to re-run.
+    const [refreshTick, setRefreshTick] = useState(0)
 
     const onRangeChange = (range: Date[] | { start: Date; end: Date }) => {
         if (Array.isArray(range)) {
@@ -129,7 +133,16 @@ export function DriverShiftsCalendar({
             }
         }
         fetchEvents()
-    }, [driverId, startDate, endDate])
+    }, [driverId, startDate, endDate, refreshTick])
+
+    // The Optimise-routes button lives in a separate client island and cannot
+    // reach this component's state, so it broadcasts a window event on completion.
+    // router.refresh() alone won't help — this calendar fetches its data client-side.
+    useEffect(() => {
+        const handler = () => setRefreshTick((t) => t + 1)
+        window.addEventListener(SHIFTS_REFRESH_EVENT, handler)
+        return () => window.removeEventListener(SHIFTS_REFRESH_EVENT, handler)
+    }, [])
 
     const locales = {
         'en-US': enUS,
