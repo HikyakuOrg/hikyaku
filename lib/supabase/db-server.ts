@@ -503,24 +503,33 @@ export async function getAvailableDriverVehiclePairs(warehouseId: string, date: 
     const dayStart = `${date}T00:00:00`
     const dayEnd = `${date}T23:59:59`
 
-    const { data: busyAssignments, error: busyError } = await supabase
-        .from("package_assignment")
-        .select(`
-            driver_id,
-            vehicle_id,
-            package_delivery_window:package_delivery_window!package_delivery_window_package_id_fkey(
-                scheduled_departure
-            )
-        `)
-        .gte("package_delivery_window.scheduled_departure", dayStart)
-        .lte("package_delivery_window.scheduled_departure", dayEnd)
+    // package_assignment has no direct FK to package_delivery_window (both relate
+    // only through packages), so PostgREST cannot embed one into the other. Resolve
+    // the busy set in two steps: which packages depart that day, then who carries them.
+    const { data: scheduledWindows, error: windowsError } = await supabase
+        .from("package_delivery_window")
+        .select("package_id")
+        .gte("scheduled_departure", dayStart)
+        .lte("scheduled_departure", dayEnd)
 
-    if (busyError) throw busyError
+    if (windowsError) throw windowsError
+
+    const busyPackageIds = (scheduledWindows ?? [])
+        .map((w) => w.package_id)
+        .filter((id): id is string => !!id)
 
     const busyDriverIds = new Set<string>()
     const busyVehicleIds = new Set<string>()
-    for (const a of busyAssignments ?? []) {
-        if (a.package_delivery_window) {
+
+    if (busyPackageIds.length > 0) {
+        const { data: busyAssignments, error: busyError } = await supabase
+            .from("package_assignment")
+            .select("driver_id, vehicle_id")
+            .in("package_id", busyPackageIds)
+
+        if (busyError) throw busyError
+
+        for (const a of busyAssignments ?? []) {
             if (a.driver_id) busyDriverIds.add(a.driver_id)
             if (a.vehicle_id) busyVehicleIds.add(a.vehicle_id)
         }
