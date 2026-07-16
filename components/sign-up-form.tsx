@@ -139,7 +139,7 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
             <form onSubmit={handleVerify}>
               <div className="flex flex-col gap-6">
                 <p className="text-sm text-muted-foreground">
-                  We sent a 6-digit code to{' '}
+                  We sent an 8-digit code to{' '}
                   <span className="font-medium text-foreground">{email}</span>. Enter it below to
                   activate your account.
                 </p>
@@ -149,19 +149,19 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
                     id="otp"
                     inputMode="numeric"
                     autoComplete="one-time-code"
-                    pattern="\d{6}"
-                    maxLength={6}
-                    placeholder="123456"
+                    pattern="\d{8}"
+                    maxLength={8}
+                    placeholder="12345678"
                     required
                     autoFocus
-                    className="text-center text-lg tracking-[0.5em]"
+                    className="text-center text-lg tracking-[0.4em]"
                     value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 8))}
                   />
                 </div>
                 {error && <p className="text-sm text-red-500">{error}</p>}
                 {resendMessage && <p className="text-sm text-green-600">{resendMessage}</p>}
-                <Button type="submit" className="w-full" disabled={isLoading || otp.length !== 6}>
+                <Button type="submit" className="w-full" disabled={isLoading || otp.length !== 8}>
                   {isLoading ? 'Verifying…' : 'Verify email'}
                 </Button>
                 <div className="text-center text-sm">
