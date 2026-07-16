@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 import { orgPath } from '@/lib/subdomain'
+import { setPendingVerificationEmail } from '@/lib/auth/verify-flow'
 
 type LoginMode = null | 'email' | 'magic-link'
 
@@ -60,8 +61,14 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 
       router.push(orgPath(slug, '/dashboard'))
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : 'An error occurred')
-    } finally {
+      const message = error instanceof Error ? error.message : 'An error occurred'
+      // Unconfirmed accounts can't sign in yet — send them to finish OTP verification.
+      if (message.toLowerCase().includes('email not confirmed')) {
+        setPendingVerificationEmail(email)
+        router.push('/auth/verify')
+        return
+      }
+      setError(message)
       setIsLoading(false)
     }
   }
