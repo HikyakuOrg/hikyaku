@@ -61,8 +61,6 @@ export async function updateSession(request: NextRequest) {
   const isAuthRoute = pathname.startsWith('/auth')
   const isBookingRoute = pathname.startsWith('/booking')
   const isApiEnvironmentRoute = pathname.startsWith('/api/environment')
-  // Public marketing pages: the landing page and feature pages under /features.
-  const isMarketingRoute = pathname === '/' || pathname.startsWith('/features')
 
   if (hostSlug) {
     // Subdomain host — booking is public, nothing else is served here.
@@ -77,11 +75,14 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(`${protocol}://${ROOT_DOMAIN}/`)
   }
 
-  // Apex host — protect dashboard and org routes. Booking is per-organisation
-  // (served on a tenant subdomain) and stays public: let the apex /booking
-  // request reach the page so it can render a 404 (no org slug to book with).
+  // Product host (app.<root>) — protect dashboard and org routes. Marketing now
+  // lives on a separate deploy at the apex, so there are no public marketing
+  // routes here; the root path falls through to protection like anything else.
+  // Booking is per-organisation (served on a tenant subdomain) and stays public:
+  // let the apex /booking request reach the page so it can render a 404 (no org
+  // slug to book with).
   if (!user) {
-    if (pathname.startsWith('/orgs') || (!isAuthRoute && !isBookingRoute && !isMarketingRoute && !isApiEnvironmentRoute)) {
+    if (pathname.startsWith('/orgs') || (!isAuthRoute && !isBookingRoute && !isApiEnvironmentRoute)) {
       const url = request.nextUrl.clone()
       url.pathname = '/auth/login'
       url.search = ''

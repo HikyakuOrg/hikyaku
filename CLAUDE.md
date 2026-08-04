@@ -50,11 +50,6 @@ Next.js 16 (App Router, `cacheComponents: true`), React 19, TypeScript (strict),
 - For select/multiselect form fields prefer `components/ui/select` (built-in async options + search); use `Popover` for more custom dropdowns. Display human-friendly values (a driver's name) rather than raw IDs.
 
 ## Adjacent repos & generated files
-
-Sibling repos in the workspace:
-- `../schema` — canonical SQL/bootstrap. For SQL/RPC changes inspect `schema.sql`, `roles.sql`, `default_data.sql` (that's the bootstrap order).
-- `../whendan-docs` — Docusaurus docs site.
-
 When SQL/RPC expectations change, update `lib/supabase/supabase.ts` to match.
 
 ## Testing notes

@@ -51,9 +51,27 @@ export function cookieDomain(): string | undefined {
   return `.${rootHostname}`
 }
 
-/** Org-scoped path on the apex domain, e.g. /orgs/k7m2qp9x/dashboard/customers */
+/** Org-scoped path on the product host, e.g. /orgs/k7m2qp9x/dashboard/customers */
 export function orgPath(slug: string, path = '/dashboard'): string {
   return `/orgs/${slug}${path}`
+}
+
+/**
+ * Absolute origin of the product app (dashboard, auth, org-select). The product
+ * is served on app.<root>; marketing has its own deploy on the apex. Use this for
+ * absolute links back into the app (emails, booking "manage" CTAs, etc.).
+ * Falls back to app.<ROOT_DOMAIN> with a protocol matching the environment.
+ */
+export function appUrl(path = '/'): string {
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return `${process.env.NEXT_PUBLIC_APP_URL}${path}`
+  }
+  const isLocal =
+    ROOT_DOMAIN.startsWith('localhost') ||
+    ROOT_DOMAIN.includes('lvh.me') ||
+    ROOT_DOMAIN.includes('.localhost')
+  const protocol = isLocal ? 'http' : 'https'
+  return `${protocol}://app.${ROOT_DOMAIN}${path}`
 }
 
 /** Absolute URL for a tenant subdomain, used for booking links only.
