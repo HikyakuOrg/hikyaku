@@ -32,6 +32,16 @@ export function clearPendingVerificationEmail(): void {
 }
 
 /**
+ * Guards against open-redirect: only a same-origin relative path is safe to
+ * hand to router.push / emailRedirectTo. Rejects absolute and protocol-relative
+ * URLs (e.g. "https://evil.com" or "//evil.com") that a crafted ?redirect=
+ * query param could otherwise smuggle in.
+ */
+export function isSafeRedirectPath(path: string | null | undefined): path is string {
+  return !!path && path.startsWith('/') && !path.startsWith('//') && !path.includes('://')
+}
+
+/**
  * Resolves where to send a freshly-authenticated user. A signup triggers
  * DB-side creation of an organisations row owned by the new user, so we pick
  * that org's slug and land on its dashboard rather than the apex (where the

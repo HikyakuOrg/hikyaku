@@ -16,12 +16,16 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Link from 'next/link'
-import { orgPath } from '@/lib/subdomain'
-import { setPendingVerificationEmail } from '@/lib/auth/verify-flow'
+import { resolveOrgPath, setPendingVerificationEmail } from '@/lib/auth/verify-flow'
 
 type LoginMode = null | 'email' | 'magic-link'
 
-export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
+type LoginFormProps = React.ComponentPropsWithoutRef<'div'> & {
+  /** Where to send the user after a successful login, e.g. back to /oauth/consent. */
+  redirectTo?: string
+}
+
+export function LoginForm({ className, redirectTo, ...props }: LoginFormProps) {
   const [mode, setMode] = useState<LoginMode>(null)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -46,20 +50,12 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
       const { data, error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) throw error
       if(!data.user) throw new Error('No user returned after login')
-      const { data: org, error: orgError } = await supabase
-        .from('organisations')
-        .select('slug')
-        .eq('created_by', data.user?.id)
-        .limit(1)
-        .maybeSingle()
-      if (orgError) throw orgError
-      const slug = org?.slug
-      if (!slug) {
-        router.push('/orgs/new')
+
+      if (redirectTo) {
+        router.push(redirectTo)
         return
       }
-
-      router.push(orgPath(slug, '/dashboard'))
+      router.push(await resolveOrgPath(supabase, data.user.id))
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'An error occurred'
       // Unconfirmed accounts can't sign in yet — send them to finish OTP verification.
@@ -82,7 +78,7 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: `${window.location.origin}/orgs` },
+        options: { emailRedirectTo: `${window.location.origin}${redirectTo ?? '/orgs'}` },
       })
       if (error) throw error
       setMagicLinkSent(true)

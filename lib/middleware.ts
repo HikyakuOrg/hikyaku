@@ -83,9 +83,13 @@ export async function updateSession(request: NextRequest) {
   // slug to book with).
   if (!user) {
     if (pathname.startsWith('/orgs') || (!isAuthRoute && !isBookingRoute && !isApiEnvironmentRoute)) {
+      // Preserve the original destination (e.g. /oauth/consent?authorization_id=…)
+      // so the login page can send the user back where they were headed.
+      const destination = `${pathname}${request.nextUrl.search}`
       const url = request.nextUrl.clone()
       url.pathname = '/auth/login'
       url.search = ''
+      url.searchParams.set('redirect', destination)
       return NextResponse.redirect(url)
     }
   }
