@@ -13,13 +13,6 @@ import {
   setPendingVerificationEmail,
 } from '@/lib/auth/verify-flow'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
@@ -55,7 +48,7 @@ export function VerifyOtpForm({ className, ...props }: React.ComponentPropsWitho
       const userId = data.user?.id
       if (!userId) throw new Error('No user returned after verification')
 
-      // Verified — the pending record is no longer needed.
+      // Verified, so the pending record is no longer needed.
       clearPendingVerificationEmail()
       // verifyOtp establishes a live session, so the org lookup is authorised.
       router.push(await resolveOrgPath(supabase, userId))
@@ -88,70 +81,75 @@ export function VerifyOtpForm({ className, ...props }: React.ComponentPropsWitho
   }
 
   return (
-    <div className={cn('flex flex-col gap-6', className)} {...props}>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl">Enter your code</CardTitle>
-          <CardDescription>Almost there — one small step left</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleVerify}>
-            <div className="flex flex-col gap-6">
-              <p className="text-sm text-muted-foreground">
-                We sent an {OTP_LENGTH}-digit code to the email below. Enter it to activate your
-                account.
-              </p>
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="email@hikyaku.org"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="otp">Verification code</Label>
-                <Input
-                  id="otp"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  pattern={`\\d{${OTP_LENGTH}}`}
-                  maxLength={OTP_LENGTH}
-                  placeholder="12345678"
-                  required
-                  autoFocus
-                  className="text-center text-lg tracking-[0.4em]"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, OTP_LENGTH))}
-                />
-              </div>
-              {error && <p className="text-sm text-red-500">{error}</p>}
-              {resendMessage && <p className="text-sm text-green-600">{resendMessage}</p>}
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isLoading || otp.length !== OTP_LENGTH}
-              >
-                {isLoading ? 'Verifying…' : 'Verify email'}
-              </Button>
-              <div className="text-center text-sm">
-                Didn&apos;t get a code?{' '}
-                <button type="button" onClick={handleResend} className="underline underline-offset-4">
-                  Resend
-                </button>
-              </div>
-              <div className="text-center text-sm">
-                <Link href="/auth/login" className="underline underline-offset-4">
-                  Back to login
-                </Link>
-              </div>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+    <div className={cn('flex flex-col gap-8', className)} {...props}>
+      <div className="flex flex-col gap-2">
+        <h1 className="font-[family-name:var(--font-display)] text-3xl font-extrabold tracking-tight">
+          Check your email
+        </h1>
+        <p className="text-muted-foreground text-sm">
+          We sent an {OTP_LENGTH}-digit code to the address below. Enter it to activate your
+          account.
+        </p>
+      </div>
+
+      <form onSubmit={handleVerify} className="flex flex-col gap-5">
+        <div className="grid gap-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            placeholder="email@hikyaku.org"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="otp">Verification code</Label>
+          <Input
+            id="otp"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            pattern={`\\d{${OTP_LENGTH}}`}
+            maxLength={OTP_LENGTH}
+            placeholder="12345678"
+            required
+            autoFocus
+            className="h-12 text-center text-lg tracking-[0.4em]"
+            value={otp}
+            onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, OTP_LENGTH))}
+          />
+        </div>
+        {error && <p className="text-destructive text-sm">{error}</p>}
+        {resendMessage && <p className="text-sm text-green-600">{resendMessage}</p>}
+        <Button
+          type="submit"
+          size="lg"
+          className="w-full"
+          disabled={isLoading || otp.length !== OTP_LENGTH}
+        >
+          {isLoading ? 'Verifying…' : 'Verify email'}
+        </Button>
+      </form>
+
+      <div className="text-muted-foreground flex flex-col gap-2 text-center text-sm">
+        <p>
+          Didn&apos;t get a code?{' '}
+          <button
+            type="button"
+            onClick={handleResend}
+            className="text-foreground font-medium underline underline-offset-4"
+          >
+            Resend
+          </button>
+        </p>
+        <p>
+          <Link href="/auth/login" className="underline underline-offset-4">
+            Back to sign in
+          </Link>
+        </p>
+      </div>
     </div>
   )
 }

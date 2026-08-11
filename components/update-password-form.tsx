@@ -5,14 +5,8 @@ import { useState } from 'react'
 
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { resolveOrgPath } from '@/lib/auth/verify-flow'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
@@ -29,46 +23,47 @@ export function UpdatePasswordForm({ className, ...props }: React.ComponentProps
     setError(null)
 
     try {
-      const { error } = await supabase.auth.updateUser({ password })
+      const { data, error } = await supabase.auth.updateUser({ password })
       if (error) throw error
-      // Update this route to redirect to an authenticated route. The user already has an active session.
-      router.push('/protected')
+      if (!data.user) throw new Error('No user returned after updating the password')
+      // The reset link already established a session, so the org lookup is
+      // authorised, so land on the dashboard the same way login does.
+      router.push(await resolveOrgPath(supabase, data.user.id))
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An error occurred')
-    } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl">Reset Your Password</CardTitle>
-          <CardDescription>Please enter your new password below.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleForgotPassword}>
-            <div className="flex flex-col gap-6">
-              <div className="grid gap-2">
-                <Label htmlFor="password">New password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="New password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
-              {error && <p className="text-sm text-red-500">{error}</p>}
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? 'Saving…' : 'Save new password'}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+    <div className={cn('flex flex-col gap-8', className)} {...props}>
+      <div className="flex flex-col gap-2">
+        <h1 className="font-[family-name:var(--font-display)] text-3xl font-extrabold tracking-tight">
+          Set a new password
+        </h1>
+        <p className="text-muted-foreground text-sm">
+          Choose a new password for your Hikyaku account.
+        </p>
+      </div>
+
+      <form onSubmit={handleForgotPassword} className="flex flex-col gap-5">
+        <div className="grid gap-2">
+          <Label htmlFor="password">New password</Label>
+          <Input
+            id="password"
+            type="password"
+            autoComplete="new-password"
+            placeholder="New password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
+        {error && <p className="text-destructive text-sm">{error}</p>}
+        <Button type="submit" size="lg" className="w-full" disabled={isLoading}>
+          {isLoading ? 'Saving…' : 'Save new password'}
+        </Button>
+      </form>
     </div>
   )
 }

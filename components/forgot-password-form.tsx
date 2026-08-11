@@ -5,13 +5,6 @@ import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Link from 'next/link'
@@ -42,58 +35,66 @@ export function ForgotPasswordForm({ className, ...props }: React.ComponentProps
     }
   }
 
+  if (success) {
+    return (
+      <div className={cn('flex flex-col gap-8', className)} {...props}>
+        <div className="flex flex-col gap-2">
+          <h1 className="font-[family-name:var(--font-display)] text-3xl font-extrabold tracking-tight">
+            Check your email
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            If you registered using your email and password, a password reset link is on its way
+            to <span className="text-foreground font-medium">{email}</span>.
+          </p>
+        </div>
+        <p className="text-muted-foreground text-center text-sm">
+          <Link
+            href="/auth/login"
+            className="text-foreground font-medium underline underline-offset-4"
+          >
+            Back to sign in
+          </Link>
+        </p>
+      </div>
+    )
+  }
+
   return (
-    <div className={cn("flex flex-col gap-6", className)} {...props}>
-      {success ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl">Check Your Email</CardTitle>
-            <CardDescription>Password reset instructions sent</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              If you registered using your email and password, you will receive a password reset
-              email.
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl">Reset Your Password</CardTitle>
-            <CardDescription>
-              Type in your email and we&apos;ll send you a link to reset your password
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleForgotPassword}>
-              <div className="flex flex-col gap-6">
-                <div className="grid gap-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="email@hikyaku.org"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-                {error && <p className="text-sm text-red-500">{error}</p>}
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? 'Sending…' : 'Send reset email'}
-                </Button>
-              </div>
-              <div className="mt-4 text-center text-sm">
-                Already have an account?{' '}
-                <Link href="/auth/login" className="underline underline-offset-4">
-                  Login
-                </Link>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
+    <div className={cn('flex flex-col gap-8', className)} {...props}>
+      <div className="flex flex-col gap-2">
+        <h1 className="font-[family-name:var(--font-display)] text-3xl font-extrabold tracking-tight">
+          Reset your password
+        </h1>
+        <p className="text-muted-foreground text-sm">
+          Type in your email and we&apos;ll send you a link to reset your password.
+        </p>
+      </div>
+
+      <form onSubmit={handleForgotPassword} className="flex flex-col gap-5">
+        <div className="grid gap-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            placeholder="email@hikyaku.org"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+        {error && <p className="text-destructive text-sm">{error}</p>}
+        <Button type="submit" size="lg" className="w-full" disabled={isLoading}>
+          {isLoading ? 'Sending…' : 'Send reset email'}
+        </Button>
+      </form>
+
+      <p className="text-muted-foreground text-center text-sm">
+        Remembered it?{' '}
+        <Link href="/auth/login" className="text-foreground font-medium underline underline-offset-4">
+          Sign in
+        </Link>
+      </p>
     </div>
   )
 }

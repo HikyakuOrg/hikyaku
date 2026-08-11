@@ -13,18 +13,15 @@ function LoginContent({
   return <LoginForm redirectTo={redirectTo} />
 }
 
+// Layout (app/auth/layout.tsx) supplies the split shell, wordmark and centring.
 export default function Page({
   searchParams,
 }: {
   searchParams: Promise<{ redirect?: string }>
 }) {
   return (
-    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-sm">
-        <Suspense fallback={<p className="text-sm text-muted-foreground">Loading...</p>}>
-          <LoginContent searchParams={searchParams} />
-        </Suspense>
-      </div>
-    </div>
+    <Suspense fallback={<p className="text-muted-foreground text-sm">Loading...</p>}>
+      <LoginContent searchParams={searchParams} />
+    </Suspense>
   )
 }
