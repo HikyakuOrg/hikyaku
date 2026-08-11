@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       app_permission: {
@@ -266,6 +241,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      optimisation_run: {
+        Row: {
+          error: string | null
+          id: string
+          optimisation_id: string | null
+          organisation_id: string
+          requested_at: string
+          requested_by: string | null
+          status: string
+          trigger: string
+          warehouse_id: string | null
+        }
+        Insert: {
+          error?: string | null
+          id?: string
+          optimisation_id?: string | null
+          organisation_id: string
+          requested_at?: string
+          requested_by?: string | null
+          status?: string
+          trigger?: string
+          warehouse_id?: string | null
+        }
+        Update: {
+          error?: string | null
+          id?: string
+          optimisation_id?: string | null
+          organisation_id?: string
+          requested_at?: string
+          requested_by?: string | null
+          status?: string
+          trigger?: string
+          warehouse_id?: string | null
+        }
+        Relationships: []
       }
       organisation_invitation_permissions: {
         Row: {
@@ -609,19 +620,19 @@ export type Database = {
       package_timeline: {
         Row: {
           created_at: string
-          id: number
+          id: string
           package_id: string
           package_status: number
         }
         Insert: {
           created_at?: string
-          id?: number
+          id?: string
           package_id: string
           package_status: number
         }
         Update: {
           created_at?: string
-          id?: number
+          id?: string
           package_id?: string
           package_status?: number
         }
@@ -765,64 +776,6 @@ export type Database = {
             columns: ["role_id"]
             isOneToOne: false
             referencedRelation: "app_roles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      optimisation_run: {
-        Row: {
-          error: string | null
-          id: string
-          optimisation_id: string | null
-          organisation_id: string
-          requested_at: string
-          requested_by: string | null
-          status: string
-          trigger: string
-          warehouse_id: string | null
-        }
-        Insert: {
-          error?: string | null
-          id?: string
-          optimisation_id?: string | null
-          organisation_id: string
-          requested_at?: string
-          requested_by?: string | null
-          status?: string
-          trigger?: string
-          warehouse_id?: string | null
-        }
-        Update: {
-          error?: string | null
-          id?: string
-          optimisation_id?: string | null
-          organisation_id?: string
-          requested_at?: string
-          requested_by?: string | null
-          status?: string
-          trigger?: string
-          warehouse_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "optimisation_run_optimisation_id_fkey"
-            columns: ["optimisation_id"]
-            isOneToOne: false
-            referencedRelation: "vrp_optimization"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "optimisation_run_organisation_id_fkey"
-            columns: ["organisation_id"]
-            isOneToOne: false
-            referencedRelation: "organisations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "optimisation_run_warehouse_id_fkey"
-            columns: ["warehouse_id"]
-            isOneToOne: false
-            referencedRelation: "warehouse"
             referencedColumns: ["id"]
           },
         ]
@@ -1022,18 +975,21 @@ export type Database = {
         Row: {
           id: string
           ors_vehicle_type: string
+          valhalla_vehicle_type: string
           vehicle_description: string | null
           vehicle_type: string
         }
         Insert: {
           id?: string
           ors_vehicle_type: string
+          valhalla_vehicle_type: string
           vehicle_description?: string | null
           vehicle_type: string
         }
         Update: {
           id?: string
           ors_vehicle_type?: string
+          valhalla_vehicle_type?: string
           vehicle_description?: string | null
           vehicle_type?: string
         }
@@ -1111,6 +1067,7 @@ export type Database = {
           provider: string
           request: Json
           response: Json
+          scheduled_start: string | null
         }
         Insert: {
           created_at?: string
@@ -1119,6 +1076,7 @@ export type Database = {
           provider: string
           request: Json
           response: Json
+          scheduled_start?: string | null
         }
         Update: {
           created_at?: string
@@ -1127,6 +1085,7 @@ export type Database = {
           provider?: string
           request?: Json
           response?: Json
+          scheduled_start?: string | null
         }
         Relationships: [
           {
@@ -1590,6 +1549,7 @@ export type Database = {
       is_assigned_driver: { Args: { p_package_id: string }; Returns: boolean }
       is_optimization_driver: { Args: { p_opt_id: string }; Returns: boolean }
       is_org_member: { Args: { p_org: string }; Returns: boolean }
+      is_personal_org_owner: { Args: { p_org: string }; Returns: boolean }
       is_route_driver: { Args: { p_route_id: string }; Returns: boolean }
       is_solution_driver: { Args: { p_solution_id: string }; Returns: boolean }
       is_tracking_topic_in_transit: {
@@ -1657,6 +1617,7 @@ export type Database = {
         }
         Returns: Json
       }
+      uuid_generate_v7: { Args: never; Returns: string }
       vehicle_folder_org: { Args: { p_name: string }; Returns: string }
       vrp_optimization_org: { Args: { p_opt_id: string }; Returns: string }
       vrp_solution_org: { Args: { p_solution_id: string }; Returns: string }
@@ -1788,9 +1749,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },
