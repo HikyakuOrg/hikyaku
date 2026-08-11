@@ -9,7 +9,9 @@ import { Button } from '@/components/ui/button'
 import { GoogleSignIn, isGoogleSignInEnabled } from '@/components/google-sign-in'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { LastUsedBadge, useLastAuthMethod } from '@/components/last-used-badge'
 import Link from 'next/link'
+import { setLastAuthMethod } from '@/lib/auth/last-used'
 import { resolveOrgPath, setPendingVerification } from '@/lib/auth/verify-flow'
 
 type LoginFormProps = React.ComponentPropsWithoutRef<'div'> & {
@@ -23,6 +25,7 @@ export function LoginForm({ className, redirectTo, ...props }: LoginFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isSendingCode, setIsSendingCode] = useState(false)
+  const lastUsed = useLastAuthMethod()
   const router = useRouter()
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -36,6 +39,7 @@ export function LoginForm({ className, redirectTo, ...props }: LoginFormProps) {
       if (error) throw error
       if (!data.user) throw new Error('No user returned after login')
 
+      setLastAuthMethod('password')
       if (redirectTo) {
         router.push(redirectTo)
         return
@@ -94,7 +98,10 @@ export function LoginForm({ className, redirectTo, ...props }: LoginFormProps) {
 
       {isGoogleSignInEnabled && (
         <>
-          <GoogleSignIn context="signin" redirectTo={redirectTo} onError={setError} />
+          <div className="relative">
+            {lastUsed === 'google' && <LastUsedBadge />}
+            <GoogleSignIn context="signin" redirectTo={redirectTo} onError={setError} />
+          </div>
           <div className="flex items-center gap-3">
             <span className="bg-border h-px flex-1" />
             <span className="text-muted-foreground text-xs">or</span>
@@ -136,21 +143,27 @@ export function LoginForm({ className, redirectTo, ...props }: LoginFormProps) {
           />
         </div>
         {error && <p className="text-destructive text-sm">{error}</p>}
-        <Button type="submit" size="lg" className="w-full" disabled={isLoading}>
-          {isLoading ? 'Signing in…' : 'Sign in'}
-        </Button>
+        <div className="relative">
+          {lastUsed === 'password' && <LastUsedBadge />}
+          <Button type="submit" size="lg" className="w-full" disabled={isLoading}>
+            {isLoading ? 'Signing in…' : 'Sign in'}
+          </Button>
+        </div>
       </form>
 
-      <Button
-        type="button"
-        variant="outline"
-        size="lg"
-        className="-mt-3 w-full"
-        onClick={handleEmailCode}
-        disabled={isSendingCode}
-      >
-        {isSendingCode ? 'Sending…' : 'Email me a sign-in code'}
-      </Button>
+      <div className="relative -mt-3">
+        {lastUsed === 'email-code' && <LastUsedBadge />}
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          className="w-full"
+          onClick={handleEmailCode}
+          disabled={isSendingCode}
+        >
+          {isSendingCode ? 'Sending…' : 'Email me a sign-in code'}
+        </Button>
+      </div>
 
       <p className="text-muted-foreground text-center text-sm">
         Don&apos;t have an account?{' '}

@@ -6,6 +6,7 @@ import Link from 'next/link'
 
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { setLastAuthMethod } from '@/lib/auth/last-used'
 import {
   clearPendingVerification,
   getPendingVerification,
@@ -56,6 +57,10 @@ export function VerifyOtpForm({ className, ...props }: React.ComponentPropsWitho
 
       // Verified, so the pending record is no longer needed.
       clearPendingVerification()
+      // A signup confirmation means the account was just created with a
+      // password, so that is what they will reach for next time. Only the
+      // passwordless path counts as the code method.
+      setLastAuthMethod(intent === 'signin' ? 'email-code' : 'password')
       // verifyOtp establishes a live session, so the org lookup is authorised.
       router.push(redirectTo ?? (await resolveOrgPath(supabase, userId)))
     } catch (error: unknown) {
