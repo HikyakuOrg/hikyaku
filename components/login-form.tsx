@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
+import { GoogleSignIn, isGoogleSignInEnabled } from '@/components/google-sign-in'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Link from 'next/link'
@@ -89,6 +90,17 @@ export function LoginForm({ className, redirectTo, ...props }: LoginFormProps) {
         <p className="text-muted-foreground text-sm">Sign in to your Hikyaku account</p>
       </div>
 
+      {isGoogleSignInEnabled && (
+        <>
+          <GoogleSignIn context="signin" redirectTo={redirectTo} onError={setError} />
+          <div className="flex items-center gap-3">
+            <span className="bg-border h-px flex-1" />
+            <span className="text-muted-foreground text-xs">or</span>
+            <span className="bg-border h-px flex-1" />
+          </div>
+        </>
+      )}
+
       <form onSubmit={handleLogin} className="flex flex-col gap-5">
         <div className="grid gap-2">
           <Label htmlFor="email">Email</Label>
@@ -133,17 +145,11 @@ export function LoginForm({ className, redirectTo, ...props }: LoginFormProps) {
         </Button>
       </form>
 
-      <div className="flex items-center gap-3">
-        <span className="bg-border h-px flex-1" />
-        <span className="text-muted-foreground text-xs">or</span>
-        <span className="bg-border h-px flex-1" />
-      </div>
-
       <Button
         type="button"
         variant="outline"
         size="lg"
-        className="w-full"
+        className="-mt-3 w-full"
         onClick={handleMagicLink}
         disabled={isSendingLink || magicLinkSent}
       >

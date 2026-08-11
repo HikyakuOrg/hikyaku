@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { setPendingVerificationEmail } from '@/lib/auth/verify-flow'
 import { Button } from '@/components/ui/button'
+import { GoogleSignIn, isGoogleSignInEnabled } from '@/components/google-sign-in'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Link from 'next/link'
@@ -63,6 +64,17 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
           Create your Hikyaku account. We&apos;ll set up your organisation as you go.
         </p>
       </div>
+
+      {isGoogleSignInEnabled && (
+        <>
+          <GoogleSignIn context="signup" onError={setError} />
+          <div className="flex items-center gap-3">
+            <span className="bg-border h-px flex-1" />
+            <span className="text-muted-foreground text-xs">or</span>
+            <span className="bg-border h-px flex-1" />
+          </div>
+        </>
+      )}
 
       <form onSubmit={handleSignUp} className="flex flex-col gap-5">
         <div className="grid gap-2">
