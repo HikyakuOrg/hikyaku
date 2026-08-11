@@ -9,22 +9,36 @@ import { Card } from "@/components/ui/card"
 import { useOrgPath } from "@/lib/use-org"
 import { cn } from "@/lib/utils"
 
-export function SettingsNav() {
+export function SettingsNav({
+    showBusinessInformation,
+}: {
+    /** Business Information only applies to company orgs. */
+    showBusinessInformation: boolean
+}) {
     const pathname = usePathname()
+    // Hooks stay unconditional; the gate is applied when building the list.
+    const accountHref = useOrgPath("/dashboard/user/account")
+    const businessHref = useOrgPath("/dashboard/user/business")
+    const connectedAppsHref = useOrgPath("/dashboard/user/connected-apps")
+
     const items = [
         {
             label: "Account",
-            href: useOrgPath("/dashboard/user/account"),
+            href: accountHref,
             icon: UserCircleIcon,
         },
-        {
-            label: "Business Information",
-            href: useOrgPath("/dashboard/user/business"),
-            icon: BuildingsIcon,
-        },
+        ...(showBusinessInformation
+            ? [
+                  {
+                      label: "Business Information",
+                      href: businessHref,
+                      icon: BuildingsIcon,
+                  },
+              ]
+            : []),
         {
             label: "Connected Apps",
-            href: useOrgPath("/dashboard/user/connected-apps"),
+            href: connectedAppsHref,
             icon: PlugsConnectedIcon,
         },
     ]

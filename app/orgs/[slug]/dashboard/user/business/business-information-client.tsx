@@ -1,7 +1,6 @@
 "use client"
 
 import { useCallback, useEffect, useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import {
     loadConnectAndInitialize,
@@ -31,7 +30,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
     getConnectStatus,
     createAccountSession,
@@ -41,7 +39,6 @@ import {
     type FundingInstructions,
     type IssuingBalance,
 } from "@/lib/actions/connect"
-import { setOrgType } from "@/lib/actions/organisations"
 import { formatCurrency } from "@/lib/currency"
 
 // All countries supported by Stripe Connect (same list as the old onboarding
@@ -103,74 +100,13 @@ const STRIPE_COUNTRIES = [
     { code: "UY", label: "Uruguay" },
 ]
 
-type OrgType = "personal" | "company"
-
-export function BusinessInformationClient({
-    slug,
-    initialOrgType,
-}: {
-    slug: string
-    initialOrgType: OrgType
-}) {
-    const router = useRouter()
-    const [orgType, setLocalOrgType] = useState<OrgType>(initialOrgType)
-    const [typeSwitching, startTypeTransition] = useTransition()
-
-    const handleToggle = (next: OrgType) => {
-        if (next === orgType || typeSwitching) return
-        startTypeTransition(async () => {
-            const result = await setOrgType(slug, next)
-            if (typeof result === "string") {
-                toast.error(result)
-                return
-            }
-            setLocalOrgType(next)
-            // Layout-level data (sidebar, card_issuing_active) reads from the
-            // server — refresh so it stays in sync.
-            router.refresh()
-        })
-    }
-
+// This page only renders for company orgs — the settings nav hides it for
+// personal ones and the server component redirects direct navigation.
+export function BusinessInformationClient() {
     return (
         <div className="space-y-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Account type</CardTitle>
-                    <CardDescription>
-                        Personal accounts have no payment setup. Switch to Company to
-                        enable payments and fuel-card issuing.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Tabs
-                        value={orgType}
-                        onValueChange={(v) => handleToggle(v as OrgType)}
-                    >
-                        <TabsList>
-                            <TabsTrigger value="personal" disabled={typeSwitching}>
-                                Personal
-                            </TabsTrigger>
-                            <TabsTrigger value="company" disabled={typeSwitching}>
-                                Company
-                            </TabsTrigger>
-                        </TabsList>
-                    </Tabs>
-                </CardContent>
-            </Card>
-
-            {orgType === "company" ? <CompanySection /> : <PersonalHint />}
+            <CompanySection />
         </div>
-    )
-}
-
-function PersonalHint() {
-    return (
-        <Card>
-            <CardContent className="text-sm text-muted-foreground py-6">
-                This account is personal. Switch to Company above to add business
-                details and enable fuel-card issuing.
-            </CardContent>
-        </Card>
     )
 }
 

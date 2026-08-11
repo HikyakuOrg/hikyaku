@@ -64,22 +64,21 @@ export async function createOrganisation(
 }
 
 /**
- * Change an existing org's type. Used by the Business Information page when a
- * personal org upgrades in place to a company (or vice versa). The DB partial
- * unique index will reject downgrading to personal if the caller already has
- * another personal org — that error is surfaced verbatim.
+ * An org's type on its own. Cheaper than listMyOrganisations() for UI gating
+ * (Business Information is company-only) because it skips the Stripe lookup.
+ * Returns null when the org doesn't exist or the caller can't see it.
  */
-export async function setOrgType(
+export async function getOrganisationType(
   slug: string,
-  orgType: 'personal' | 'company',
-): Promise<{ ok: true } | string> {
+): Promise<'personal' | 'company' | null> {
   const supabase = await createClient()
-  const { error } = await supabase
+  const { data } = await supabase
     .from('organisations')
-    .update({ org_type: orgType })
+    .select('org_type')
     .eq('slug', slug)
-  if (error) return error.message
-  return { ok: true }
+    .maybeSingle()
+  if (!data) return null
+  return data.org_type === 'company' ? 'company' : 'personal'
 }
 
 /** Organisations the signed-in user belongs to — powers the org switcher. */
