@@ -189,6 +189,7 @@ export async function getVehiclesByType(selectedTypes: string[], page: number, p
         vehicle_type:vehicle_type (
           id,
           ors_vehicle_type,
+          valhalla_vehicle_type,
           vehicle_type,
           vehicle_description
         )
@@ -254,6 +255,7 @@ export async function getVehiclesNotAssignedInWarehouse(warehouseId: string, pag
         vehicle_type:vehicle_type (
           id,
           ors_vehicle_type,
+          valhalla_vehicle_type,
           vehicle_type,
           vehicle_description
         ),
@@ -286,6 +288,7 @@ export async function getVehiclesInWarehouse(warehouseId: string, page: number, 
         vehicle_type:vehicle_type (
           id,
           ors_vehicle_type,
+          valhalla_vehicle_type,
           vehicle_type,
           vehicle_description
         )
@@ -314,6 +317,7 @@ export async function getVehiclesNotAssigned(page: number, pageSize: number) {
         vehicle_type:vehicle_type (
           id,
           ors_vehicle_type,
+          valhalla_vehicle_type,
           vehicle_type,
           vehicle_description
         )
@@ -352,6 +356,7 @@ export async function getVehiclesById(vehicleIds: string[]) {
         vehicle_type:vehicle_type (
           id,
           ors_vehicle_type,
+          valhalla_vehicle_type,
           vehicle_type,
           vehicle_description
         )
