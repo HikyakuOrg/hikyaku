@@ -10,7 +10,7 @@ import { GoogleSignIn, isGoogleSignInEnabled } from '@/components/google-sign-in
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Link from 'next/link'
-import { resolveOrgPath, setPendingVerificationEmail } from '@/lib/auth/verify-flow'
+import { resolveOrgPath, setPendingVerification } from '@/lib/auth/verify-flow'
 
 type LoginFormProps = React.ComponentPropsWithoutRef<'div'> & {
   /** Where to send the user after a successful login, e.g. back to /oauth/consent. */
@@ -22,8 +22,7 @@ export function LoginForm({ className, redirectTo, ...props }: LoginFormProps) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [isSendingLink, setIsSendingLink] = useState(false)
-  const [magicLinkSent, setMagicLinkSent] = useState(false)
+  const [isSendingCode, setIsSendingCode] = useState(false)
   const router = useRouter()
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -46,7 +45,7 @@ export function LoginForm({ className, redirectTo, ...props }: LoginFormProps) {
       const message = error instanceof Error ? error.message : 'An error occurred'
       // Unconfirmed accounts can't sign in yet, so send them to finish OTP verification.
       if (message.toLowerCase().includes('email not confirmed')) {
-        setPendingVerificationEmail(email)
+        setPendingVerification(email, 'signup', redirectTo)
         router.push('/auth/verify')
         return
       }
@@ -57,27 +56,30 @@ export function LoginForm({ className, redirectTo, ...props }: LoginFormProps) {
 
   // Passwordless fallback. It reuses the email field above rather than swapping
   // the form out, so the page never collapses to a bare pair of buttons.
-  const handleMagicLink = async () => {
+  //
+  // The Magic Link email template renders {{ .Token }}, not {{ .ConfirmationURL }},
+  // so this sends an 8-digit code and hands off to the shared OTP screen. No
+  // emailRedirectTo: nothing comes back through a link, so there is no code to
+  // exchange and no redirect allow-list entry to keep in sync.
+  const handleEmailCode = async () => {
     if (!email) {
       setError('Enter your email address first.')
       return
     }
 
     const supabase = createClient()
-    setIsSendingLink(true)
+    setIsSendingCode(true)
     setError(null)
 
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo: `${window.location.origin}${redirectTo ?? '/orgs'}` },
-      })
+      const { error } = await supabase.auth.signInWithOtp({ email })
       if (error) throw error
-      setMagicLinkSent(true)
+
+      setPendingVerification(email, 'signin', redirectTo)
+      router.push('/auth/verify')
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An error occurred')
-    } finally {
-      setIsSendingLink(false)
+      setIsSendingCode(false)
     }
   }
 
@@ -111,10 +113,7 @@ export function LoginForm({ className, redirectTo, ...props }: LoginFormProps) {
             placeholder="email@hikyaku.org"
             required
             value={email}
-            onChange={(e) => {
-              setEmail(e.target.value)
-              setMagicLinkSent(false)
-            }}
+            onChange={(e) => setEmail(e.target.value)}
           />
         </div>
         <div className="grid gap-2">
@@ -137,9 +136,6 @@ export function LoginForm({ className, redirectTo, ...props }: LoginFormProps) {
           />
         </div>
         {error && <p className="text-destructive text-sm">{error}</p>}
-        {magicLinkSent && (
-          <p className="text-sm text-green-600">Magic link sent. Check your inbox.</p>
-        )}
         <Button type="submit" size="lg" className="w-full" disabled={isLoading}>
           {isLoading ? 'Signing in…' : 'Sign in'}
         </Button>
@@ -150,10 +146,10 @@ export function LoginForm({ className, redirectTo, ...props }: LoginFormProps) {
         variant="outline"
         size="lg"
         className="-mt-3 w-full"
-        onClick={handleMagicLink}
-        disabled={isSendingLink || magicLinkSent}
+        onClick={handleEmailCode}
+        disabled={isSendingCode}
       >
-        {isSendingLink ? 'Sending…' : 'Email me a magic link'}
+        {isSendingCode ? 'Sending…' : 'Email me a sign-in code'}
       </Button>
 
       <p className="text-muted-foreground text-center text-sm">

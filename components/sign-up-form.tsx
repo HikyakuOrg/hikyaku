@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
-import { setPendingVerificationEmail } from '@/lib/auth/verify-flow'
+import { setPendingVerification } from '@/lib/auth/verify-flow'
 import { Button } from '@/components/ui/button'
 import { GoogleSignIn, isGoogleSignInEnabled } from '@/components/google-sign-in'
 import { Input } from '@/components/ui/input'
@@ -46,7 +46,7 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
       // Email confirmation is required, so no session exists yet. Remember the
       // email and hand off to the dedicated verify route, which rehydrates from
       // storage so the OTP screen survives a refresh or navigating away.
-      setPendingVerificationEmail(email)
+      setPendingVerification(email, 'signup')
       router.push('/auth/verify')
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An error occurred')

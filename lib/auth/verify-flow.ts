@@ -1,33 +1,64 @@
 import { orgPath } from '@/lib/subdomain'
 import type { createClient } from '@/lib/supabase/client'
 
-// Email of an account that has signed up but not yet confirmed its address.
-// Persisted so the OTP screen survives a page refresh or navigating away and
-// back — the in-memory form state alone would be lost.
-const PENDING_EMAIL_KEY = 'hikyaku:pending-verification-email'
+/**
+ * Which flow sent the user to the OTP screen. It picks the copy shown there and,
+ * more importantly, which call resends the code: confirming a new signup and
+ * signing in passwordlessly issue codes through different endpoints.
+ */
+export type VerificationIntent = 'signup' | 'signin'
 
-export function setPendingVerificationEmail(email: string): void {
+export type PendingVerification = {
+  email: string
+  intent: VerificationIntent
+  /** Same-origin path to land on after verifying, e.g. /oauth/consent. */
+  redirectTo?: string
+}
+
+// The account waiting on an emailed code. Persisted so the OTP screen survives
+// a page refresh or navigating away and back; in-memory form state alone would
+// be lost.
+const PENDING_KEY = 'hikyaku:pending-verification-email'
+
+export function setPendingVerification(
+  email: string,
+  intent: VerificationIntent,
+  redirectTo?: string,
+): void {
   try {
-    localStorage.setItem(PENDING_EMAIL_KEY, email)
+    localStorage.setItem(PENDING_KEY, JSON.stringify({ email, intent, redirectTo }))
   } catch {
     // localStorage can be unavailable (private mode, SSR); the OTP screen falls
     // back to its editable email field, so this is non-fatal.
   }
 }
 
-export function getPendingVerificationEmail(): string {
+export function getPendingVerification(): PendingVerification {
+  const empty: PendingVerification = { email: '', intent: 'signup' }
   try {
-    return localStorage.getItem(PENDING_EMAIL_KEY) ?? ''
+    const stored = localStorage.getItem(PENDING_KEY)
+    if (!stored) return empty
+    // Earlier builds stored a bare email string under this key, so anything that
+    // isn't JSON is read as that. Keeps a signup in flight working across the
+    // deploy rather than dumping the user on an empty form.
+    if (!stored.startsWith('{')) return { email: stored, intent: 'signup' }
+
+    const parsed = JSON.parse(stored) as Partial<PendingVerification>
+    return {
+      email: typeof parsed.email === 'string' ? parsed.email : '',
+      intent: parsed.intent === 'signin' ? 'signin' : 'signup',
+      redirectTo: isSafeRedirectPath(parsed.redirectTo) ? parsed.redirectTo : undefined,
+    }
   } catch {
-    return ''
+    return empty
   }
 }
 
-export function clearPendingVerificationEmail(): void {
+export function clearPendingVerification(): void {
   try {
-    localStorage.removeItem(PENDING_EMAIL_KEY)
+    localStorage.removeItem(PENDING_KEY)
   } catch {
-    // no-op — see setPendingVerificationEmail.
+    // no-op, see setPendingVerification.
   }
 }
 

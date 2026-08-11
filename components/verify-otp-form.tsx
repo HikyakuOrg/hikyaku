@@ -7,10 +7,11 @@ import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import {
-  clearPendingVerificationEmail,
-  getPendingVerificationEmail,
+  clearPendingVerification,
+  getPendingVerification,
   resolveOrgPath,
-  setPendingVerificationEmail,
+  setPendingVerification,
+  type VerificationIntent,
 } from '@/lib/auth/verify-flow'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,15 +22,20 @@ const OTP_LENGTH = 8
 export function VerifyOtpForm({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
   const router = useRouter()
   const [email, setEmail] = useState('')
+  const [intent, setIntent] = useState<VerificationIntent>('signup')
+  const [redirectTo, setRedirectTo] = useState<string | undefined>()
   const [otp, setOtp] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [resendMessage, setResendMessage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  // Rehydrate the pending email after mount (localStorage is client-only). This
+  // Rehydrate the pending record after mount (localStorage is client-only). This
   // is what lets the screen resume after a refresh or navigating away.
   useEffect(() => {
-    setEmail(getPendingVerificationEmail())
+    const pending = getPendingVerification()
+    setEmail(pending.email)
+    setIntent(pending.intent)
+    setRedirectTo(pending.redirectTo)
   }, [])
 
   const handleVerify = async (e: React.FormEvent) => {
@@ -49,9 +55,9 @@ export function VerifyOtpForm({ className, ...props }: React.ComponentPropsWitho
       if (!userId) throw new Error('No user returned after verification')
 
       // Verified, so the pending record is no longer needed.
-      clearPendingVerificationEmail()
+      clearPendingVerification()
       // verifyOtp establishes a live session, so the org lookup is authorised.
-      router.push(await resolveOrgPath(supabase, userId))
+      router.push(redirectTo ?? (await resolveOrgPath(supabase, userId)))
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An error occurred')
     } finally {
@@ -70,9 +76,15 @@ export function VerifyOtpForm({ className, ...props }: React.ComponentPropsWitho
     }
 
     try {
-      // Keep the stored email in sync in case the user corrected it here.
-      setPendingVerificationEmail(email)
-      const { error: resendError } = await supabase.auth.resend({ type: 'signup', email })
+      // Keep the stored record in sync in case the user corrected the email here.
+      setPendingVerification(email, intent, redirectTo)
+
+      // A signup confirmation and a passwordless sign-in mint codes through
+      // different endpoints; resend() only covers the former.
+      const { error: resendError } =
+        intent === 'signin'
+          ? await supabase.auth.signInWithOtp({ email })
+          : await supabase.auth.resend({ type: 'signup', email })
       if (resendError) throw resendError
       setResendMessage('A new code is on its way.')
     } catch (error: unknown) {
@@ -87,8 +99,8 @@ export function VerifyOtpForm({ className, ...props }: React.ComponentPropsWitho
           Check your email
         </h1>
         <p className="text-muted-foreground text-sm">
-          We sent an {OTP_LENGTH}-digit code to the address below. Enter it to activate your
-          account.
+          We sent an {OTP_LENGTH}-digit code to the address below. Enter it to{' '}
+          {intent === 'signin' ? 'sign in' : 'activate your account'}.
         </p>
       </div>
 
@@ -129,7 +141,7 @@ export function VerifyOtpForm({ className, ...props }: React.ComponentPropsWitho
           className="w-full"
           disabled={isLoading || otp.length !== OTP_LENGTH}
         >
-          {isLoading ? 'Verifying…' : 'Verify email'}
+          {isLoading ? 'Verifying…' : intent === 'signin' ? 'Sign in' : 'Verify email'}
         </Button>
       </form>
 
