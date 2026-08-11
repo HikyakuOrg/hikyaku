@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BuildingsIcon, UserCircleIcon } from "@phosphor-icons/react"
+import { BuildingsIcon, PlugsConnectedIcon, UserCircleIcon } from "@phosphor-icons/react"
 
 import { buttonVariants } from "@/components/ui/button-variants"
 import { Card } from "@/components/ui/card"
@@ -21,6 +21,11 @@ export function SettingsNav() {
             label: "Business Information",
             href: useOrgPath("/dashboard/user/business"),
             icon: BuildingsIcon,
+        },
+        {
+            label: "Connected Apps",
+            href: useOrgPath("/dashboard/user/connected-apps"),
+            icon: PlugsConnectedIcon,
         },
     ]
 
