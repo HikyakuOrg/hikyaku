@@ -153,6 +153,13 @@ function RecipientSection({
     )
 }
 
+const emptyAddress = {
+    fullName: "",
+    email: "",
+    phone: "",
+    address: ""
+}
+
 export function AddressesStep({
     defaultValues,
     onNext,
@@ -162,13 +169,6 @@ export function AddressesStep({
     onNext: (data: AddressesFormValues) => void
     onPrev: () => void
 }) {
-    const emptyAddress = {
-        fullName: "",
-        email: "",
-        phone: "",
-        address: ""
-    }
-
     const initial = useMemo(
         () =>
             defaultValues ?? {

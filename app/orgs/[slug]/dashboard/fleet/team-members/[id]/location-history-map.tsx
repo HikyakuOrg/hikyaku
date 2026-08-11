@@ -41,6 +41,14 @@ export default function LocationHistoryMap({ points, currentIndex }: Props) {
         }
     }, [])
 
+    // Read by the redraw effect below to place the marker. Held in a ref because the
+    // route must not be rebuilt every time the scrubber moves; the effect at the end
+    // of this component is what tracks `currentIndex`.
+    const currentIndexRef = useRef(currentIndex)
+    useEffect(() => {
+        currentIndexRef.current = currentIndex
+    })
+
     // Draw route line and fit bounds whenever points change
     useEffect(() => {
         const map = mapRef.current
@@ -78,7 +86,7 @@ export default function LocationHistoryMap({ points, currentIndex }: Props) {
             map.fitBounds(bounds, { padding: 50, maxZoom: 15 })
 
             // Place marker at first point
-            const first = coordinates[currentIndex] ?? coordinates[0]
+            const first = coordinates[currentIndexRef.current] ?? coordinates[0]
             if (markerRef.current) {
                 markerRef.current.setLngLat(first)
             } else {

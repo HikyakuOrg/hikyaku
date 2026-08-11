@@ -11,12 +11,15 @@ export default function MapView(mapOptions: maplibregl.MapOptions) {
 
     const mapContainer = useRef<HTMLDivElement>(null)
     const mapRef = useRef<maplibregl.Map | null>(null)
+    // Construction-time options only: the map is built once and later prop changes
+    // are not meant to rebuild it, so the initial value is captured in a ref.
+    const initialMapOptions = useRef(mapOptions)
 
     useEffect(() => {
         if (!mapContainer.current || mapRef.current) return
 
         const map = new maplibregl.Map({
-            ...mapOptions,
+            ...initialMapOptions.current,
             container: mapContainer.current,
             style: MAP_STYLE,
         })

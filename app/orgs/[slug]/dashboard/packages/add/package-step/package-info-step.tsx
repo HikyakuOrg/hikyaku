@@ -33,6 +33,7 @@ export function PackageInfo({ onNext, defaultValues }: {
         defaultValues: initialValues,
     });
 
+    // eslint-disable-next-line react-hooks/incompatible-library -- react-hook-form's form.watch() returns a value React Compiler cannot memoize; it skips this component.
     const watchedPackageId = form.watch("packageId");
 
     const props = useSupabaseUpload({
@@ -164,7 +165,7 @@ export function PackageInfo({ onNext, defaultValues }: {
                     <Controller
                         name="files"
                         control={form.control}
-                        render={({ field, fieldState }) => (
+                        render={() => (
                             <div className="flex-1">
                                 <Dropzone {...props}>
                                     <DropzoneEmptyState />

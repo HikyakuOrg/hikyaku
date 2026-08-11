@@ -92,6 +92,7 @@ async function ConsentContent({ searchParams }: { searchParams: ConsentSearchPar
       <CardHeader>
         <div className="flex items-center gap-3">
           {data.client.logo_uri && (
+            // eslint-disable-next-line @next/next/no-img-element -- Arbitrary third-party client logo; not an allowlistable host for next/image.
             <img
               src={data.client.logo_uri}
               alt=""

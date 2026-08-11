@@ -1,5 +1,5 @@
 import { PackageStatus, STATUS_OPTIONS } from "@/app/models/package-status";
-import { CreateDriverDto, ListDriverDto, ListDriverResponseDto } from "../api"
+import { ListDriverDto } from "../api"
 import { createLazyClient } from "./client"
 import { SupabaseClient } from "@supabase/supabase-js"
 import { Database } from "./supabase"

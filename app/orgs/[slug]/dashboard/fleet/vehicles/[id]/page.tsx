@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useCallback, useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { getVehicleWithFullDetails, getVehicleDeliveries, deleteVehicle } from '@/lib/supabase/db'
 import { getSignedUrls, listVehicleFiles } from '@/lib/supabase/storage'
@@ -15,7 +15,6 @@ import {
     Edit, 
     Trash2,
     ArrowUpRight,
-    Search,
     Wrench,
     Plus
 } from 'lucide-react'
@@ -60,19 +59,7 @@ export default function VehicleOverviewPage() {
     const [isLoadingDeliveries, setIsLoadingDeliveries] = useState(false)
     const deliveriesPageSize = 10
 
-    useEffect(() => {
-        if (id) {
-            loadData()
-        }
-    }, [id])
-
-    useEffect(() => {
-        if (id) {
-            loadDeliveries(deliveriesPage)
-        }
-    }, [id, deliveriesPage])
-
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         try {
             const result = await getVehicleWithFullDetails(id)
             setData(result)
@@ -84,15 +71,15 @@ export default function VehicleOverviewPage() {
                 const urls = await getSignedUrls(filePaths)
                 setImages(urls)
             }
-        } catch (err) {
+        } catch {
             toast.error('Failed to load vehicle details')
             router.push(`/orgs/${slug}/dashboard/fleet/vehicles`)
         } finally {
             setIsLoading(false)
         }
-    }
+    }, [id, router, slug])
 
-    const loadDeliveries = async (page: number) => {
+    const loadDeliveries = useCallback(async (page: number) => {
         setIsLoadingDeliveries(true)
         try {
             const result = await getVehicleDeliveries(id, page, deliveriesPageSize)
@@ -102,7 +89,19 @@ export default function VehicleOverviewPage() {
         } finally {
             setIsLoadingDeliveries(false)
         }
-    }
+    }, [id])
+
+    useEffect(() => {
+        if (id) {
+            loadData()
+        }
+    }, [id, loadData])
+
+    useEffect(() => {
+        if (id) {
+            loadDeliveries(deliveriesPage)
+        }
+    }, [id, deliveriesPage, loadDeliveries])
 
     const handleDelete = async () => {
         if (!confirm('Are you sure you want to delete this vehicle?')) return
@@ -209,6 +208,7 @@ export default function VehicleOverviewPage() {
                             {images.length > 0 ? (
                                 <div className="grid grid-cols-2 gap-2">
                                     {images.map((url, i) => (
+                                        // eslint-disable-next-line @next/next/no-img-element -- Expiring Supabase signed URL.
                                         <img 
                                             key={i} 
                                             src={url} 

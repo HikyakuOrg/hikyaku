@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { createClient } from "@/lib/supabase/client"
 import useEmblaCarousel from "embla-carousel-react"
 import { ChevronLeft, ChevronRight, Image as ImageIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -81,6 +80,7 @@ export function PackageImages({ packageId }: PackageImagesProps) {
                         <div className="flex">
                             {images.map((img, idx) => (
                                 <div className="flex-[0_0_100%] min-w-0 relative aspect-video" key={idx}>
+                                    {/* eslint-disable-next-line @next/next/no-img-element -- Expiring Supabase signed URL. */}
                                     <img
                                         src={img}
                                         alt={`Package photo ${idx + 1}`}

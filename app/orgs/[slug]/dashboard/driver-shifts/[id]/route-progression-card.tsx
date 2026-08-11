@@ -94,6 +94,9 @@ function getStatusVariant(
 function useNow(): Date | null {
     const [now, setNow] = useState<Date | null>(null)
     useEffect(() => {
+        // Reading the wall clock is exactly the "sync with an external system" case the
+        // rule exempts, but it can't see that through the mount-once render gate.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setNow(new Date())
     }, [])
     return now

@@ -38,17 +38,36 @@ export function DriverVehicleStep({
     onPrev: () => void
 }) {
     const [pairs, setPairs] = useState<DriverVehiclePair[]>([])
-    const [isLoading, setIsLoading] = useState(true)
     const [selectedDvaId, setSelectedDvaId] = useState<string | null>(defaultValues?.dvaId ?? null)
     const [error, setError] = useState<string | null>(null)
 
+    // `loadedKey` marks which warehouse/date the current `pairs` belong to, so the
+    // loading flag is derived instead of being reset synchronously inside the effect.
+    const requestKey = `${warehouse.warehouseId}|${shiftDate}`
+    const [loadedKey, setLoadedKey] = useState<string | null>(null)
+    const isLoading = loadedKey !== requestKey
+
     useEffect(() => {
-        setIsLoading(true)
+        let active = true
+
         fetchAvailableDriverVehiclePairs(warehouse.warehouseId, shiftDate)
-            .then(setPairs)
-            .catch(() => setError("Failed to load available driver-vehicle pairs."))
-            .finally(() => setIsLoading(false))
-    }, [warehouse.warehouseId, shiftDate])
+            .then((nextPairs) => {
+                if (!active) return
+                setPairs(nextPairs)
+            })
+            .catch(() => {
+                if (!active) return
+                setError("Failed to load available driver-vehicle pairs.")
+            })
+            .finally(() => {
+                if (!active) return
+                setLoadedKey(requestKey)
+            })
+
+        return () => {
+            active = false
+        }
+    }, [warehouse.warehouseId, shiftDate, requestKey])
 
     function handleSubmit() {
         const pair = pairs.find((p) => p.dvaId === selectedDvaId)

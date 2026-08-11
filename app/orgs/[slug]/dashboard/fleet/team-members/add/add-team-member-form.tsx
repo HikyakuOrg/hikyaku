@@ -221,6 +221,7 @@ export default function AddTeamMemberForm({ roles, permissions, vehicleTypes }: 
                     onClick={handleAvatarClick}
                 >
                     {avatarPreview ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- Local blob: preview URL, which next/image cannot load.
                         <img src={avatarPreview} alt="Avatar preview" className="object-cover w-full h-full rounded-full" />
                     ) : (
                         <CameraIcon className="h-8 w-8 text-gray-400" />
@@ -275,7 +276,7 @@ export default function AddTeamMemberForm({ roles, permissions, vehicleTypes }: 
                             <Controller
                                 name="phone"
                                 control={form.control}
-                                render={({ field, fieldState }) => (
+                                render={({ field }) => (
                                     <PhoneInput
                                         id="phone"
                                         value={field.value}
@@ -332,7 +333,7 @@ export default function AddTeamMemberForm({ roles, permissions, vehicleTypes }: 
                     <CardHeader>
                         <CardTitle>Driver Licensing Details</CardTitle>
                         <CardDescription>
-                            Provide details about the driver's license.
+                            Provide details about the driver&apos;s license.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -443,7 +444,7 @@ export default function AddTeamMemberForm({ roles, permissions, vehicleTypes }: 
                 <CardHeader>
                     <CardTitle>Additional Permissions</CardTitle>
                     <CardDescription>
-                        Grant extra permissions beyond the role's default access.
+                        Grant extra permissions beyond the role&apos;s default access.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>

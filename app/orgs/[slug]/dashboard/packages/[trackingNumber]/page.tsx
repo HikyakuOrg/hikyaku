@@ -6,7 +6,7 @@ import { getDriversByIds } from "@/lib/supabase/supabase-rpc"
 import { useParams } from "next/navigation"
 import { useEffect, useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { Printer, Package as PackageIcon, Warehouse as WarehouseIcon, User, Truck, MapPin, AlertCircle } from "lucide-react"
+import { Printer, Package as PackageIcon, Warehouse as WarehouseIcon, MapPin, AlertCircle } from "lucide-react"
 import { PackageLabel, downloadLabelAsPNG } from "@/components/package-label"
 
 import { PackageStatus } from "@/app/models/package-status"

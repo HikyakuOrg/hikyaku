@@ -2,7 +2,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Packages } from "@/app/models/packages";
 import { PackageIcon } from "@phosphor-icons/react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 
 export function PackageCard({ packageProps, onClick }: { packageProps: Packages, onClick: () => void }) {

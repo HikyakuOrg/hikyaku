@@ -83,8 +83,10 @@ export function VehicleCard({ vehicle, href, className }: VehicleCardProps) {
                     </div>
                 ) : (
                     <div className="relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- Expiring Supabase signed URL. */}
                         <img
                             src={images[index]}
+                            alt={`${vehicle.vehicle_plate || 'Vehicle'} photo ${index + 1} of ${images.length}`}
                             className="w-full h-48 object-cover rounded-md"
                         />
                         {images.length > 1 && (

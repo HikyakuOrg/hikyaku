@@ -7,4 +7,3 @@ test("root redirects an authenticated user into their dashboard", async ({ page 
     expect(response?.ok()).toBeTruthy();
     await expect(page).toHaveURL(/\/orgs\/[^/]+\/dashboard/, { timeout: 15_000 });
 });
-``

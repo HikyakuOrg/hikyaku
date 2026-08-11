@@ -1,9 +1,31 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from 'react'
 import { useDropzone, type FileError, type FileRejection } from 'react-dropzone'
 
 import { createLazyClient } from '@/lib/supabase/client'
 
 const supabase = createLazyClient()
+
+/** Stable identity so deriving "no errors" doesn't churn downstream memoization. */
+const noErrors: { name: string; message: string }[] = []
+
+/**
+ * react-dropzone tags every file of an over-limit drop with `too-many-files`. Once the
+ * set is back within the limit that rejection no longer applies, so it is cleared on
+ * write instead of being rewritten from an effect.
+ */
+function clearStaleTooManyFilesErrors(files: FileWithPreview[], maxFiles: number) {
+  if (files.length > maxFiles) {
+    return files
+  }
+
+  for (const file of files) {
+    if (file.errors.some((e) => e.code === 'too-many-files')) {
+      file.errors = file.errors.filter((e) => e.code !== 'too-many-files')
+    }
+  }
+
+  return files
+}
 
 interface FileWithPreview extends File {
   preview?: string
@@ -64,10 +86,23 @@ const useSupabaseUpload = (options: UseSupabaseUploadOptions) => {
     upsert = false,
   } = options
 
-  const [files, setFiles] = useState<FileWithPreview[]>([])
+  const [files, setFilesState] = useState<FileWithPreview[]>([])
   const [loading, setLoading] = useState<boolean>(false)
-  const [errors, setErrors] = useState<{ name: string; message: string }[]>([])
+  const [uploadErrors, setErrors] = useState<{ name: string; message: string }[]>([])
   const [successes, setSuccesses] = useState<string[]>([])
+
+  // Upload errors only describe the current file set, so clearing the files clears
+  // them. Derived during render rather than reset from an effect.
+  const errors = files.length === 0 ? noErrors : uploadErrors
+
+  const setFiles = useCallback<Dispatch<SetStateAction<FileWithPreview[]>>>(
+    (update) => {
+      setFilesState((prev) =>
+        clearStaleTooManyFilesErrors(typeof update === 'function' ? update(prev) : update, maxFiles)
+      )
+    },
+    [maxFiles]
+  )
 
   const isSuccess = useMemo(() => {
     if (errors.length === 0 && successes.length === 0) {
@@ -111,7 +146,9 @@ const useSupabaseUpload = (options: UseSupabaseUploadOptions) => {
     multiple: maxFiles !== 1,
   })
 
-  const onUpload = useCallback(async () => {
+  // Not memoized: it is only ever used as a click handler, and its dependency set
+  // (every file plus every option) changes on nearly every render anyway.
+  const onUpload = async () => {
     setLoading(true)
 
     // [Joshen] This is to support handling partial successes
@@ -152,28 +189,7 @@ const useSupabaseUpload = (options: UseSupabaseUploadOptions) => {
     setSuccesses(newSuccesses)
 
     setLoading(false)
-  }, [files, path, bucketName, errors, successes])
-
-  useEffect(() => {
-    if (files.length === 0) {
-      setErrors([])
-    }
-
-    // If the number of files doesn't exceed the maxFiles parameter, remove the error 'Too many files' from each file
-    if (files.length <= maxFiles) {
-      let changed = false
-      const newFiles = files.map((file) => {
-        if (file.errors.some((e) => e.code === 'too-many-files')) {
-          file.errors = file.errors.filter((e) => e.code !== 'too-many-files')
-          changed = true
-        }
-        return file
-      })
-      if (changed) {
-        setFiles(newFiles)
-      }
-    }
-  }, [files.length, setFiles, maxFiles])
+  }
 
   return {
     files,

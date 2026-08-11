@@ -22,13 +22,13 @@ export default function EditVehiclePage() {
         if (id) {
             getVehicle(id)
                 .then(setVehicle)
-                .catch((err) => {
+                .catch(() => {
                     toast.error('Failed to load vehicle data')
                     router.push(`/orgs/${slug}/dashboard/fleet/vehicles`)
                 })
                 .finally(() => setIsLoading(false))
         }
-    }, [id, router])
+    }, [id, router, slug])
 
     const handleSubmit = async (values: VehicleFormValues, newFiles: File[]) => {
         setIsSubmitting(true)

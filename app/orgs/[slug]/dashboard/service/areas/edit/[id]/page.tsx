@@ -62,7 +62,7 @@ export default function EditServiceAreaPage() {
         return () => {
             isMounted = false
         }
-    }, [id, router])
+    }, [id, router, slug])
 
     const handleSubmit = async ({ name, polygon }: ServiceAreaFormValues) => {
         if (!serviceArea) {

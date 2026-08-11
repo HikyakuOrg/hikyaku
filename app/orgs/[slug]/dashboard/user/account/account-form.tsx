@@ -30,14 +30,13 @@ const accountSchema = z
 type AccountValues = z.infer<typeof accountSchema>
 
 export function AccountForm() {
-    const supabase = createClient()
-
     const form = useForm<AccountValues>({
         resolver: zodResolver(accountSchema),
         defaultValues: { displayName: "", password: "", confirmPassword: "" },
     })
 
     useEffect(() => {
+        const supabase = createClient()
         supabase.auth.getUser().then(({ data }) => {
             form.reset({
                 displayName: data.user?.user_metadata?.display_name ?? "",
@@ -45,7 +44,7 @@ export function AccountForm() {
                 confirmPassword: "",
             })
         })
-    }, [])
+    }, [form])
 
     async function onSubmit(values: AccountValues) {
         const supabase = createClient()

@@ -57,6 +57,7 @@ export function TableLayout<TData>({ data, columns, loading, pageSize, actions, 
         ]
         : columns
 
+    // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table's useReactTable() returns functions React Compiler cannot memoize; it skips this component.
     const table = useReactTable({
         data: data || [],
         columns: columnsWithSelection,

@@ -40,6 +40,7 @@ export function DriverTable({
                 return (
                     <div className="flex items-center gap-3">
                         {driver.avatar_url && (
+                            // eslint-disable-next-line @next/next/no-img-element -- Supabase storage URL resolved at runtime.
                             <img
                                 src={driver.avatar_url}
                                 alt={driver.display_name}

@@ -21,7 +21,6 @@ export async function updateServiceArea(id: string, name: string, geometry: stri
 import { QueryData, RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { createLazyClient } from "./client";
 import { Database, Tables, TablesInsert } from "./supabase";
-import { PackageOptimisation } from "@/app/models/package-optimisation";
 import { TrackingLocationBroadcast } from "@/app/models/tracking";
 
 
@@ -215,7 +214,7 @@ export async function getWarehouses(page: number, pageSize: number) {
     const from = (page - 1) * pageSize
     const to = from + pageSize - 1
 
-    const { data, error, count } = await supabase.from("warehouse").select("*", { count: 'exact' }).range(from, to)
+    const { data, count } = await supabase.from("warehouse").select("*", { count: 'exact' }).range(from, to)
     return { data: data ?? [], total: count ?? 0 }
 }
 
@@ -430,7 +429,7 @@ export async function getVehicleWithFullDetails(id: string) {
     if (vError) throw vError;
 
     // 2. Get current driver assignment
-    const { data: assignment, error: aError } = await supabase
+    const { data: assignment } = await supabase
         .from('driver_vehicle_assignment')
         .select(`
             driver_id
@@ -441,7 +440,7 @@ export async function getVehicleWithFullDetails(id: string) {
     let driver = null
     if (assignment?.driver_id) {
         // Fetch driver info using RPC or separate query to get user details
-        const { data: drivers, error: dError } = await supabase
+        const { data: drivers } = await supabase
             .rpc('get_drivers_by_ids', { p_driver_ids: [assignment.driver_id] })
 
         if (drivers && drivers.length > 0) {

@@ -222,7 +222,7 @@ export function ServiceAreasMap({ initialBounds }: ServiceAreasMapProps) {
             map.remove()
             mapRef.current = null
         }
-    }, [initialBounds, router])
+    }, [initialBounds, router, slug])
 
     if (!initialBounds) {
         return (

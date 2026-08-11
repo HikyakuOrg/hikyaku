@@ -20,17 +20,19 @@ type Props<T extends FieldValues> = {
     initialSelectedCustomer?: Customer | null
 }
 
-export function CustomerSelector<T extends FieldValues = any>({ name, control, customerSelected, initialSelectedCustomer }: Props<T>) {
+export function CustomerSelector<T extends FieldValues = FieldValues>({ name, control, customerSelected, initialSelectedCustomer }: Props<T>) {
     const [searchTerm, setSearchTerm] = useState("")
     const [results, setResults] = useState<Customer[]>([])
-    const [selected, setSelected] = useState<Customer | null>(initialSelectedCustomer ?? null)
     const [isLoading, setIsLoading] = useState(false)
 
-    useEffect(() => {
-        if (initialSelectedCustomer) {
-            setSelected(initialSelectedCustomer)
-        }
-    }, [initialSelectedCustomer])
+    // The parent owns the selected customer (it receives every pick via
+    // `customerSelected` and feeds it back as `initialSelectedCustomer`).
+    // `clearedSelection` records the value the user has typed over, so the input stays
+    // editable without mirroring the parent's state into a second source of truth.
+    const [clearedSelection, setClearedSelection] = useState<Customer | null>(null)
+    const selected = initialSelectedCustomer && initialSelectedCustomer !== clearedSelection
+        ? initialSelectedCustomer
+        : null
 
     useEffect(() => {
         const timeout = setTimeout(async () => {
@@ -58,7 +60,7 @@ export function CustomerSelector<T extends FieldValues = any>({ name, control, c
                     value={selected}
                     onValueChange={(customer) => {
                         if (customer) {
-                            setSelected(customer)
+                            setClearedSelection(null)
                             setSearchTerm(customer?.customer_name ?? "")
                             field.onChange(customer?.id)
                             customerSelected(customer)
@@ -75,7 +77,7 @@ export function CustomerSelector<T extends FieldValues = any>({ name, control, c
                             setSearchTerm(value)
 
                             if (selected) {
-                                setSelected(null)
+                                setClearedSelection(selected)
                                 field.onChange("")
                             }
                         }}

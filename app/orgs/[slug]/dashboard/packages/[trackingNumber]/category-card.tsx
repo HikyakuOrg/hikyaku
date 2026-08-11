@@ -34,7 +34,7 @@ export function CategoryCard({
             </CardHeader>
 
             <CardContent className="space-y-3">
-                {attributes.map((attr, index) => (
+                {attributes.map((attr) => (
                     <div key={attr.label}>
                         <div className="flex justify-between items-start gap-4">
                             <span className="text-sm text-muted-foreground">

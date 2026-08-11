@@ -70,6 +70,7 @@ export function ConnectedAppsList({ slug, apps }: { slug: string; apps: Connecte
                         <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                             <div className="flex min-w-0 gap-3">
                                 {app.logoUri ? (
+                                    // eslint-disable-next-line @next/next/no-img-element -- Arbitrary third-party client logo; not an allowlistable host for next/image.
                                     <img
                                         src={app.logoUri}
                                         alt=""

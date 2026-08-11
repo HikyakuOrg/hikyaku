@@ -52,8 +52,9 @@ function formatDateTime(input: string) {
 export default function CustomerDetailPage({ params }: CustomerDetailPageProps) {
     const { id } = use(params)
     const slug = useOrgSlug()
-    const [customer, setCustomer] = useState<Customer | null>(null)
-    const [status, setStatus] = useState<"loading" | "ready" | "not-found">("loading")
+    // Keyed by `id` so a pending request for a previous customer never renders as
+    // this one's data, and so "loading" is derived rather than reset in an effect.
+    const [result, setResult] = useState<{ id: string; customer: Customer | null } | null>(null)
 
     useEffect(() => {
         let active = true
@@ -66,19 +67,16 @@ export default function CustomerDetailPage({ params }: CustomerDetailPageProps) 
                     return
                 }
 
-                setCustomer(nextCustomer as Customer)
-                setStatus("ready")
+                setResult({ id, customer: nextCustomer as Customer })
             } catch {
                 if (!active) {
                     return
                 }
 
-                setStatus("not-found")
+                setResult({ id, customer: null })
             }
         }
 
-        setStatus("loading")
-        setCustomer(null)
         void loadCustomer()
 
         return () => {
@@ -86,11 +84,14 @@ export default function CustomerDetailPage({ params }: CustomerDetailPageProps) 
         }
     }, [id])
 
-    if (status === "not-found") {
+    const loaded = result?.id === id ? result : null
+    const customer = loaded?.customer ?? null
+
+    if (loaded && !customer) {
         notFound()
     }
 
-    if (status === "loading" || !customer) {
+    if (!customer) {
         return (
             <div className="h-[60vh] flex items-center justify-center">
                 <Loader2 className="w-10 h-10 animate-spin text-primary" />

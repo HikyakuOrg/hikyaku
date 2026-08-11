@@ -23,15 +23,23 @@ function emptyStatus(isLoading: boolean): DriverPresenceStatus {
 }
 
 export function useDriverPresenceStatus(driverId: string) {
-    const [status, setStatus] = useState<DriverPresenceStatus>(emptyStatus(Boolean(driverId)))
+    // Keyed by `driverId` so presence for a previous driver is never reported as this
+    // one's, which lets the "no driver"/"connecting" states be derived during render
+    // rather than reset synchronously inside the subscription effect.
+    const [presence, setPresence] = useState<{ driverId: string; status: DriverPresenceStatus } | null>(null)
+
+    const status = !driverId
+        ? emptyStatus(false)
+        : presence?.driverId === driverId
+            ? presence.status
+            : emptyStatus(true)
 
     useEffect(() => {
         if (!driverId) {
-            setStatus(emptyStatus(false))
             return
         }
 
-        setStatus(emptyStatus(true))
+        const setStatus = (next: DriverPresenceStatus) => setPresence({ driverId, status: next })
 
         const channel = supabase.channel(`driver-presence:${driverId}`)
 

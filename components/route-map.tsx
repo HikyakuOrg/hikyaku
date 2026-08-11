@@ -85,6 +85,16 @@ export function RouteMap({
     const markersRef = useRef<{ element: HTMLElement; marker: maplibregl.Marker; type: "start" | "end" | "job" }[]>([])
     const driverMarkerRef = useRef<maplibregl.Marker | null>(null)
 
+    // Both values are only read when a marker is first created. Held in refs so a
+    // moving driver never rebuilds the map and a toggle never resubscribes; the
+    // layer-visibility effect further down is what reacts to `showDriver`.
+    const driverLocationRef = useRef(driverLocation)
+    const showDriverRef = useRef(showDriver)
+    useEffect(() => {
+        driverLocationRef.current = driverLocation
+        showDriverRef.current = showDriver
+    })
+
     useEffect(() => {
         if (!mapContainer.current || mapRef.current) return
 
@@ -171,13 +181,14 @@ export function RouteMap({
             bounds.extend(coords)
         })
 
-        if (driverLocation) {
+        const initialDriverLocation = driverLocationRef.current
+        if (initialDriverLocation) {
             const el = driverMarker()
             const marker = new maplibregl.Marker({ element: el, anchor: "center" })
-                .setLngLat(driverLocation)
+                .setLngLat(initialDriverLocation)
                 .addTo(map)
             driverMarkerRef.current = marker
-            bounds.extend(driverLocation)
+            bounds.extend(initialDriverLocation)
 
             const popup = new maplibregl.Popup({
                 offset: [0, -14],
@@ -292,7 +303,7 @@ export function RouteMap({
                     const marker = new maplibregl.Marker({ element: driverMarker(), anchor: "center" })
                         .setLngLat(coords)
                         .addTo(map)
-                    marker.getElement().style.display = showDriver ? "block" : "none"
+                    marker.getElement().style.display = showDriverRef.current ? "block" : "none"
                     driverMarkerRef.current = marker
                 }
             } catch (e) {

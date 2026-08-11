@@ -7,7 +7,7 @@ export function DashboardHeader({ slug }: { slug: string }) {
             <div>
                 <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
                 <p className="text-muted-foreground">
-                    Welcome back! Here's an overview of your logistics operations.
+                    Welcome back! Here&apos;s an overview of your logistics operations.
                 </p>
             </div>
             <div className="flex items-center gap-2">

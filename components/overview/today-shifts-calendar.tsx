@@ -84,7 +84,8 @@ function makeLocalizer(tag: string, locale: Locale) {
 
 export function TodayShiftsCalendar() {
     const slug = useOrgSlug()
-    const today = new Date()
+    // Pinned at mount so the fetch effect below has a stable dependency.
+    const [today] = useState(() => new Date())
     const [events, setEvents] = useState<DeliveryRouteByDate[]>([])
     const [loading, setLoading] = useState(true)
     const [localizer] = useState(() => {
@@ -111,7 +112,7 @@ export function TodayShiftsCalendar() {
             setLoading(false)
         }
         fetchEvents()
-    }, [])
+    }, [today])
 
     return (
         <Card className="col-span-1 lg:col-span-3">

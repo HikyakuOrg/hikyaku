@@ -51,6 +51,7 @@ export function PackageStep({
         defaultValues: initial,
     })
 
+    // eslint-disable-next-line react-hooks/incompatible-library -- react-hook-form's form.watch() returns a value React Compiler cannot memoize; it skips this component.
     const weightUnit = form.watch("weightUnit")
     const selectedServiceId = form.watch("serviceId")
     const hasServices = services.length > 0

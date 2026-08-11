@@ -18,23 +18,32 @@ interface WarehouseVehicleSheetProp {
 export function WarehouseVehicleSheet({ warehouseId, onVehicleAdded, vehicleTypes }: WarehouseVehicleSheetProp) {
 
     const [totalPages, setTotalPages] = useState(1)
-    const [loading, setLoading] = useState(true)
     const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
     const [vehicles, setVehicles] = useState<VehiclesWithTypes[]>([])
     const [currentPage, setCurrentPage] = useState(1);
-    
+
     const PAGE_SIZE = 8
 
+    // `loadedPage` marks which page the current `vehicles` belong to, so the loading
+    // flag is derived instead of being reset synchronously inside the effect.
+    const [loadedPage, setLoadedPage] = useState<number | null>(null)
+    const loading = loadedPage !== currentPage
 
     useEffect(() => {
-        setLoading(true)
+        let active = true
+
         const fetchVehicles = async () => {
             const vehicles = await getVehiclesNotAssigned(currentPage, PAGE_SIZE)
+            if (!active) return
             setVehicles(vehicles.data)
             setTotalPages(Math.ceil(vehicles.total / PAGE_SIZE))
-            setLoading(false)
+            setLoadedPage(currentPage)
         }
         fetchVehicles()
+
+        return () => {
+            active = false
+        }
     }, [currentPage])
 
     return (

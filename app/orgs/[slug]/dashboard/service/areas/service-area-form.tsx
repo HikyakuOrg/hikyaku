@@ -377,12 +377,6 @@ export function ServiceAreaForm({
     }, [initialName])
 
     useEffect(() => {
-        setPolygon(initialPolygon)
-        setActiveMode(initialPolygon ? "select" : "polygon")
-        setUploadedGeoJsonName(null)
-    }, [])
-
-    useEffect(() => {
         if (!mapContainerRef.current || mapRef.current) {
             return
         }

@@ -12,7 +12,6 @@ import { Tables } from '@/lib/supabase/supabase';
 import { RowSelectionState } from '@tanstack/react-table';
 import { toast } from 'sonner';
 import { getErrorMessage } from '@/lib/utils';
-import { Separator } from '@/components/ui/separator';
 
 
 export function FleetInventory() {
@@ -24,20 +23,30 @@ export function FleetInventory() {
     const [vehicleTypes, setVehicleTypes] = useState<Tables<'vehicle_type'>[]>([])
     const itemsPerPage = 20;
     const [totalPages, setTotalPages] = useState(0)
-    const [loading, setLoading] = useState(true)
     const router = useRouter()
     const slug = useOrgSlug()
     const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
 
+    // `loadedKey` marks which filter/page the current `vehicles` belong to, so the
+    // loading flag is derived instead of being reset synchronously inside the effect.
+    const requestKey = `${currentPage}|${vehicleTypeFilter.join(",")}`
+    const [loadedKey, setLoadedKey] = useState<string | null>(null)
+    const loading = loadedKey !== requestKey
+
     useEffect(() => {
-        setLoading(true)
+        let active = true
+
         getVehiclesByType(vehicleTypeFilter, currentPage, itemsPerPage).then((data) => {
+            if (!active) return
             setTotalPages(Math.ceil(data.total / itemsPerPage))
             setVehicles(data.data)
-            setLoading(false)
+            setLoadedKey(requestKey)
         })
 
-    }, [vehicleTypeFilter, currentPage])
+        return () => {
+            active = false
+        }
+    }, [vehicleTypeFilter, currentPage, requestKey])
 
     
     useEffect(() => {

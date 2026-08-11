@@ -29,22 +29,34 @@ export default function DriverDetailsPage() {
 
     const [driver, setDriver] = useState<ListDriverDto | null>(null)
     const [packages, setPackages] = useState<DriverPackageRow[]>([])
-    const [loading, setLoading] = useState(true)
     const router = useRouter()
     const { location } = useDriverLocationUpdates(driverId ?? "")
     const { isOnline, isLoading: isPresenceLoading } = useDriverPresenceStatus(driverId ?? "")
 
+    // `loadedDriverId` marks which driver the current `driver` belongs to, so the
+    // loading flag is derived instead of being reset synchronously inside the effect.
+    const [loadedDriverId, setLoadedDriverId] = useState<string | null>(null)
+    const loading = loadedDriverId !== driverId
+
     useEffect(() => {
         if (!driverId) return
 
-        setLoading(true)
+        let active = true
 
         getDriversByIds([driverId])
             .then((arr) => {
+                if (!active) return
                 if (arr && arr.length > 0) setDriver(arr[0])
             })
             .catch((e) => console.error("Error fetching driver", e))
-            .finally(() => setLoading(false))
+            .finally(() => {
+                if (!active) return
+                setLoadedDriverId(driverId)
+            })
+
+        return () => {
+            active = false
+        }
     }, [driverId])
 
     useEffect(() => {
@@ -77,10 +89,6 @@ export default function DriverDetailsPage() {
             </div>
         )
     }
-
-    const deliveredCount = packages.filter(
-        (p) => p.package?.current_status === "Delivered"
-    ).length
 
 
     return (

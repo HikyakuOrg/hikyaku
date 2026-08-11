@@ -13,7 +13,7 @@ export async function createBooking(formData: BookingFormData, orgId: string, se
         throw new Error("Missing required booking data")
     }
 
-    const { package: pkg, addresses, schedule } = formData
+    const { package: pkg, schedule } = formData
 
     // Create package record
     const { data: packageData, error: packageError } = await supabase

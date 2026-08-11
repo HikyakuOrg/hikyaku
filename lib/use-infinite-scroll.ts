@@ -26,7 +26,12 @@ export function useInfiniteScroll<T extends HTMLElement = HTMLDivElement>({
 }: UseInfiniteScrollOptions) {
     const sentinelRef = useRef<T | null>(null)
     const onLoadMoreRef = useRef(onLoadMore)
-    onLoadMoreRef.current = onLoadMore
+
+    // Refs may only be written outside render. The observer reads `.current` when the
+    // sentinel intersects, which is always after a commit, so this stays current.
+    useEffect(() => {
+        onLoadMoreRef.current = onLoadMore
+    })
 
     useEffect(() => {
         const sentinel = sentinelRef.current

@@ -16,7 +16,6 @@ import { removeDriversWarehouse } from "@/lib/supabase/db"
 import { toast } from "sonner"
 import { getErrorMessage } from "@/lib/utils"
 import { WarehouseVehiclesDialog } from "./warehouse-vehicles-dialog"
-import { Button } from "@/components/ui/button"
 
 
 
@@ -53,7 +52,7 @@ export function WarehouseDriverCard({ warehouseId }: { warehouseId: string }) {
 
         fetchDrivers()
 
-    }, [warehouseId, isDialogOpen])
+    }, [warehouseId, isDialogOpen, page])
 
     const columns: ColumnDef<ListDriverDto>[] = [
         {

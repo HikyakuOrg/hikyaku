@@ -14,8 +14,6 @@ import { Tables } from "@/lib/supabase/supabase"
 import { searchWarehouse } from "@/lib/supabase/db"
 import { Location } from "@/app/models/package-optimisation"
 
-type Point = { coordinates: [number, number] }
-
 export interface WarehouseStepData {
     warehouseId: string
     warehouseName: string
@@ -23,7 +21,6 @@ export interface WarehouseStepData {
 }
 
 export function WarehouseStep({
-    defaultValues,
     onNext,
 }: {
     defaultValues?: WarehouseStepData

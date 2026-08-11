@@ -4,7 +4,6 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { addDays, format } from "date-fns"
-import { CardFooter } from "@/components/ui/card"
 
 export interface DateStepData {
     date: string // YYYY-MM-DD

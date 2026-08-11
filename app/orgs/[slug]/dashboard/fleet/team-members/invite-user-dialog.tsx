@@ -62,6 +62,7 @@ export function InviteUserDialog({
         defaultValues: { email: "", role: "", permissions: [] },
     })
 
+    // eslint-disable-next-line react-hooks/incompatible-library -- react-hook-form's form.watch() returns a value React Compiler cannot memoize; it skips this component.
     const selectedPermissions = form.watch("permissions") ?? []
 
     const permissionGroups = permissions.reduce<Record<string, AppPermission[]>>((acc, p) => {

@@ -1,4 +1,4 @@
-import { PackageStatus, STATUS_OPTIONS } from "@/app/models/package-status"
+import { PackageStatus } from "@/app/models/package-status"
 import { createServiceAreaFeatureCollection, emptyServiceAreaFeatureCollection } from "@/lib/maps/service-area-geometry"
 import { Tables } from "./supabase"
 import { createClient } from "./server"
@@ -267,7 +267,7 @@ export async function getWarehouseSummaries() {
     }
 
     const summaries = await Promise.all(warehouses.map(async (w) => {
-        const { count, error } = await supabase
+        const { count } = await supabase
             .from('packages_with_latest_status')
             .select('*', { count: 'exact', head: true })
             .eq('warehouse_id', w.id)

@@ -79,7 +79,7 @@ export function WarehouseVehicleCard({ warehouseId }: { warehouseId: string }) {
                         setLoading(true)
                         setCurrentPage(page)
                     }}
-                    handleDelete={async (row) => {
+                    handleDelete={async () => {
                         handleDelete()
                     }}
                     rowSelection={rowSelection}

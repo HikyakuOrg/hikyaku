@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { getVehicleTypes, getWarehouses } from '@/lib/supabase/db'
 import { toast } from 'sonner'
-import { Loader2, CheckCircle2, AlertCircle, X, Image as ImageIcon } from 'lucide-react'
+import { Loader2, CheckCircle2, AlertCircle, X } from 'lucide-react'
 import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/dropzone'
 import { useSupabaseUpload } from '@/hooks/use-supabase-upload'
 import { createClient } from '@/lib/supabase/client'
@@ -42,7 +42,7 @@ interface VehicleFormProps {
     submitLabel: string
 }
 
-export function VehicleForm({ initialData, onSubmit, isSubmitting, title, description, submitLabel }: VehicleFormProps) {
+export function VehicleForm({ initialData, onSubmit, isSubmitting, submitLabel }: VehicleFormProps) {
     const router = useRouter()
     const [isDecoding, setIsDecoding] = useState(false)
     const [isAutoPopulated, setIsAutoPopulated] = useState(!!initialData)
@@ -313,6 +313,7 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, title, descri
                             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                                 {existingImages.map((img) => (
                                     <div key={img.name} className="group relative aspect-square rounded-lg border overflow-hidden bg-muted">
+                                        {/* eslint-disable-next-line @next/next/no-img-element -- Expiring Supabase signed URL. */}
                                         <img src={img.url} alt="Vehicle" className="object-cover w-full h-full transition group-hover:scale-105" />
                                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
                                             <Button

@@ -6,8 +6,6 @@ import { createVehicle } from '@/lib/supabase/db'
 import { TablesInsert } from '@/lib/supabase/supabase'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/lib/utils'
-import { ChevronLeft } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import { VehicleForm, VehicleFormValues } from '../components/vehicle-form'
 

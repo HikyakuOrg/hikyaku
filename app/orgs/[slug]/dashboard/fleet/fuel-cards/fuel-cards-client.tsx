@@ -380,25 +380,33 @@ export function FuelCardsClient() {
     }, [])
 
     useEffect(() => {
-        setLoading(true)
-        Promise.all([
-            fetchCards(),
-            getTeamMembers(1, 200).then((members) =>
-                setDrivers(members.filter((m) => m.role === "Driver")),
-            ),
-            getVehiclesByType([], 1, 200).then((res) => setVehicles(res.data as VehicleOption[])),
-            getConnectStatus().then((res) => {
-                if (res.success) {
-                    const active = res.data.cardIssuingStatus === "active"
-                    setIssuingActive(active)
-                    if (active) {
-                        getIssuingBalance().then((r) => {
-                            if (r.success) setBalance(r.data)
-                        })
-                    }
-                }
-            }),
-        ]).finally(() => setLoading(false))
+        const load = async () => {
+            const [members, vehiclesResult, connectResult] = await Promise.all([
+                getTeamMembers(1, 200),
+                getVehiclesByType([], 1, 200),
+                getConnectStatus(),
+                fetchCards(),
+            ])
+
+            setDrivers(members.filter((m) => m.role === "Driver"))
+            setVehicles(vehiclesResult.data as VehicleOption[])
+
+            if (!connectResult.success) {
+                return
+            }
+
+            const active = connectResult.data.cardIssuingStatus === "active"
+            setIssuingActive(active)
+
+            if (!active) {
+                return
+            }
+
+            const balanceResult = await getIssuingBalance()
+            if (balanceResult.success) setBalance(balanceResult.data)
+        }
+
+        load().finally(() => setLoading(false))
     }, [fetchCards])
 
     const showFunding = () => {

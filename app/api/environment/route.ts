@@ -1,6 +1,6 @@
 
 
-export async function GET(request: Request) { 
+export async function GET() {
     const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY;
     const HIKYAKU_API_URL = process.env.NEXT_PUBLIC_HIKYAKU_API_URL;

@@ -105,6 +105,7 @@ export function CustomerInfo({ onNext, onPrev, defaultValues }: {
                                 initialSelectedCustomer={selectedSenderCustomer}
                             />
 
+                            {/* eslint-disable-next-line react-hooks/incompatible-library -- react-hook-form's form.watch() returns a value React Compiler cannot memoize; it skips this component. */}
                             {!form.watch("senderId") && (
                                 <div className="border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl p-8 flex flex-col items-center justify-center bg-slate-50/50 dark:bg-slate-900/30 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                                     onClick={() => {

@@ -2,7 +2,7 @@
 import type { Feature, FeatureCollection, Geometry, MultiPolygon, Polygon, Position } from "geojson"
 
 // Converts GeoJSON Polygon feature to EWKT
-export function polygonFeatureToEwkt(feature: Feature<Polygon, any>) {
+export function polygonFeatureToEwkt(feature: Feature<Polygon>) {
     const rings = feature.geometry.coordinates.map(ring => {
         const normalizedRing = [...ring]
         const [firstLng, firstLat] = normalizedRing[0]

@@ -36,11 +36,6 @@ export function OverviewStep({
 
     const shiftDate = parseISO(date.date + "T00:00:00")
 
-    // Weight check
-    const totalWeight = packagesRoute.orderedPackages.reduce((sum, op) => {
-        return sum + 0 // We don't have weight in orderedPackages; calculated from the package list above
-    }, 0)
-
     // Validation checks
     const licenseExpired = driverVehicle.licenseExpiry
         ? isBefore(parseISO(driverVehicle.licenseExpiry), shiftDate)

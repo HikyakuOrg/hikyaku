@@ -2,7 +2,6 @@
 
 import { ColumnDef } from "@tanstack/react-table"
 import { TableLayout } from "@/components/table-layout"
-import { Badge } from "@/components/ui/badge"
 import { ListTeamMemberDto } from "@/lib/supabase/team-rpc"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 

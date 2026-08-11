@@ -35,33 +35,45 @@ export default function DriverPage() {
         ? new Date(driver.license_expiry)
         : undefined
     const [avatarFile, setAvatarFile] = useState<File | undefined>(undefined)
-    const [vehicleType, setVehicleType] = useState("")
+    const [vehicleType] = useState("")
     const [savedVehicleTypes, setSavedVeichletypes] = useState<Tables<'vehicle_type'>[]>([])
 
     useEffect(() => {
-        if (driverId) {
-            fetchDriver(driverId.toString())
-            fetchVehicleTypes()
+        if (!driverId) {
+            return
+        }
+
+        let active = true
+
+        const load = async () => {
+            const [driverList, vehicleTypes] = await Promise.all([
+                getDriversByIds([driverId.toString()]),
+                getVehicleTypes(),
+            ])
+
+            if (!active) {
+                return
+            }
+
+            setSavedVeichletypes(vehicleTypes)
+
+            if (driverList.length > 0) {
+                const driver = driverList[0]
+                setDriver(driver)
+                setDriverName(driver?.display_name ?? "")
+                setDriverEmail(driver?.email ?? "")
+                setPhone(driver?.phone_number ?? "")
+                setLicense(driver?.driver_license ?? "")
+                setLicenseExpiry(driver?.license_expiry ? new Date(driver.license_expiry) : undefined)
+            }
+        }
+
+        void load()
+
+        return () => {
+            active = false
         }
     }, [driverId])
-
-    async function fetchDriver(driverId: string) {
-        const driverList = await getDriversByIds([driverId])
-        if (driverList.length > 0) {
-            const driver = driverList[0]
-            setDriver(driver)
-            setDriverName(driver?.display_name ?? "")
-            setDriverEmail(driver?.email ?? "")
-            setPhone(driver?.phone_number ?? "")
-            setLicense(driver?.driver_license ?? "")
-            setLicenseExpiry(driver?.license_expiry ? new Date(driver.license_expiry) : undefined)
-        }
-    }
-
-    async function fetchVehicleTypes() {
-        const vehicleTypes = await getVehicleTypes()
-        setSavedVeichletypes(vehicleTypes)
-    }
 
     async function updateDriverDetails(driverId: string | undefined) {
         if (!driverId) {
@@ -100,6 +112,7 @@ export default function DriverPage() {
             <TeamMemberNameCrumb teamMemberName={driver?.display_name || ""} />
             {driver?.avatar_url ? (
                 <div className="relative w-28 h-28">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- Supabase storage URL resolved at runtime. */}
                     <img
                         src={driver?.avatar_url}
                         alt={driver?.display_name || "Driver Avatar"}

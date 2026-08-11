@@ -21,12 +21,6 @@ interface TeamMembersListProps {
     orgId: string | null
 }
 
-const ROLE_DESCRIPTIONS: Record<string, string> = {
-    Manager: "Managers have access to the entire organisation. They can edit and manage all project and organisation settings, manage members as well as security settings.",
-    Driver: "Drivers can access delivery and route information assigned to them. They cannot edit organisation settings or manage other team members.",
-    Dispatcher: "Dispatchers can manage package assignments and driver shifts. However, they cannot edit organisation settings or manage billing.",
-}
-
 export function TeamMembersList({ canAdd, canEdit, canDelete, roles, permissions, orgId }: TeamMembersListProps) {
     const router = useRouter()
     const slug = useOrgSlug()

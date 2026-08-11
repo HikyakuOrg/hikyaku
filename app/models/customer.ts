@@ -1,6 +1,9 @@
 
 
 
+// Ambient global: this file has no imports/exports, so `Customer` is available
+// project-wide without an import. ESLint cannot see those cross-file uses.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface Customer {
     organisation_id: string;
     customer_address: string;

@@ -1,4 +1,4 @@
-import { Controller, Control, useForm } from "react-hook-form"
+import { Controller, useForm } from "react-hook-form"
 import { LogisticsAssignmentFormValues, logisticsAssignmentSchema } from "./add-package-schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -25,7 +25,6 @@ import {
 import { format, parseISO } from "date-fns"
 import { ChevronDownIcon, XIcon } from "lucide-react"
 import { toast } from "sonner";
-import { InputGroupTextarea } from "@/components/ui/input-group";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -199,7 +198,7 @@ export function LogisticsAssignmentStep({ onNext, onPrev, defaultValues }: {
                         <Controller
                             name="trackingNumber"
                             control={form.control}
-                            render={({ field, fieldState }) => (
+                            render={({ field }) => (
                                 <Field>
                                     <FieldLabel htmlFor="trackingNumber">Tracking Number</FieldLabel>
                                     <Input
@@ -218,7 +217,7 @@ export function LogisticsAssignmentStep({ onNext, onPrev, defaultValues }: {
                         <Controller
                             name="deliveryNotes"
                             control={form.control}
-                            render={({ field, fieldState }) => (
+                            render={({ field }) => (
                                 <Field>
                                     <FieldLabel htmlFor="deliveryNotes">Delivery Notes</FieldLabel>
                                     <Textarea
@@ -300,6 +299,7 @@ export function LogisticsAssignmentStep({ onNext, onPrev, defaultValues }: {
                                 </div>
                             )}
                         />
+                        {/* eslint-disable-next-line react-hooks/incompatible-library -- react-hook-form's form.watch() returns a value React Compiler cannot memoize; it skips this component. */}
                         {form.watch("warehouseId") && (
                             <div className="bg-white dark:bg-slate-900 border border-primary/20 rounded-xl p-5 shadow-sm flex items-center justify-between">
                                 <div className="flex items-center gap-4">
