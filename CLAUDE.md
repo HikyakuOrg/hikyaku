@@ -39,7 +39,9 @@ Next.js 16 (App Router, `cacheComponents: true`), React 19, TypeScript (strict),
 
 **Stripe Connect.** Card issuing runs on **per-org Connect Custom accounts** (self-funded). Server actions are `lib/actions/connect.ts` (account onboarding) and `lib/actions/issuing.ts` (cards); the frontend uses `@stripe/connect-js` / `@stripe/react-connect-js`. (There is no `lib/stripe` directory.)
 
-**Backend API.** Some server-side calls hit a separate `whendan-api` backend via `WHENDAN_API_URL`, wrapped in `lib/api.ts` and `lib/api/*` (e.g. `payments.ts`, `service-fees.ts`).
+**Backend API.** Some server-side calls hit a separate `hikyaku-api` backend via `NEXT_PUBLIC_HIKYAKU_API_URL`, wrapped in `lib/api/*` (`payments.ts`, `routing.ts`, `services.ts`) and the server actions in `lib/actions/*` (which share auth/org headers via `lib/actions/api-client.ts`).
+
+**API models are generated, not hand-written.** `pnpm gen:api` regenerates `lib/api/generated.ts` from the live OpenAPI spec at https://api.hikyaku.org/api-docs (JSON at `/api-docs-json`) using `swagger-typescript-api`. That file is types-only and must never be edited. Shapes the spec does not describe go in `lib/api/manual.ts`; `lib/api/index.ts` re-exports both, so consumers just `import type { ... } from "@/lib/api"`. Prefer aliasing a generated DTO over redeclaring a request/response shape. Note the spec documents a 2xx body for only a handful of routes, so most responses have no generated type yet.
 
 ## UI conventions
 

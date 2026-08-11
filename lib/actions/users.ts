@@ -1,22 +1,10 @@
 "use server"
 
+import type { CreateUserDto } from "@/lib/api"
 import { getAccessToken, getApiUrl, parseApiError } from "./api-client"
 
-export interface CreateUserPayload {
-    user_email: string
-    user_display_name: string
-    user_phone_number: string
-    user_role: string
-    user_permission: string[]
-    user_avatar?: boolean
-    user_metadata?: {
-        driver_license?: string
-        license_expiry?: string
-        country_of_issue?: string
-        driver_under_probation?: boolean
-        license_type?: string
-    }
-}
+/** Body of `POST /api/v1/users`; `user_metadata` is required for the Driver role. */
+export type CreateUserPayload = CreateUserDto
 
 export interface CreateUserResult {
     success: true

@@ -1,5 +1,8 @@
 import { z } from "zod/v4"
+import type { PricingUnit } from "@/lib/pricing"
 
+// `satisfies` ties the form's options to the generated API union, so a unit the
+// backend drops or renames fails the build instead of erroring at request time.
 export const PRICING_UNITS = [
     "per_delivery",
     "per_km",
@@ -7,7 +10,7 @@ export const PRICING_UNITS = [
     "per_kg",
     "per_lb",
     "per_recipient",
-] as const
+] as const satisfies readonly PricingUnit[]
 
 // Services and add-ons share the same admin form (name + amount + billed-per).
 export const catalogItemSchema = z.object({

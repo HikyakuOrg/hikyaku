@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "gen:api": "swagger-typescript-api generate -p https://api.hikyaku.org/api-docs-json -o ./lib/api -n generated.ts --no-client --enum-style=union --extract-enums --sort-types",
     "test:e2e": "playwright test --project=chrome",
     "test:e2e:headed": "playwright test --project=chrome --headed",
     "test:e2e:ui": "playwright test --project=chrome --ui",
@@ -66,6 +67,7 @@
     "@types/react-dom": "19.2.3",
     "eslint": "^10.2.0",
     "eslint-config-next": "16.2.2",
+    "swagger-typescript-api": "^13.12.6",
     "tailwindcss": "^4.2.2",
     "typescript": "6.0.2"
   },

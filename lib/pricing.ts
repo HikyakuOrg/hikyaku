@@ -1,12 +1,8 @@
 import { formatCurrency } from "@/lib/currency"
+import type { CreateServiceDtoPricingUnitEnum } from "@/lib/api"
 
-export type PricingUnit =
-    | "per_delivery"
-    | "per_km"
-    | "per_mi"
-    | "per_kg"
-    | "per_lb"
-    | "per_recipient"
+/** Billing units the catalog endpoints accept, from the generated OpenAPI models. */
+export type PricingUnit = CreateServiceDtoPricingUnitEnum
 
 /** Options for the "Billed per" selector, in menu order. */
 export const PRICING_UNIT_OPTIONS: { value: PricingUnit; label: string }[] = [

@@ -1,35 +1,26 @@
 "use server"
 
 import { revalidatePath, updateTag } from "next/cache"
+import type {
+    CreateAddonDto,
+    CreateServiceDto,
+    CreateServiceDtoPricingUnitEnum,
+    UpdateServiceDto,
+} from "@/lib/api"
 import { type ActionError, buildApiContext, parseApiError } from "./api-client"
 
-export type PricingUnit =
-    | "per_delivery"
-    | "per_km"
-    | "per_mi"
-    | "per_kg"
-    | "per_lb"
-    | "per_recipient"
+export type PricingUnit = CreateServiceDtoPricingUnitEnum
 
-export interface CreateServiceInput {
-    name: string
-    amountMajor: number
-    pricingUnit: PricingUnit
-    currency?: string
-}
+export type CreateServiceInput = CreateServiceDto
 
-export interface CreateAddonInput {
-    name: string
-    amountMajor: number
-    pricingUnit: PricingUnit
-}
+export type CreateAddonInput = CreateAddonDto
 
-/** Edit a service/add-on. Only the supplied fields change; currency is fixed. */
-export interface UpdateCatalogItemInput {
-    name?: string
-    amountMajor?: number
-    pricingUnit?: PricingUnit
-}
+/**
+ * Edit a service/add-on. Only the supplied fields change; currency is fixed.
+ * Services and add-ons take the same patch body upstream (`UpdateServiceDto`
+ * and `UpdateAddonDto` are identical), so one type covers both forms.
+ */
+export type UpdateCatalogItemInput = UpdateServiceDto
 
 type ActionOk<T> = { success: true; data: T }
 
