@@ -11,10 +11,10 @@ import {
   clearPendingVerification,
   getPendingVerification,
   resolveOrgPath,
-  setPendingVerification,
   type VerificationIntent,
 } from '@/lib/auth/verify-flow'
 import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button-variants'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
@@ -22,7 +22,10 @@ const OTP_LENGTH = 8
 
 export function VerifyOtpForm({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
   const router = useRouter()
-  const [email, setEmail] = useState('')
+  // null means "not read yet". The distinction matters: an empty string is a
+  // real state (no pending verification on this device) with its own screen,
+  // and rendering that before the read would flash it at every visitor.
+  const [email, setEmail] = useState<string | null>(null)
   const [intent, setIntent] = useState<VerificationIntent>('signup')
   const [redirectTo, setRedirectTo] = useState<string | undefined>()
   const [otp, setOtp] = useState('')
@@ -41,6 +44,8 @@ export function VerifyOtpForm({ className, ...props }: React.ComponentPropsWitho
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!email) return
+
     const supabase = createClient()
     setIsLoading(true)
     setError(null)
@@ -71,19 +76,13 @@ export function VerifyOtpForm({ className, ...props }: React.ComponentPropsWitho
   }
 
   const handleResend = async () => {
+    if (!email) return
+
     const supabase = createClient()
     setError(null)
     setResendMessage(null)
 
-    if (!email) {
-      setError('Enter your email address first.')
-      return
-    }
-
     try {
-      // Keep the stored record in sync in case the user corrected the email here.
-      setPendingVerification(email, intent, redirectTo)
-
       // A signup confirmation and a passwordless sign-in mint codes through
       // different endpoints; resend() only covers the former.
       const { error: resendError } =
@@ -97,6 +96,31 @@ export function VerifyOtpForm({ className, ...props }: React.ComponentPropsWitho
     }
   }
 
+  // Waiting on the read above. Rendering either branch now would be a guess.
+  if (email === null) return null
+
+  // The code is bound to an address we were told about, so there is nothing to
+  // verify against if that record is gone (direct navigation, cleared storage).
+  // Without an editable field there is no way back from here except starting again.
+  if (email === '') {
+    return (
+      <div className={cn('flex flex-col gap-8', className)} {...props}>
+        <div className="flex flex-col gap-2">
+          <h1 className="font-[family-name:var(--font-display)] text-3xl font-extrabold tracking-tight">
+            Nothing to verify
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            This device has no sign-in waiting on a code. Request a new one and we&apos;ll bring
+            you straight back here.
+          </p>
+        </div>
+        <Link href="/auth/login" className={cn(buttonVariants({ size: 'lg' }), 'w-full')}>
+          Back to sign in
+        </Link>
+      </div>
+    )
+  }
+
   return (
     <div className={cn('flex flex-col gap-8', className)} {...props}>
       <div className="flex flex-col gap-2">
@@ -104,24 +128,13 @@ export function VerifyOtpForm({ className, ...props }: React.ComponentPropsWitho
           Check your email
         </h1>
         <p className="text-muted-foreground text-sm">
-          We sent an {OTP_LENGTH}-digit code to the address below. Enter it to{' '}
+          We sent an {OTP_LENGTH}-digit code to{' '}
+          <span className="text-foreground font-medium break-all">{email}</span>. Enter it to{' '}
           {intent === 'signin' ? 'sign in' : 'activate your account'}.
         </p>
       </div>
 
       <form onSubmit={handleVerify} className="flex flex-col gap-5">
-        <div className="grid gap-2">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            autoComplete="email"
-            placeholder="email@hikyaku.org"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </div>
         <div className="grid gap-2">
           <Label htmlFor="otp">Verification code</Label>
           <Input
@@ -162,6 +175,7 @@ export function VerifyOtpForm({ className, ...props }: React.ComponentPropsWitho
           </button>
         </p>
         <p>
+          Wrong address?{' '}
           <Link href="/auth/login" className="underline underline-offset-4">
             Back to sign in
           </Link>
