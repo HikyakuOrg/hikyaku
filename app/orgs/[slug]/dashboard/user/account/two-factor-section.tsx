@@ -6,7 +6,7 @@ import { toast } from "sonner"
 import { DeviceMobileIcon, KeyIcon } from "@phosphor-icons/react"
 
 import { createClient } from "@/lib/supabase/client"
-import { isWebAuthnSupported } from "@/lib/auth/webauthn-mfa"
+import { isWebAuthnMfaEnabled, isWebAuthnSupported } from "@/lib/auth/webauthn-mfa"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -185,7 +185,7 @@ export function TwoFactorSection() {
                         <Button type="button" variant="outline" onClick={() => setShowTotpDialog(true)}>
                             Add authenticator app
                         </Button>
-                        {isWebAuthnSupported() && (
+                        {isWebAuthnMfaEnabled && isWebAuthnSupported() && (
                             <Button type="button" variant="outline" onClick={() => setShowWebauthnDialog(true)}>
                                 Add security key
                             </Button>

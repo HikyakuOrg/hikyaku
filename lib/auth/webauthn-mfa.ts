@@ -12,6 +12,18 @@ export function isWebAuthnSupported(): boolean {
 }
 
 /**
+ * Whether the Supabase project has WebAuthn enrollment turned on
+ * (`mfa_web_authn_enroll_enabled`). There's no way to read this from the
+ * client at runtime — Supabase's public /auth/v1/settings endpoint doesn't
+ * expose per-MFA-factor state, only the Management API does, and the
+ * Dashboard doesn't surface a toggle for it yet either. So this is a manual
+ * flag: flip NEXT_PUBLIC_WEBAUTHN_MFA_ENABLED once you've enabled it
+ * server-side (see .env.example), rather than showing "Add security key" and
+ * letting the click fail with "MFA enroll is disabled for WebAuthn".
+ */
+export const isWebAuthnMfaEnabled = process.env.NEXT_PUBLIC_WEBAUTHN_MFA_ENABLED === 'true'
+
+/**
  * Maps a WebAuthn/Auth error to copy a user should see, rather than a raw
  * DOMException message. Used for both enrollment (register) and login-time
  * verification (authenticate) failures.
