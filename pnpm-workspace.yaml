@@ -1,0 +1,8 @@
+overrides:
+  "@cardog/corgi>better-sqlite3": "^12.9.0"
+
+allowBuilds:
+  better-sqlite3: true
+  msw: false
+  sharp: false
+  unrs-resolver: false
