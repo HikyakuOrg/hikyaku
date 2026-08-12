@@ -1,50 +1,17 @@
 "use server"
 
+import type { IssueCardDto, IssuingCardDto, IssuingTransactionDto } from "@/lib/api"
 import { type ActionError, buildApiContext, parseApiError } from "./api-client"
 
-export interface IssuingCard {
-    id: string
-    organisationId: string
-    cardholderId: string
-    vehicleId: string | null
-    stripeCardId: string
-    last4: string | null
-    type: string
-    currency: string
-    status: string
-    spendingLimitMinor: number | null
-    spendingInterval: string | null
-    createdAt: string
-    updatedAt: string
-}
+export type IssuingCard = IssuingCardDto
 
-export interface IssuingTransaction {
-    id: string
-    organisationId: string
-    cardId: string | null
-    cardholderId: string | null
-    vehicleId: string | null
-    driverId: string | null
-    stripeTransactionId: string
-    stripeAuthorizationId: string | null
-    type: string
-    amountMinor: number
-    currency: string
-    merchantName: string | null
-    merchantCategory: string | null
-    merchantCity: string | null
-    merchantCountry: string | null
-    authorizedAt: string | null
-    createdAt: string
-}
+export type IssuingTransaction = IssuingTransactionDto
 
-export interface IssueCardInput {
-    driverId: string
-    vehicleId?: string | null
-    spendingLimitMajor?: number | null
-    interval?: string
-    currency: string
-}
+/**
+ * Body of `POST /api/v1/issuing/cards`. `vehicleId` and `spendingLimitMajor` are
+ * optional rather than nullable: omit them, do not send null.
+ */
+export type IssueCardInput = IssueCardDto
 
 export async function listFuelCards(): Promise<
     { success: true; data: IssuingCard[] } | ActionError

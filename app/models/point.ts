@@ -3,7 +3,9 @@
 // project-wide without an import. ESLint cannot see those cross-file uses.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface Point {
-    type: string
+    // Literal, not `string`, so a Point is assignable to the generated GeoJSON
+    // DTOs (e.g. CustomerLocationDto) which pin this to "Point".
+    type: "Point"
     // lng, lat
     coordinates: [number, number]
 }

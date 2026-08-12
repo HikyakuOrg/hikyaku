@@ -1,22 +1,14 @@
+import type { CatalogAddonDto, CatalogServiceDto, ServiceCatalogDto } from "./generated"
+
 const API_URL = process.env.NEXT_PUBLIC_HIKYAKU_API_URL ?? "http://localhost:3002"
 
-/** A priced add-on, with price/currency read live from Stripe by whendan-api. */
-export type CatalogAddon = {
-    id: string
-    name: string
-    pricing_unit: string
-    amount_minor: number
-    currency: string
-}
+/** A priced add-on, with price/currency read live from Stripe by hikyaku-api. */
+export type CatalogAddon = CatalogAddonDto
 
 /** A service plus its selectable add-ons. */
-export type CatalogService = CatalogAddon & {
-    addons: CatalogAddon[]
-}
+export type CatalogService = CatalogServiceDto
 
-export type ServiceCatalog = {
-    services: CatalogService[]
-}
+export type ServiceCatalog = ServiceCatalogDto
 
 /**
  * The org's service catalog. Price/currency live in Stripe, so this reads from

@@ -1,5 +1,6 @@
 "use server"
 
+import type { PendingInvitationDto } from "@/lib/api"
 import {
     buildApiContext,
     getAccessToken,
@@ -7,14 +8,12 @@ import {
     parseApiError,
 } from "./api-client"
 
-export interface PendingInvitation {
-    id: string
-    created_at: string
-    organisation: { id: string; slug: string; name: string }
-    role: string
-    permissions: string[]
-}
+export type PendingInvitation = PendingInvitationDto
 
+/**
+ * Frontend input, mapped onto the snake_case `CreateInvitationDto` body in
+ * `createInvitation`. Deliberately not the generated type.
+ */
 export interface CreateInvitationInput {
     userEmail: string
     orgId: string

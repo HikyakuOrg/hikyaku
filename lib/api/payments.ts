@@ -1,28 +1,14 @@
 import type { BookingFormData } from "@/app/booking/booking-stepper"
+import type { CheckoutResultDto, QuoteLineDto, QuoteResultDto } from "./generated"
 
 const API_URL = process.env.NEXT_PUBLIC_HIKYAKU_API_URL ?? "http://localhost:3002"
 
-export type CreateCheckoutResult = {
-    checkoutUrl: string
-    sessionId: string
-}
+export type CreateCheckoutResult = CheckoutResultDto
 
 /** One itemised line in a quote (name + quantity × rate + amount). */
-export type QuoteLine = {
-    id: string
-    name: string
-    pricing_unit: string
-    rate: number
-    quantity: number
-    amount_minor: number
-}
+export type QuoteLine = QuoteLineDto
 
-export type QuoteResult = {
-    currency: string
-    lines: QuoteLine[]
-    total_minor: number
-    total: number
-}
+export type QuoteResult = QuoteResultDto
 
 function toKg(weight: number, unit: string): number {
     return unit === "lb" ? weight * 0.453592 : weight

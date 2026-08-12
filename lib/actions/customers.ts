@@ -1,5 +1,6 @@
 "use server"
 
+import type { PaginatedCustomersDto } from "@/lib/api"
 import { getAccessToken, getApiUrl, getOrgSlug } from "./api-client"
 import type { CustomerFormValues } from "@/components/customers/customer-schema"
 
@@ -71,8 +72,11 @@ export async function updateCustomerAction(customerId: string, values: CustomerF
 
 // ── Read ───────────────────────────────────────────────────────────────────────
 
-export async function listCustomersAction(page: number, pageSize: number): Promise<{ data: Customer[]; total: number }> {
-    return apiCall<{ data: Customer[]; total: number }>(
+export async function listCustomersAction(
+    page: number,
+    pageSize: number,
+): Promise<PaginatedCustomersDto> {
+    return apiCall<PaginatedCustomersDto>(
         `/api/v1/customers?page=${page}&pageSize=${pageSize}`,
     )
 }

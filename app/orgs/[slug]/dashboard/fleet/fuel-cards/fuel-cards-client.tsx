@@ -57,6 +57,7 @@ import {
     type IssuingCard,
     type IssuingTransaction,
 } from "@/lib/actions/issuing"
+import type { IssueCardDtoIntervalEnum } from "@/lib/api"
 import { getTeamMembers, type ListTeamMemberDto } from "@/lib/supabase/team-rpc"
 import { getVehiclesByType } from "@/lib/supabase/db"
 import { formatCurrency } from "@/lib/currency"
@@ -81,14 +82,31 @@ const SUPPORTED_CURRENCIES = [
     { code: "gbp", label: "GBP — British Pound" },
 ]
 
-const SPENDING_INTERVALS = [
-    { value: "per_authorization", label: "Per transaction" },
-    { value: "daily", label: "Daily" },
-    { value: "weekly", label: "Weekly" },
-    { value: "monthly", label: "Monthly" },
-    { value: "yearly", label: "Yearly" },
-    { value: "all_time", label: "All time" },
-]
+// `satisfies` rejects a value the API does not accept; the Record below is
+// exhaustive, so an interval added backend-side fails the build until it is
+// given a label here.
+const SPENDING_INTERVAL_VALUES = [
+    "per_authorization",
+    "daily",
+    "weekly",
+    "monthly",
+    "yearly",
+    "all_time",
+] as const satisfies readonly IssueCardDtoIntervalEnum[]
+
+const SPENDING_INTERVAL_LABELS: Record<IssueCardDtoIntervalEnum, string> = {
+    per_authorization: "Per transaction",
+    daily: "Daily",
+    weekly: "Weekly",
+    monthly: "Monthly",
+    yearly: "Yearly",
+    all_time: "All time",
+}
+
+const SPENDING_INTERVALS = SPENDING_INTERVAL_VALUES.map((value) => ({
+    value,
+    label: SPENDING_INTERVAL_LABELS[value],
+}))
 
 const issueSchema = z.object({
     driverId: z.string().min(1, "Select a driver"),
@@ -101,7 +119,7 @@ const issueSchema = z.object({
             (val) => !val || (!isNaN(Number(val)) && Number(val) > 0),
             "Must be a positive number",
         ),
-    interval: z.string().optional(),
+    interval: z.enum(SPENDING_INTERVAL_VALUES).optional(),
 })
 
 type IssueFormValues = z.infer<typeof issueSchema>
@@ -172,15 +190,17 @@ function IssueCardDialog({
 
     const onSubmit = (values: IssueFormValues) => {
         startTransition(async () => {
+            // The API treats these as optional, not nullable: omit them rather
+            // than sending null, so the body matches IssueCardDto.
             const limitMajor =
                 values.spendingLimitMajor && values.spendingLimitMajor !== ""
                     ? Number(values.spendingLimitMajor)
-                    : null
+                    : undefined
             const result = await issueFuelCard({
                 driverId: values.driverId,
-                vehicleId: values.vehicleId || null,
+                vehicleId: values.vehicleId || undefined,
                 spendingLimitMajor: limitMajor,
-                interval: values.interval || "daily",
+                interval: values.interval ?? "daily",
                 currency: values.currency,
             })
             if (!result.success) {

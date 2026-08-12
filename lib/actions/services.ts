@@ -5,6 +5,7 @@ import type {
     CreateAddonDto,
     CreateServiceDto,
     CreateServiceDtoPricingUnitEnum,
+    ServiceRefDto,
     UpdateServiceDto,
 } from "@/lib/api"
 import { type ActionError, buildApiContext, parseApiError } from "./api-client"
@@ -34,11 +35,11 @@ function revalidateCatalog(slug: string) {
     revalidatePath(`/orgs/${slug}/dashboard/service-rates`)
 }
 
-async function mutate(
+async function mutate<T>(
     path: string,
     method: "POST" | "PATCH" | "DELETE",
     body?: unknown,
-): Promise<ActionOk<unknown> | ActionError> {
+): Promise<ActionOk<T> | ActionError> {
     const ctx = await buildApiContext()
     if ("error" in ctx) return ctx
 
@@ -55,30 +56,31 @@ async function mutate(
 
     if (!res.ok) return { success: false, error: await parseApiError(res) }
     revalidateCatalog(ctx.slug)
+    // The archive routes answer 200 with an empty body; the rest return a ServiceRefDto.
     const data = method === "DELETE" ? null : await res.json().catch(() => null)
-    return { success: true, data }
+    return { success: true, data: data as T }
 }
 
 export async function createService(input: CreateServiceInput) {
-    return mutate("/api/v1/services", "POST", input)
+    return mutate<ServiceRefDto>("/api/v1/services", "POST", input)
 }
 
 export async function updateService(id: string, input: UpdateCatalogItemInput) {
-    return mutate(`/api/v1/services/${id}`, "PATCH", input)
+    return mutate<ServiceRefDto>(`/api/v1/services/${id}`, "PATCH", input)
 }
 
 export async function deleteService(id: string) {
-    return mutate(`/api/v1/services/${id}`, "DELETE")
+    return mutate<null>(`/api/v1/services/${id}`, "DELETE")
 }
 
 export async function createServiceAddon(serviceId: string, input: CreateAddonInput) {
-    return mutate(`/api/v1/services/${serviceId}/addons`, "POST", input)
+    return mutate<ServiceRefDto>(`/api/v1/services/${serviceId}/addons`, "POST", input)
 }
 
 export async function updateServiceAddon(addonId: string, input: UpdateCatalogItemInput) {
-    return mutate(`/api/v1/services/addons/${addonId}`, "PATCH", input)
+    return mutate<ServiceRefDto>(`/api/v1/services/addons/${addonId}`, "PATCH", input)
 }
 
 export async function deleteServiceAddon(addonId: string) {
-    return mutate(`/api/v1/services/addons/${addonId}`, "DELETE")
+    return mutate<null>(`/api/v1/services/addons/${addonId}`, "DELETE")
 }

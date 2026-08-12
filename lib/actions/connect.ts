@@ -1,5 +1,12 @@
 "use server"
 
+import type {
+    AccountSessionDto,
+    ConnectStatusDto,
+    FundingInstructionsDto,
+    IssuingBalanceDto,
+    OrgIssuingStatusDto,
+} from "@/lib/api"
 import {
     type ActionError,
     buildApiContext,
@@ -8,43 +15,17 @@ import {
     parseApiError,
 } from "./api-client"
 
-export interface ConnectStatus {
-    accountId: string | null
-    detailsSubmitted: boolean
-    chargesEnabled: boolean
-    payoutsEnabled: boolean
-    cardIssuingStatus: string | null
-    country: string | null
-    currency: string | null
-}
+export type ConnectStatus = ConnectStatusDto
 
-export interface AccountSession {
-    clientSecret: string
-    publishableKey: string
-}
+export type AccountSession = AccountSessionDto
 
-/** Raw Stripe funding_instructions object (untyped by the SDK). */
-export interface FundingInstructions {
-    currency: string
-    bank_transfer: {
-        country: string
-        type: string
-        financial_addresses: Array<Record<string, unknown>>
-    }
-}
+/** Raw Stripe funding_instructions object, forwarded verbatim by the API. */
+export type FundingInstructions = FundingInstructionsDto
 
-export interface IssuingBalance {
-    amount: number
-    currency: string
-}
+export type IssuingBalance = IssuingBalanceDto
 
-export interface OrgIssuingStatus {
-    slug: string
-    cardIssuingStatus: string | null
-    detailsSubmitted: boolean
-    /** Whether the connected account can accept payments — gates "Service Rates". */
-    chargesEnabled: boolean
-}
+/** Per-org issuing state; `chargesEnabled` gates the "Service Rates" screen. */
+export type OrgIssuingStatus = OrgIssuingStatusDto
 
 export async function getConnectStatus(): Promise<
     { success: true; data: ConnectStatus } | ActionError

@@ -1,6 +1,6 @@
 "use server"
 
-import type { CreateUserDto } from "@/lib/api"
+import type { CreateUserDto, CreateUserResultDto } from "@/lib/api"
 import { getAccessToken, getApiUrl, parseApiError } from "./api-client"
 
 /** Body of `POST /api/v1/users`; `user_metadata` is required for the Driver role. */
@@ -47,7 +47,7 @@ export async function createUser(
         return { success: false, error: await parseApiError(res) }
     }
 
-    let data: Record<string, unknown> = {}
+    let data: Partial<CreateUserResultDto> = {}
     try {
         data = await res.json()
     } catch {

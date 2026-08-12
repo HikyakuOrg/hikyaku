@@ -1,4 +1,5 @@
 import { headers } from "next/headers"
+import type { ApiErrorDto } from "@/lib/api"
 import { createClient } from "@/lib/supabase/server"
 
 /** Discriminated error shape returned by tenant-scoped server actions. */
@@ -59,11 +60,16 @@ export async function buildApiContext(): Promise<ApiContext | ActionError> {
     }
 }
 
-/** Extract a human-friendly message from a failed hikyaku-api response. */
+/**
+ * Extract a human-friendly message from a failed hikyaku-api response. The body
+ * is an `ApiErrorDto`, whose `message` is an array only when request validation
+ * is what rejected the call. Partial because a proxy or gateway can return an
+ * error that never reached the API.
+ */
 export async function parseApiError(res: Response): Promise<string> {
     let message = `Request failed (${res.status})`
     try {
-        const body = await res.json()
+        const body: Partial<ApiErrorDto> = await res.json()
         if (typeof body?.message === "string") message = body.message
         else if (Array.isArray(body?.message)) message = body.message.join(", ")
     } catch {

@@ -57,6 +57,10 @@ export async function prepareCustomerFromForm(
         geocode_confidence: values.customerConfidence ?? null,
         pelias_gid: values.customerPeliasGid ?? null,
         pelias_raw: values.customerPeliasRaw ?? null,
+        // Assigned by the backend after the row exists: Stripe on create when
+        // payments are enabled, Shopify only for orders imported from Shopify.
+        stripe_customer_id: null,
+        shopify_customer_id: null,
     }
 
     const serviceAreas = await getServiceAreas()
