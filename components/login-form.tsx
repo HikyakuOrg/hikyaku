@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label'
 import { LastUsedBadge, useLastAuthMethod } from '@/components/last-used-badge'
 import Link from 'next/link'
 import { setLastAuthMethod } from '@/lib/auth/last-used'
-import { resolveOrgPath, setPendingVerification } from '@/lib/auth/verify-flow'
+import { resolveAuthenticatedDestination, setPendingVerification } from '@/lib/auth/verify-flow'
 
 type LoginFormProps = React.ComponentPropsWithoutRef<'div'> & {
   /** Where to send the user after a successful login, e.g. back to /oauth/consent. */
@@ -40,11 +40,7 @@ export function LoginForm({ className, redirectTo, ...props }: LoginFormProps) {
       if (!data.user) throw new Error('No user returned after login')
 
       setLastAuthMethod('password')
-      if (redirectTo) {
-        router.push(redirectTo)
-        return
-      }
-      router.push(await resolveOrgPath(supabase, data.user.id))
+      router.push(await resolveAuthenticatedDestination(supabase, data.user.id, redirectTo))
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'An error occurred'
       // Unconfirmed accounts can't sign in yet, so send them to finish OTP verification.

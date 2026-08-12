@@ -10,7 +10,7 @@ import { setLastAuthMethod } from '@/lib/auth/last-used'
 import {
   clearPendingVerification,
   getPendingVerification,
-  resolveOrgPath,
+  resolveAuthenticatedDestination,
   type VerificationIntent,
 } from '@/lib/auth/verify-flow'
 import { Button } from '@/components/ui/button'
@@ -67,7 +67,7 @@ export function VerifyOtpForm({ className, ...props }: React.ComponentPropsWitho
       // passwordless path counts as the code method.
       setLastAuthMethod(intent === 'signin' ? 'email-code' : 'password')
       // verifyOtp establishes a live session, so the org lookup is authorised.
-      router.push(redirectTo ?? (await resolveOrgPath(supabase, userId)))
+      router.push(await resolveAuthenticatedDestination(supabase, userId, redirectTo))
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An error occurred')
     } finally {

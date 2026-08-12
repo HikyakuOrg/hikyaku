@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { setLastAuthMethod } from '@/lib/auth/last-used'
-import { resolveOrgPath } from '@/lib/auth/verify-flow'
+import { resolveAuthenticatedDestination } from '@/lib/auth/verify-flow'
 
 const GSI_SRC = 'https://accounts.google.com/gsi/client'
 
@@ -154,7 +154,7 @@ export function GoogleSignIn({
         if (!data.user) throw new Error('No user returned after Google sign-in')
 
         setLastAuthMethod('google')
-        router.push(redirectTo ?? (await resolveOrgPath(supabase, data.user.id)))
+        router.push(await resolveAuthenticatedDestination(supabase, data.user.id, redirectTo))
       } catch (error: unknown) {
         onError?.(error instanceof Error ? error.message : 'Google sign-in failed')
       }

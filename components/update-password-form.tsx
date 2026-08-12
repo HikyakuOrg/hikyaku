@@ -5,7 +5,7 @@ import { useState } from 'react'
 
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
-import { resolveOrgPath } from '@/lib/auth/verify-flow'
+import { resolveAuthenticatedDestination } from '@/lib/auth/verify-flow'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -28,7 +28,7 @@ export function UpdatePasswordForm({ className, ...props }: React.ComponentProps
       if (!data.user) throw new Error('No user returned after updating the password')
       // The reset link already established a session, so the org lookup is
       // authorised, so land on the dashboard the same way login does.
-      router.push(await resolveOrgPath(supabase, data.user.id))
+      router.push(await resolveAuthenticatedDestination(supabase, data.user.id))
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An error occurred')
       setIsLoading(false)

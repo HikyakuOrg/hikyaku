@@ -1,4 +1,5 @@
 import { AccountForm } from './account-form'
+import { TwoFactorSection } from './two-factor-section'
 
 export default function AccountPage() {
     return (
@@ -9,6 +10,7 @@ export default function AccountPage() {
             </div>
 
             <AccountForm />
+            <TwoFactorSection />
         </div>
     )
 }

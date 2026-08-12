@@ -93,3 +93,24 @@ export async function resolveOrgPath(
   const slug = org?.slug
   return slug ? orgPath(slug, '/dashboard') : '/orgs/new'
 }
+
+/**
+ * Resolves where to send a freshly-authenticated user, same as `resolveOrgPath`,
+ * but first checks whether the session needs to be stepped up to aal2 for the
+ * user's enrolled MFA factors. Every sign-in flow that establishes a session
+ * should redirect through this rather than calling `resolveOrgPath` (or an
+ * explicit `redirectTo`) directly, or a step-up requirement gets silently
+ * skipped for that flow.
+ */
+export async function resolveAuthenticatedDestination(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  redirectTo?: string,
+): Promise<string> {
+  const target = redirectTo ?? (await resolveOrgPath(supabase, userId))
+  const { data } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+  if (data && data.nextLevel === 'aal2' && data.currentLevel !== 'aal2') {
+    return `/auth/mfa?redirect=${encodeURIComponent(target)}`
+  }
+  return target
+}
