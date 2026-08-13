@@ -81,6 +81,29 @@ export async function getOrganisationType(
   return data.org_type === 'company' ? 'company' : 'personal'
 }
 
+/**
+ * Whether the signed-in user belongs to at least one company org. OAuth
+ * grants are per-user, not per-org, so features that are organisation-only
+ * (issuing OAuth tokens, the Connected Apps settings page) key off this
+ * rather than the org currently in the URL slug — otherwise a company-org
+ * member browsing their personal org would wrongly lose access.
+ */
+export async function userHasCompanyOrg(): Promise<boolean> {
+  const supabase = await createClient()
+  const { data: userData } = await supabase.auth.getUser()
+  if (!userData.user) return false
+
+  const { data } = await supabase
+    .from('organisations')
+    .select('id, team_members!inner(id)')
+    .eq('team_members.id', userData.user.id)
+    .eq('org_type', 'company')
+    .limit(1)
+    .maybeSingle()
+
+  return !!data
+}
+
 /** Organisations the signed-in user belongs to — powers the org switcher. */
 export async function listMyOrganisations(): Promise<OrganisationSummary[]> {
   const supabase = await createClient()

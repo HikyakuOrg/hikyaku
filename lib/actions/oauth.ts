@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { userHasCompanyOrg } from '@/lib/actions/organisations'
 
 /**
  * One third-party app the signed-in user has authorised. Supabase models this
@@ -34,10 +35,14 @@ export async function submitOAuthDecision(formData: FormData): Promise<void> {
 
   const supabase = await createClient()
 
-  const { data, error } =
-    decision === 'approve'
-      ? await supabase.auth.oauth.approveAuthorization(authorizationId, { skipBrowserRedirect: true })
-      : await supabase.auth.oauth.denyAuthorization(authorizationId, { skipBrowserRedirect: true })
+  // Personal accounts can't issue OAuth tokens — re-checked here in case the
+  // consent screen's own gate (app/oauth/consent/page.tsx) is bypassed by a
+  // direct POST with decision=approve.
+  const approve = decision === 'approve' && (await userHasCompanyOrg())
+
+  const { data, error } = approve
+    ? await supabase.auth.oauth.approveAuthorization(authorizationId, { skipBrowserRedirect: true })
+    : await supabase.auth.oauth.denyAuthorization(authorizationId, { skipBrowserRedirect: true })
 
   if (error || !data?.redirect_url) {
     redirect(`/auth/error?error=${encodeURIComponent(error?.message ?? 'OAuth authorization failed')}`)

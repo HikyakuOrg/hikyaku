@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { createClient, getSupabaseServerClaims } from '@/lib/supabase/server'
 import { submitOAuthDecision } from '@/lib/actions/oauth'
+import { userHasCompanyOrg } from '@/lib/actions/organisations'
 import {
   Card,
   CardContent,
@@ -85,27 +86,41 @@ async function ConsentContent({ searchParams }: { searchParams: ConsentSearchPar
     redirect(data.redirect_url)
   }
 
+  // OAuth token issuance is gated to organisation accounts — personal
+  // accounts can view the request but can only deny it.
+  const hasCompanyOrg = await userHasCompanyOrg()
+
   const scopes = data.scope?.trim() ? data.scope.trim().split(/\s+/) : []
+
+  if (!hasCompanyOrg) {
+    return (
+      <Card>
+        <ClientHeader client={data.client} />
+        <CardContent>
+          <Alert variant="destructive">
+            <AlertTitle>Organisation account required</AlertTitle>
+            <AlertDescription>
+              {data.client.name} can only be connected from an organisation account.
+              Personal accounts can&apos;t issue access tokens.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+        <CardFooter>
+          <form action={submitOAuthDecision} className="w-full">
+            <input type="hidden" name="authorization_id" value={authorizationId} />
+            <input type="hidden" name="decision" value="deny" />
+            <Button type="submit" variant="outline" className="w-full">
+              Cancel
+            </Button>
+          </form>
+        </CardFooter>
+      </Card>
+    )
+  }
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-center gap-3">
-          {data.client.logo_uri && (
-            // eslint-disable-next-line @next/next/no-img-element -- Arbitrary third-party client logo; not an allowlistable host for next/image.
-            <img
-              src={data.client.logo_uri}
-              alt=""
-              referrerPolicy="no-referrer"
-              className="size-10 shrink-0 rounded-md object-contain"
-            />
-          )}
-          <div>
-            <CardTitle className="text-lg">{data.client.name}</CardTitle>
-            <CardDescription>wants to access your hikyaku account</CardDescription>
-          </div>
-        </div>
-      </CardHeader>
+      <ClientHeader client={data.client} />
       <CardContent className="flex flex-col gap-4">
         <p className="text-sm text-muted-foreground">
           Signed in as <span className="font-medium text-foreground">{data.user.email}</span>
@@ -141,5 +156,27 @@ async function ConsentContent({ searchParams }: { searchParams: ConsentSearchPar
         </form>
       </CardFooter>
     </Card>
+  )
+}
+
+function ClientHeader({ client }: { client: { name: string; logo_uri?: string | null } }) {
+  return (
+    <CardHeader>
+      <div className="flex items-center gap-3">
+        {client.logo_uri && (
+          // eslint-disable-next-line @next/next/no-img-element -- Arbitrary third-party client logo; not an allowlistable host for next/image.
+          <img
+            src={client.logo_uri}
+            alt=""
+            referrerPolicy="no-referrer"
+            className="size-10 shrink-0 rounded-md object-contain"
+          />
+        )}
+        <div>
+          <CardTitle className="text-lg">{client.name}</CardTitle>
+          <CardDescription>wants to access your hikyaku account</CardDescription>
+        </div>
+      </div>
+    </CardHeader>
   )
 }

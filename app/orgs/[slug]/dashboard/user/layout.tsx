@@ -1,4 +1,4 @@
-import { getOrganisationType } from '@/lib/actions/organisations'
+import { getOrganisationType, userHasCompanyOrg } from '@/lib/actions/organisations'
 import { SettingsNav } from './settings-nav'
 
 type SettingsLayoutProps = {
@@ -9,7 +9,13 @@ type SettingsLayoutProps = {
 export default async function SettingsLayout({ children, params }: SettingsLayoutProps) {
     const { slug } = await params
     // Business Information is company-only; personal orgs never see the tab.
-    const isCompany = (await getOrganisationType(slug)) === 'company'
+    const [isCompany, hasCompanyOrg] = await Promise.all([
+        getOrganisationType(slug).then((type) => type === 'company'),
+        // Connected Apps/OAuth grants are per-user, not per-org — gate on
+        // whether the account has a company org at all, not the org in the
+        // URL, so a company-org member browsing their personal org still sees it.
+        userHasCompanyOrg(),
+    ])
 
     return (
         <div className="space-y-6 p-6">
@@ -24,7 +30,7 @@ export default async function SettingsLayout({ children, params }: SettingsLayou
 
             <div className="flex flex-col gap-6 lg:flex-row">
                 <aside className="lg:w-60 shrink-0">
-                    <SettingsNav showBusinessInformation={isCompany} />
+                    <SettingsNav showBusinessInformation={isCompany} showConnectedApps={hasCompanyOrg} />
                 </aside>
                 <div className="flex-1 lg:max-w-3xl">{children}</div>
             </div>

@@ -11,9 +11,12 @@ import { cn } from "@/lib/utils"
 
 export function SettingsNav({
     showBusinessInformation,
+    showConnectedApps,
 }: {
     /** Business Information only applies to company orgs. */
     showBusinessInformation: boolean
+    /** OAuth token issuance is organisation-only — personal accounts never see the tab. */
+    showConnectedApps: boolean
 }) {
     const pathname = usePathname()
     // Hooks stay unconditional; the gate is applied when building the list.
@@ -36,11 +39,15 @@ export function SettingsNav({
                   },
               ]
             : []),
-        {
-            label: "Connected Apps",
-            href: connectedAppsHref,
-            icon: PlugsConnectedIcon,
-        },
+        ...(showConnectedApps
+            ? [
+                  {
+                      label: "Connected Apps",
+                      href: connectedAppsHref,
+                      icon: PlugsConnectedIcon,
+                  },
+              ]
+            : []),
     ]
 
     return (

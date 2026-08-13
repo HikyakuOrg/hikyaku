@@ -1,8 +1,11 @@
 import { Suspense } from 'react'
+import { redirect } from 'next/navigation'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
 import { listConnectedApps } from '@/lib/actions/oauth'
+import { userHasCompanyOrg } from '@/lib/actions/organisations'
+import { orgPath } from '@/lib/subdomain'
 import { ConnectedAppsList } from './connected-apps-list'
 
 type Props = {
@@ -31,6 +34,9 @@ export default function ConnectedAppsPage({ params }: Props) {
 
 async function ConnectedApps({ params }: Props) {
     const { slug } = await params
+    // OAuth token issuance is organisation-only — the nav hides this section
+    // for personal accounts, and direct navigation lands back on Account.
+    if (!(await userHasCompanyOrg())) redirect(orgPath(slug, '/dashboard/user/account'))
 
     let apps
     try {
