@@ -3,7 +3,7 @@
 ## Product Map
 - The operational product is the protected dashboard in `app/orgs/[slug]/dashboard`; 
 - `components/ui/sidebar/app-sidebar.tsx` is the fastest map of business domains: Packages, Customers, Driver Shifts, Fleet, Service, and Settings.
-- This workspace also has sibling repos: `../schema` for the canonical SQL/bootstrap scripts and `../whendan-docs` for the Docusaurus docs site.
+- This workspace also has sibling repos: `../hikyaku-api` (NestJS backend; `infra/db` holds the canonical SQL/bootstrap scripts) and `../hikyaku-docs` for the Docusaurus docs site. `../hikyaku-docs/docs/architecture.mdx` is the cross-repo architecture map — read it if you need to know what runs where.
 
 ## Auth And Data Flow
 - Auth is Supabase SSR. `proxy.ts` calls `lib/middleware.ts`, which refreshes cookies and redirects anonymous users to `/auth/login`; `app/orgs/[slug]/dashboard/layout.tsx` then re-checks claims with `getSupabaseServerClaims()`.
@@ -25,6 +25,6 @@
 - Playwright runs the Chrome project only, do not start `pnpm dev`(most of the time it has already been started). Bootstrap authenticated tests from `PLAYWRIGHT_EMAIL` and `PLAYWRIGHT_PASSWORD`.
 - When running playwright tests, do not restart the dev server
 ## Adjacent Repos And Generated Files
-- If you change SQL or RPC expectations, inspect `../schema/schema.sql`, `../schema/roles.sql`, and `../schema/default_data.sql`; that folder is the canonical database bootstrap order.
+- If you change SQL or RPC expectations, inspect `../hikyaku-api/infra/db/schema.sql`, `../hikyaku-api/infra/db/roles.sql`, and `../hikyaku-api/infra/db/seed.sql`; that folder is the canonical database bootstrap order. The schema is Supabase-owned — the API connects with TypeORM but does not manage it (`synchronize` is off and migrations do not run on boot).
 - Keep `lib/supabase/supabase.ts` aligned with schema/RPC changes; it is the generated Database type layer consumed throughout the app.
 - If you need deeper framework guidance after reading this file, the repo vendors it under `.agents/skills/*` for React performance, composition, and Supabase/Postgres topics.
