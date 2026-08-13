@@ -15,7 +15,21 @@ export const ROOT_DOMAIN =
   vercelPreviewUrl ?? process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'hikyaku.org'
 
 // Hosts under the root that are NOT tenants (must mirror the API's RESERVED_SLUGS).
-const RESERVED = new Set(['www', 'app', 'api', 'admin', 'auth', 'static'])
+// docs, send and origin are live hostnames in the hikyaku.org zone: docs is a
+// separate Vercel project, send is the SES sending domain, and origin is what the
+// tenant-proxy Worker forwards to. An org allowed to take one of those slugs
+// would get a booking URL that silently serves someone else's site.
+const RESERVED = new Set([
+  'www',
+  'app',
+  'api',
+  'admin',
+  'auth',
+  'static',
+  'docs',
+  'send',
+  'origin',
+])
 
 function stripPort(host: string): string {
   return host.split(':')[0].toLowerCase()

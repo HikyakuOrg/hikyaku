@@ -2,8 +2,27 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { cookieDomain, getSlugFromHost, ROOT_DOMAIN } from '@/lib/subdomain'
 
+/**
+ * Host the browser actually requested. Tenant vanity hosts (<slug>.hikyaku.org)
+ * are served through the Cloudflare Worker in workers/tenant-proxy, because
+ * Vercel cannot issue certificates for them. That Worker connects to a plain
+ * origin hostname, so the tenant host arrives in x-tenant-host rather than Host.
+ *
+ * The header is only trusted alongside the shared secret: the origin hostname is
+ * publicly reachable, so without that check anyone could forge a tenant and pick
+ * up the x-org-slug that scopes org data downstream.
+ */
+function requestedHost(request: NextRequest): string | null {
+  const secret = process.env.TENANT_PROXY_SECRET
+  if (secret && request.headers.get('x-tenant-proxy-secret') === secret) {
+    const forwarded = request.headers.get('x-tenant-host')
+    if (forwarded) return forwarded
+  }
+  return request.headers.get('host')
+}
+
 export async function updateSession(request: NextRequest) {
-  const host = request.headers.get('host')
+  const host = requestedHost(request)
   const { pathname } = request.nextUrl
 
   // Derive the active org slug. Path-based slug (/orgs/<slug>/…) takes
@@ -15,6 +34,10 @@ export async function updateSession(request: NextRequest) {
 
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-pathname', pathname)
+  // Strip the proxy headers so nothing downstream can read them: x-org-slug is
+  // the only supported way to see the active tenant.
+  requestHeaders.delete('x-tenant-host')
+  requestHeaders.delete('x-tenant-proxy-secret')
   if (slug) {
     requestHeaders.set('x-org-slug', slug)
   } else {
