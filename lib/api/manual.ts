@@ -30,3 +30,28 @@ export interface ListDriverDto {
   vehicle_make?: string
   vehicle_model?: string
 }
+
+/** What a trial deadline resolves to. Mirrors `TrialState` in hikyaku-api. */
+export type TrialState = 'none' | 'active' | 'expired'
+
+/**
+ * 200 body of `GET /api/v1/billing/trial` — the active org's trial state.
+ *
+ * Temporary. `pnpm gen:api` reads the *deployed* spec at api.hikyaku.org, and
+ * this endpoint has not shipped yet, so regenerating would not produce it.
+ * Delete this block and import the generated `TrialStatusDto` the moment the
+ * billing endpoints are live; keeping both is exactly the drift `generated.ts`
+ * exists to prevent.
+ */
+export interface TrialStatusDto {
+  /**
+   * `none` means no trial applies — personal orgs, and orgs that predate
+   * trials. It is NOT the same as `expired`: those orgs are unrestricted, and
+   * rendering an ended-trial dialog for them would be wrong.
+   */
+  state: TrialState
+  /** ISO 8601 instant, or null when `state` is `none`. */
+  trialEndsAt: string | null
+  /** Whole days left, floored. Null when `state` is `none`, 0 once past due. */
+  daysRemaining: number | null
+}

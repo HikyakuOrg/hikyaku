@@ -364,7 +364,11 @@ export type Database = {
           name: string | null
           org_type: string
           slug: string
+          trial_ends_at: string | null
         }
+        // trial_ends_at is intentionally absent from Insert: the
+        // organisations_set_trial trigger overwrites whatever is supplied, so
+        // accepting it here would type a value that the database discards.
         Insert: {
           created_at?: string
           created_by?: string
@@ -373,6 +377,8 @@ export type Database = {
           org_type?: string
           slug?: string
         }
+        // Absent from Update too — `authenticated` holds column-level UPDATE on
+        // ("name", "org_type") only, so writing it through PostgREST is denied.
         Update: {
           created_at?: string
           created_by?: string
