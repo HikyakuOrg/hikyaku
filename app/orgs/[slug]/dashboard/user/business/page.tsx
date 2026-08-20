@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation'
-import { getOrganisationType } from '@/lib/actions/organisations'
+import { getOrganisationType, getOrganisationBranding } from '@/lib/actions/organisations'
 import { orgPath } from '@/lib/subdomain'
 import { BusinessInformationClient } from './business-information-client'
+import { LogoSection } from '@/components/settings/logo-section'
 
 type Props = {
     params: Promise<{ slug: string }>
@@ -15,6 +16,8 @@ export default async function BusinessInformationPage({ params }: Props) {
     // direct navigation lands back on Account.
     if (orgType !== 'company') redirect(orgPath(slug, '/dashboard/user/account'))
 
+    const branding = await getOrganisationBranding(slug)
+
     return (
         <div className="space-y-6">
             <div>
@@ -24,6 +27,13 @@ export default async function BusinessInformationPage({ params }: Props) {
                     are managed through Stripe.
                 </p>
             </div>
+            {branding && (
+                <LogoSection
+                    slug={slug}
+                    organisationId={branding.id}
+                    initialLogoUrl={branding.logoUrl}
+                />
+            )}
             <BusinessInformationClient />
         </div>
     )

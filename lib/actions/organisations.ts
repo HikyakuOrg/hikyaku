@@ -82,6 +82,44 @@ export async function getOrganisationType(
 }
 
 /**
+ * Org id + current logo URL, for the Business Information logo uploader
+ * (needs the id to key the storage path) and for anywhere a QR code with
+ * branding gets rendered (e.g. package labels). Returns null if the org
+ * doesn't exist or the caller can't see it.
+ */
+export async function getOrganisationBranding(
+  slug: string,
+): Promise<{ id: string; logoUrl: string | null } | null> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('organisations')
+    .select('id, logo_url')
+    .eq('slug', slug)
+    .maybeSingle()
+  if (!data) return null
+  return { id: data.id, logoUrl: data.logo_url }
+}
+
+/**
+ * Persist the logo URL after it's been uploaded client-side to the
+ * org-logos storage bucket (lib/supabase/storage.ts uploadOrganisationLogo)
+ * — this action only writes the resulting URL onto the row. Pass null to
+ * clear a previously-set logo.
+ */
+export async function updateOrganisationLogo(
+  slug: string,
+  logoUrl: string | null,
+): Promise<{ success: true } | { success: false; error: string }> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('organisations')
+    .update({ logo_url: logoUrl })
+    .eq('slug', slug)
+  if (error) return { success: false, error: error.message }
+  return { success: true }
+}
+
+/**
  * Whether the signed-in user belongs to at least one company org. OAuth
  * grants are per-user, not per-org, so features that are organisation-only
  * (issuing OAuth tokens, the Connected Apps settings page) key off this

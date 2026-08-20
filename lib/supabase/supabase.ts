@@ -361,6 +361,7 @@ export type Database = {
           created_at: string
           created_by: string
           id: string
+          logo_url: string | null
           name: string | null
           org_type: string
           slug: string
@@ -369,14 +370,19 @@ export type Database = {
           created_at?: string
           created_by?: string
           id?: string
+          logo_url?: string | null
           name?: string | null
           org_type?: string
           slug?: string
         }
+        // `authenticated` holds column-level UPDATE on ("name", "org_type",
+        // "logo_url") only — id/created_at/created_by/slug are listed here
+        // because the generator emits every column, not because they're writable.
         Update: {
           created_at?: string
           created_by?: string
           id?: string
+          logo_url?: string | null
           name?: string | null
           org_type?: string
           slug?: string
