@@ -10,6 +10,7 @@ import { DriverVehicleStep } from "./steps/driver-vehicle-step"
 import { PackagesRouteStep } from "./steps/packages-route-step"
 import { OverviewStep } from "./steps/overview-step"
 
+import type { ShiftUsageStatus } from "@/lib/actions/billing"
 import type { FormData } from "./types"
 
 export type { FormData }
@@ -73,7 +74,7 @@ function StepperSeparatorWithStatus({ status, isLast }: { status: StepStatus; is
     )
 }
 
-export function ShiftStepperForm() {
+export function ShiftStepperForm({ usage }: { usage: ShiftUsageStatus | null }) {
     return (
         <Stepper.Root className="w-full space-y-4" orientation="horizontal">
             {({ stepper }) => {
@@ -168,6 +169,7 @@ export function ShiftStepperForm() {
                                 overview: () => (
                                     <OverviewStep
                                         formData={formData}
+                                        usage={usage}
                                         onPrev={() => stepper.navigation.prev()}
                                     />
                                 ),

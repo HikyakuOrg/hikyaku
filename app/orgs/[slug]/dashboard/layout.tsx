@@ -10,7 +10,7 @@ import {
 import { getSupabaseServerClaims } from "@/lib/supabase/server"
 import { listMyOrganisations } from "@/lib/actions/organisations"
 import { listPendingInvitations } from "@/lib/actions/invitations"
-import { getTrialStatus } from "@/lib/actions/billing"
+import { getTrialStatus, getShiftUsage } from "@/lib/actions/billing"
 import { PendingInvitationsDialog } from "@/components/pending-invitations-dialog"
 import { TrialEndedDialog } from "@/components/trial-ended-dialog"
 import { redirect } from 'next/navigation'
@@ -42,13 +42,16 @@ async function AuthenticatedShell({ children, params }: DashboardLayoutProps) {
 
   const { slug } = await params
 
-  const [organisations, pendingInvitations, trial] = await Promise.all([
+  const [organisations, pendingInvitations, trial, shiftUsage] = await Promise.all([
     listMyOrganisations(),
     listPendingInvitations(),
     // Resolved for the org in the URL, which middleware forwards as x-org-slug.
     // Returns null rather than throwing if the API is unreachable, so a backend
     // blip degrades to "no countdown" instead of an unrenderable dashboard.
     getTrialStatus(),
+    // Same fail-open-to-null shape, same reason: a sidebar indicator, not the
+    // enforcement point (see AddShiftUsageMetering in hikyaku-api).
+    getShiftUsage(),
   ])
 
   const currentOrg = organisations.find(org => org.slug === slug)
@@ -80,6 +83,7 @@ async function AuthenticatedShell({ children, params }: DashboardLayoutProps) {
         cardIssuingActive={cardIssuingActive}
         serviceRatesActive={serviceRatesActive}
         trial={trial}
+        shiftUsage={shiftUsage}
       />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">

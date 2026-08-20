@@ -55,3 +55,30 @@ export interface TrialStatusDto {
   /** Whole days left, floored. Null when `state` is `none`, 0 once past due. */
   daysRemaining: number | null
 }
+
+/**
+ * 200 body of `GET /api/v1/billing/usage` — shift usage for the active org's
+ * current billing period.
+ *
+ * Temporary, same reasoning as TrialStatusDto above: this endpoint has not
+ * shipped to the deployed spec yet. Delete this block and import the generated
+ * `ShiftUsageStatusDto` once it has.
+ */
+export interface ShiftUsageStatusDto {
+  shiftsUsedThisPeriod: number
+  /** PLACEHOLDER — see create-stripe-subscriptions.ps1 for the real figure. */
+  freeAllowance: number
+  /**
+   * Once `shiftsUsedThisPeriod` reaches `freeAllowance`, further shift
+   * creation is blocked unless this is true.
+   */
+  hasPaymentMethod: boolean
+  /** ISO 8601 instant the free allowance resets. */
+  periodEnd: string
+}
+
+/** 200 body of `POST /api/v1/billing/portal`. Same temporary reasoning as above. */
+export interface BillingPortalSessionDto {
+  /** Stripe-hosted Billing Portal URL to redirect the browser to. */
+  url: string
+}

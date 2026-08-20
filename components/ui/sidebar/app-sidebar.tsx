@@ -3,6 +3,7 @@
 import * as React from "react"
 import { NavMain } from "@/components/ui/sidebar/nav-main"
 import { NavTrial } from "@/components/ui/sidebar/nav-trial"
+import { NavShiftUsage } from "@/components/ui/sidebar/nav-shift-usage"
 import { NavUser } from "@/components/ui/sidebar/nav-user"
 import { OrgSwitcher } from "@/components/ui/sidebar/org-switcher"
 import {
@@ -12,7 +13,7 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import type { TrialStatus } from "@/lib/actions/billing"
+import type { TrialStatus, ShiftUsageStatus } from "@/lib/actions/billing"
 import type { OrganisationSummary } from "@/lib/actions/organisations"
 import { orgPath } from "@/lib/subdomain"
 import { PersonIcon, BlueprintIcon, MapTrifoldIcon, PackageIcon, TruckIcon } from "@phosphor-icons/react"
@@ -79,9 +80,11 @@ type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
   serviceRatesActive?: boolean
   /** Null when the org has no trial, or when the API could not be reached. */
   trial?: TrialStatus | null
+  /** Null when the API could not be reached. */
+  shiftUsage?: ShiftUsageStatus | null
 }
 
-export function AppSidebar({ user, organisations, currentSlug, cardIssuingActive = false, serviceRatesActive = false, trial = null, ...props }: AppSidebarProps) {
+export function AppSidebar({ user, organisations, currentSlug, cardIssuingActive = false, serviceRatesActive = false, trial = null, shiftUsage = null, ...props }: AppSidebarProps) {
   const navItems = currentSlug ? buildNavItems(currentSlug, cardIssuingActive, serviceRatesActive) : []
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -93,6 +96,7 @@ export function AppSidebar({ user, organisations, currentSlug, cardIssuingActive
       </SidebarContent>
       <SidebarFooter>
         <NavTrial trial={trial} />
+        <NavShiftUsage usage={shiftUsage} />
         <NavUser user={user} />
 
       </SidebarFooter>
