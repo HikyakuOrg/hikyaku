@@ -1,7 +1,9 @@
 import { redirect } from 'next/navigation'
-import { getOrganisationType, getOrganisationBranding } from '@/lib/actions/organisations'
-import { orgPath } from '@/lib/subdomain'
+import { getOrganisationType, getOrganisationVanitySlug, getOrganisationBranding } from '@/lib/actions/organisations'
+import { getVanityUrlStatus } from '@/lib/actions/billing'
+import { orgPath, tenantUrl } from '@/lib/subdomain'
 import { BusinessInformationClient } from './business-information-client'
+import { VanityUrlSection } from '@/components/settings/vanity-url-section'
 import { LogoSection } from '@/components/settings/logo-section'
 
 type Props = {
@@ -16,7 +18,11 @@ export default async function BusinessInformationPage({ params }: Props) {
     // direct navigation lands back on Account.
     if (orgType !== 'company') redirect(orgPath(slug, '/dashboard/user/account'))
 
-    const branding = await getOrganisationBranding(slug)
+    const [vanitySlug, vanityStatus, branding] = await Promise.all([
+        getOrganisationVanitySlug(slug),
+        getVanityUrlStatus(),
+        getOrganisationBranding(slug),
+    ])
 
     return (
         <div className="space-y-6">
@@ -34,6 +40,10 @@ export default async function BusinessInformationPage({ params }: Props) {
                     initialLogoUrl={branding.logoUrl}
                 />
             )}
+            <VanityUrlSection
+                vanityUrl={vanitySlug ? tenantUrl(vanitySlug, '/booking') : null}
+                hasVanityUrlEntitlement={vanityStatus?.hasVanityUrlEntitlement ?? false}
+            />
             <BusinessInformationClient />
         </div>
     )

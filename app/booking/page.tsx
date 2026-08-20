@@ -30,8 +30,13 @@ async function BookingContent() {
     if (!organisation) notFound()
 
     // Price/currency live in Stripe, so the catalog comes from whendan-api
-    // (cached, 60s TTL) rather than supabase-js.
-    const { services } = await getServiceCatalog(slug)
+    // (cached, 60s TTL) rather than supabase-js. Uses the resolved canonical
+    // slug, not the raw host label: on a vanity host `slug` above is the
+    // vanity value, which hikyaku-api's ServicesPublicController does not
+    // resolve (it only matches the opaque slug) — passing it straight
+    // through would silently render the empty "not accepting any services"
+    // state on every vanity host.
+    const { services } = await getServiceCatalog(organisation.slug)
     const orgName = organisation.name ?? "This store"
 
     if (services.length === 0) {
