@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { RouteMap, RouteStep } from "@/components/route-map"
 import { createManualShift } from "@/lib/actions/shift"
+import { createBillingPortalSession } from "@/lib/actions/billing"
+import type { ShiftUsageStatus } from "@/lib/actions/billing"
 import { useRouter } from "next/navigation"
 import { useOrgSlug } from "@/lib/use-org"
 import { toast } from "sonner"
@@ -15,14 +17,45 @@ import type { FormData } from "@/app/orgs/[slug]/dashboard/driver-shifts/add/typ
 
 export function OverviewStep({
     formData,
+    usage,
     onPrev,
 }: {
     formData: FormData
+    usage: ShiftUsageStatus | null
     onPrev: () => void
 }) {
     const router = useRouter()
     const slug = useOrgSlug()
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [isAddingPaymentMethod, setIsAddingPaymentMethod] = useState(false)
+
+    // Pre-check only — enforce_shift_allowance() in hikyaku-api is the actual
+    // enforcement point (see AddShiftUsageMetering). This just keeps the button
+    // from offering a submission the trigger would reject, the same relationship
+    // getWarehouseAllowance() has to the warehouse-limit trigger. `usage` is
+    // null on a failed/unreachable read, which fails OPEN here (unlike the
+    // trial dialog) — a transient billing-API blip must not block shift
+    // creation on its own; the trigger is still there as the real backstop.
+    const allowanceExhausted =
+        !!usage &&
+        usage.shiftsUsedThisPeriod >= usage.freeAllowance &&
+        !usage.hasPaymentMethod
+
+    async function handleAddPaymentMethod() {
+        setIsAddingPaymentMethod(true)
+        try {
+            const result = await createBillingPortalSession(window.location.href)
+            if (!result.success) {
+                toast.error(result.error)
+                return
+            }
+            window.location.href = result.url
+        } catch (err) {
+            toast.error(getErrorMessage(err) || "Failed to open the billing portal")
+        } finally {
+            setIsAddingPaymentMethod(false)
+        }
+    }
 
     const { warehouse, date, driverVehicle, packagesRoute } = formData
 
@@ -192,13 +225,40 @@ export function OverviewStep({
                 height="400px"
             />
 
+            {allowanceExhausted && usage && (
+                <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-4 space-y-3">
+                    <div className="flex items-center gap-2 text-sm text-destructive">
+                        <XCircle className="h-4 w-4 shrink-0" />
+                        <span>
+                            You&apos;ve used your {usage.freeAllowance} free shifts this billing
+                            period. Add a payment method to keep creating shifts.
+                        </span>
+                    </div>
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleAddPaymentMethod}
+                        disabled={isAddingPaymentMethod}
+                    >
+                        {isAddingPaymentMethod ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Opening billing portal...
+                            </>
+                        ) : (
+                            "Add payment method"
+                        )}
+                    </Button>
+                </div>
+            )}
+
             <div className="flex justify-between">
                 <Button variant="outline" onClick={onPrev} disabled={isSubmitting}>
                     Back
                 </Button>
                 <Button
                     onClick={handleSubmit}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || allowanceExhausted}
                 >
                     {isSubmitting ? (
                         <>

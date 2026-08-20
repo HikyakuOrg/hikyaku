@@ -82,6 +82,25 @@ export async function getOrganisationType(
 }
 
 /**
+ * An org's vanity booking subdomain (the label only, e.g. 'acme-couriers' —
+ * not the full URL; pair with `tenantUrl()` from `lib/subdomain.ts` for
+ * that). NULL for personal orgs and any company org whose name has no
+ * sluggable characters. Set by the `set_organisation_vanity_slug` DB trigger
+ * (AddOrganisationVanitySlug in hikyaku-api) — never written from here.
+ */
+export async function getOrganisationVanitySlug(
+  slug: string,
+): Promise<string | null> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('organisations')
+    .select('vanity_slug')
+    .eq('slug', slug)
+    .maybeSingle()
+  return data?.vanity_slug ?? null
+}
+
+/**
  * Org id + current logo URL, for the Business Information logo uploader
  * (needs the id to key the storage path) and for anywhere a QR code with
  * branding gets rendered (e.g. package labels). Returns null if the org
