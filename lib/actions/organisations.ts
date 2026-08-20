@@ -82,6 +82,25 @@ export async function getOrganisationType(
 }
 
 /**
+ * An org's vanity booking subdomain (the label only, e.g. 'acme-couriers' —
+ * not the full URL; pair with `tenantUrl()` from `lib/subdomain.ts` for
+ * that). NULL for personal orgs and any company org whose name has no
+ * sluggable characters. Set by the `set_organisation_vanity_slug` DB trigger
+ * (AddOrganisationVanitySlug in hikyaku-api) — never written from here.
+ */
+export async function getOrganisationVanitySlug(
+  slug: string,
+): Promise<string | null> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('organisations')
+    .select('vanity_slug')
+    .eq('slug', slug)
+    .maybeSingle()
+  return data?.vanity_slug ?? null
+}
+
+/**
  * Whether the signed-in user belongs to at least one company org. OAuth
  * grants are per-user, not per-org, so features that are organisation-only
  * (issuing OAuth tokens, the Connected Apps settings page) key off this

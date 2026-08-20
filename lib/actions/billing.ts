@@ -1,11 +1,12 @@
 "use server"
 
-import type { ShiftUsageStatusDto, TrialStatusDto } from "@/lib/api"
+import type { ShiftUsageStatusDto, TrialStatusDto, VanityUrlStatusDto } from "@/lib/api"
 import type { ActionError } from "./api-client"
 import { buildApiContext, parseApiError } from "./api-client"
 
 export type TrialStatus = TrialStatusDto
 export type ShiftUsageStatus = ShiftUsageStatusDto
+export type VanityUrlStatus = VanityUrlStatusDto
 
 /**
  * Trial state for the active organisation.
@@ -59,6 +60,33 @@ export async function getShiftUsage(): Promise<ShiftUsageStatus | null> {
         })
         if (!res.ok) {
             console.error("Failed to read shift usage:", await parseApiError(res))
+            return null
+        }
+        return await res.json()
+    } catch {
+        return null
+    }
+}
+
+/**
+ * Vanity URL entitlement state for the active organisation.
+ *
+ * Same fail-open-to-`null` shape as getTrialStatus/getShiftUsage: this drives
+ * the Business Information settings page's live/locked display, not the
+ * enforcement itself — get_booking_organisation()/get_tracking_details() in
+ * hikyaku-api are what actually decide whether a vanity host resolves.
+ */
+export async function getVanityUrlStatus(): Promise<VanityUrlStatus | null> {
+    const ctx = await buildApiContext()
+    if ("error" in ctx) return null
+
+    try {
+        const res = await fetch(`${ctx.apiUrl}/api/v1/billing/vanity-url`, {
+            headers: ctx.headers,
+            cache: "no-store",
+        })
+        if (!res.ok) {
+            console.error("Failed to read vanity URL status:", await parseApiError(res))
             return null
         }
         return await res.json()

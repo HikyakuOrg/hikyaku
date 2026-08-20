@@ -82,3 +82,17 @@ export interface BillingPortalSessionDto {
   /** Stripe-hosted Billing Portal URL to redirect the browser to. */
   url: string
 }
+
+/**
+ * 200 body of `GET /api/v1/billing/vanity-url` — vanity URL entitlement state
+ * for the active org. Same temporary reasoning as TrialStatusDto above.
+ */
+export interface VanityUrlStatusDto {
+  /**
+   * Whether the organisation is currently entitled to a vanity booking
+   * subdomain (<vanity_slug>.hikyaku.org). True for a grandfathered company
+   * org unconditionally, otherwise mirrors the live `vanity_url` Stripe
+   * entitlement.
+   */
+  hasVanityUrlEntitlement: boolean
+}
