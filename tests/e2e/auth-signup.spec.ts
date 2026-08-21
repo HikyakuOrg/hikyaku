@@ -9,11 +9,24 @@ import { signUpAndConfirm } from "./helpers/signup-flow"
  * in as the demo seed user, which would break a brand-new signup).
  */
 test.describe("Auth — signup + email confirm", () => {
-    test("new user signs up, confirms email, creates org, lands on tenant", async ({ page }) => {
+    test("new user signs up, confirms email, lands directly on personal org dashboard", async ({ page }) => {
+        test.setTimeout(120_000)
+
+        // signUpAndConfirm already asserts the landing URL is the personal
+        // org's dashboard — no "name your company" prompt in the way.
+        await signUpAndConfirm(page)
+
+        // The org switcher trigger shows "Personal" for a nameless personal org.
+        const trigger = page.locator('[aria-haspopup="menu"]').first()
+        await expect(trigger).toContainText(/personal/i)
+    })
+
+    test("signed-up user can still create a company org via /orgs/new", async ({ page }) => {
         test.setTimeout(120_000)
 
         await signUpAndConfirm(page)
 
+        await page.goto("/orgs/new")
         const orgName = `${faker.company.name().replace(/[^a-zA-Z0-9-]/g, "-")}-${Date.now()}`
         await page.locator("#org-name").fill(orgName)
         await page.getByRole("button", { name: /create organization/i }).click()
@@ -27,16 +40,18 @@ test.describe("Auth — signup + email confirm", () => {
         await expect(trigger).toContainText(orgName)
     })
 
-    test("signed-up user without an org navigates away then back, gets bounced to /orgs/new", async ({ page }) => {
+    test("signed-up user navigates away then back, stays on their personal org dashboard", async ({ page }) => {
         test.setTimeout(120_000)
 
         await signUpAndConfirm(page)
 
-        // Currently sitting on /orgs/new. Navigate to external site, then back.
+        // Currently sitting on the personal org dashboard. Navigate to an
+        // external site, then back to the /orgs resolver.
         await page.goto("https://google.com")
         await page.goto("http://localhost:3000/orgs")
 
-        // The /orgs resolver sees an authed user with zero orgs and bounces them.
-        await expect(page).toHaveURL(/\/orgs\/new$/, { timeout: 15_000 })
+        // The /orgs resolver sees the existing personal org and lands there
+        // again — it must not bounce to /orgs/new.
+        await expect(page).toHaveURL(/\/orgs\/[a-z0-9-]+\/dashboard\/?$/, { timeout: 15_000 })
     })
 })
