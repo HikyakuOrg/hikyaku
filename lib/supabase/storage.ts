@@ -58,7 +58,7 @@ export async function getSignedUrls(paths: string[]) {
 
     if (error) throw error
 
-    return data.map((d) => d.signedUrl)
+    return data.map((d) => d.signedUrl).filter((url) => url !== null)
 }
 
 /**
@@ -103,5 +103,5 @@ export async function getPackageSignedUrls(paths: string[]) {
 
     if (error) throw error
 
-    return data.map((d) => d.signedUrl)
+    return data.map((d) => d.signedUrl).filter((url) => url !== null)
 }
