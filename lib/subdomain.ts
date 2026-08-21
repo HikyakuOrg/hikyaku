@@ -14,6 +14,11 @@ const vercelPreviewUrl =
 export const ROOT_DOMAIN =
   vercelPreviewUrl ?? process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'hikyaku.org'
 
+// The real public root domain, ignoring the Vercel-preview override above.
+// Booking/vanity links are shared with customers and must always point at
+// the production tenant domain, never at a preview deployment's hostname.
+const PUBLIC_ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'hikyaku.org'
+
 // Hosts under the root that are NOT tenants (must mirror the API's RESERVED_SLUGS).
 // docs, send and origin are live hostnames in the hikyaku.org zone: docs is a
 // separate Vercel project, send is the SES sending domain, and origin is what the
@@ -92,9 +97,9 @@ export function appUrl(path = '/'): string {
  *  e.g. https://k7m2qp9x.hikyaku.org/booking */
 export function tenantUrl(slug: string, path = '/dashboard'): string {
   const isLocal =
-    ROOT_DOMAIN.startsWith('localhost') ||
-    ROOT_DOMAIN.includes('lvh.me') ||
-    ROOT_DOMAIN.includes('.localhost')
+    PUBLIC_ROOT_DOMAIN.startsWith('localhost') ||
+    PUBLIC_ROOT_DOMAIN.includes('lvh.me') ||
+    PUBLIC_ROOT_DOMAIN.includes('.localhost')
   const protocol = isLocal ? 'http' : 'https'
-  return `${protocol}://${slug}.${ROOT_DOMAIN}${path}`
+  return `${protocol}://${slug}.${PUBLIC_ROOT_DOMAIN}${path}`
 }
