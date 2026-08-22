@@ -67,7 +67,8 @@ export async function prepareCustomerFromForm(
 
     return {
         customer,
-        isWithinServiceArea: isPointWithinServiceAreas(serviceAreas, [values.customerLon, values.customerLat]),
+        isWithinServiceArea: serviceAreas.length === 0
+            || isPointWithinServiceAreas(serviceAreas, [values.customerLon, values.customerLat]),
     }
 }
 
