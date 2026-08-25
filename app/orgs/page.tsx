@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { getSupabaseServerClaims } from '@/lib/supabase/server'
-import { listMyOrganisations } from '@/lib/actions/organisations'
+import { createOrganisation, listMyOrganisations } from '@/lib/actions/organisations'
 import { orgPath } from '@/lib/subdomain'
 import { PendingInvitationsDialog } from '@/components/pending-invitations-dialog'
 import { listPendingInvitations } from '@/lib/actions/invitations'
@@ -35,5 +35,9 @@ async function OrgsResolver() {
         return <PendingInvitationsDialog invitations={invitations} />
     }
 
-    redirect('/orgs/new')
+    // No org yet (the handle_new_user() signup trigger hasn't landed, or this
+    // account predates it) — create the personal org now rather than bouncing
+    // to the "name your company" form.
+    const created = await createOrganisation(null, 'personal')
+    redirect(typeof created === 'string' ? '/orgs/new' : orgPath(created.slug, '/dashboard'))
 }

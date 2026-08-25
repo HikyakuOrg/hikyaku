@@ -58,7 +58,35 @@ export async function getSignedUrls(paths: string[]) {
 
     if (error) throw error
 
-    return data.map((d) => d.signedUrl)
+    return data.map((d) => d.signedUrl).filter((url) => url !== null)
+}
+
+/**
+ * Upload (or replace) an organisation's QR/branding logo. Path is keyed by
+ * organisationId, not slug — the org-logos bucket's RLS policies check
+ * team_members against that folder segment, and slugs are mutable-ish while
+ * the id isn't. `upsert: true` always writes to the same path so a
+ * replacement doesn't leave the old file orphaned in storage; the cache-bust
+ * query param is what makes the browser/CDN pick up the new image despite
+ * the path staying identical.
+ */
+export async function uploadOrganisationLogo(organisationId: string, file: File) {
+    const fileExtension = file.name.split('.').pop()
+    const fileName = `${organisationId}/logo.${fileExtension}`
+    const fileBuffer = await file.arrayBuffer()
+
+    const { error } = await supabase.storage
+        .from('org-logos')
+        .upload(fileName, fileBuffer, {
+            contentType: file.type,
+            upsert: true,
+        })
+
+    if (error) throw error
+
+    const { data: publicUrlData } = supabase.storage.from('org-logos').getPublicUrl(fileName)
+
+    return `${publicUrlData.publicUrl}?v=${Date.now()}`
 }
 
 export async function listPackageFiles(packageId: string) {
@@ -75,5 +103,5 @@ export async function getPackageSignedUrls(paths: string[]) {
 
     if (error) throw error
 
-    return data.map((d) => d.signedUrl)
+    return data.map((d) => d.signedUrl).filter((url) => url !== null)
 }

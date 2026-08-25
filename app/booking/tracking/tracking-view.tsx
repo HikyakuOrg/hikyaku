@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator"
 import { TrackingMap } from "@/components/tracking/tracking-map"
 import PackageTimeline from "@/app/orgs/[slug]/dashboard/packages/[trackingNumber]/package-timeline"
 import { PackageImages } from "@/app/orgs/[slug]/dashboard/packages/[trackingNumber]/package-images"
-import { CopyTrackingNumber } from "./copy-tracking-number"
+import { CopyButton } from "@/components/copy-button"
 
 const STATUS_TONE: Record<PackageStatus, string> = {
     PENDING: "bg-slate-500/10 text-slate-600 dark:text-slate-300",
@@ -96,7 +96,10 @@ export function TrackingView({ details }: { details: TrackingDetails }) {
             <header className="space-y-3">
                 <div className="flex flex-wrap items-center gap-3">
                     <StatusPill status={details.current_status} />
-                    <CopyTrackingNumber value={details.tracking_number} />
+                    <CopyButton
+                        value={details.tracking_number}
+                        label="Copy tracking number"
+                    />
                 </div>
                 <h1 className="text-2xl font-semibold tracking-tight">
                     {headline(details.current_status)}

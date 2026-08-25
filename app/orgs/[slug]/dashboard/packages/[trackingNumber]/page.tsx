@@ -3,6 +3,7 @@
 import { getPackage, getPackageAssignment, getPackageByTrackingNumber, getPackageDeliveryWindow, getPackageDimension, getPackageTimeline, getWarehouse, getPackageFailure } from "@/lib/supabase/db"
 import { getCustomersByIdsAction } from "@/lib/actions/customers"
 import { getDriversByIds } from "@/lib/supabase/supabase-rpc"
+import { getOrganisationBranding } from "@/lib/actions/organisations"
 import { useParams } from "next/navigation"
 import { useEffect, useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
@@ -35,6 +36,16 @@ export default function PackageDetails() {
     const [packageData, setPackageData] = useState<Tables<"packages"> | null>(null)
     const [warehouse, setWarehouse] = useState<Tables<"warehouse"> | null>(null)
     const [packageFailure, setPackageFailure] = useState<Tables<"package_failure"> | null>(null)
+    const [logoUrl, setLogoUrl] = useState<string | null>(null)
+
+    useEffect(() => {
+        if (!slug) return
+        let cancelled = false
+        getOrganisationBranding(slug).then((branding) => {
+            if (!cancelled) setLogoUrl(branding?.logoUrl ?? null)
+        })
+        return () => { cancelled = true }
+    }, [slug])
 
     useEffect(() => {
         if (!trackingNumber) return
@@ -253,6 +264,7 @@ export default function PackageDetails() {
                                     packageId={packageId}
                                     trackingNumber={packageData.tracking_number}
                                     receiver={toCustomer}
+                                    logoUrl={logoUrl}
                                 />
                                 <PackageImages packageId={packageId} />
                             </div>

@@ -3,7 +3,13 @@
 import { useState } from "react"
 import { Check, Copy } from "lucide-react"
 
-export function CopyTrackingNumber({ value }: { value: string }) {
+export function CopyButton({
+    value,
+    label = "Copy",
+}: {
+    value: string
+    label?: string
+}) {
     const [copied, setCopied] = useState(false)
 
     async function copy() {
@@ -20,7 +26,7 @@ export function CopyTrackingNumber({ value }: { value: string }) {
         <button
             type="button"
             onClick={copy}
-            aria-label="Copy tracking number"
+            aria-label={label}
             className="inline-flex items-center gap-2 rounded-md border bg-card px-2.5 py-1 font-mono text-sm text-foreground transition-colors hover:bg-muted"
         >
             {value}

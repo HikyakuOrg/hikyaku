@@ -361,22 +361,36 @@ export type Database = {
           created_at: string
           created_by: string
           id: string
+          logo_url: string | null
           name: string | null
           org_type: string
           slug: string
+          trial_ends_at: string | null
+          vanity_slug: string | null
         }
+        // trial_ends_at/vanity_slug are intentionally absent from Insert: the
+        // organisations_set_trial / set_organisation_vanity_slug triggers
+        // overwrite whatever is supplied, so accepting them here would type a
+        // value that the database discards.
         Insert: {
           created_at?: string
           created_by?: string
           id?: string
+          logo_url?: string | null
           name?: string | null
           org_type?: string
           slug?: string
         }
+        // trial_ends_at/vanity_slug are absent from Update too, same reasoning
+        // as Insert above. `authenticated` holds column-level UPDATE on
+        // ("name", "org_type", "logo_url") only — id/created_at/created_by/slug
+        // are listed here because the generator emits every column, not
+        // because they're writable.
         Update: {
           created_at?: string
           created_by?: string
           id?: string
+          logo_url?: string | null
           name?: string | null
           org_type?: string
           slug?: string

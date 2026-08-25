@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { QRCodeCanvas } from 'qrcode.react';
 import JsBarcode from "jsbarcode";
 interface PackageLabelProps {
@@ -8,10 +8,32 @@ interface PackageLabelProps {
     trackingNumber: string;
     receiver: Customer | null;
     canvasRef: React.RefObject<HTMLCanvasElement | null>;
+    /** Org's uploaded logo (getOrganisationBranding). Omit/null prints a plain QR code. */
+    logoUrl?: string | null;
 }
 
-export function PackageLabel({ packageId, trackingNumber, receiver, canvasRef }: PackageLabelProps) {
+export function PackageLabel({ packageId, trackingNumber, receiver, canvasRef, logoUrl }: PackageLabelProps) {
     const qrRef = useRef<HTMLDivElement>(null);
+    // Preloaded separately from qrcode.react's own <img>, so the print-canvas
+    // draw effect below never races an async image load — by the time this
+    // state is set the browser already has the bytes decoded and cached.
+    // Keyed by the url it was loaded for, so a logoUrl change (or removal)
+    // can't momentarily draw a stale/mismatched image while the new one is
+    // still loading — logoImg below just derives to null until it matches.
+    const [loadedLogo, setLoadedLogo] = useState<{ url: string; img: HTMLImageElement } | null>(null);
+    const logoImg = loadedLogo !== null && loadedLogo.url === logoUrl ? loadedLogo.img : null;
+
+    useEffect(() => {
+        if (!logoUrl) return;
+        let cancelled = false;
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.src = logoUrl;
+        img.decode()
+            .then(() => { if (!cancelled) setLoadedLogo({ url: logoUrl, img }); })
+            .catch(() => { /* leave logoImg derived to null — label prints without the logo */ });
+        return () => { cancelled = true; };
+    }, [logoUrl]);
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -57,7 +79,20 @@ export function PackageLabel({ packageId, trackingNumber, receiver, canvasRef }:
 
         const qrCanvasElement = qrRef.current?.querySelector('canvas');
         if (qrCanvasElement) {
-            ctx.drawImage(qrCanvasElement, 40, 520, 160, 160);
+            const qrX = 40, qrY = 520, qrSize = 160;
+            ctx.drawImage(qrCanvasElement, qrX, qrY, qrSize, qrSize);
+
+            if (logoImg) {
+                // Knock out a square behind the logo so it doesn't sit on top of
+                // (and obscure) QR modules — level H on the hidden canvas below
+                // has enough redundancy to tolerate this.
+                const logoSize = qrSize * 0.26;
+                const cx = qrX + qrSize / 2;
+                const cy = qrY + qrSize / 2;
+                ctx.fillStyle = 'white';
+                ctx.fillRect(cx - logoSize / 2 - 4, cy - logoSize / 2 - 4, logoSize + 8, logoSize + 8);
+                ctx.drawImage(logoImg, cx - logoSize / 2, cy - logoSize / 2, logoSize, logoSize);
+            }
         }
 
         const barcodeCanvas = document.createElement('canvas');
@@ -75,7 +110,7 @@ export function PackageLabel({ packageId, trackingNumber, receiver, canvasRef }:
         } catch (e) {
             console.error("Barcode error", e);
         }
-    }, [packageId, trackingNumber, receiver, canvasRef]);
+    }, [packageId, trackingNumber, receiver, canvasRef, logoImg]);
 
     return (
         <div className="flex flex-col items-center gap-4">
@@ -88,7 +123,7 @@ export function PackageLabel({ packageId, trackingNumber, receiver, canvasRef }:
             </div>
 
             <div ref={qrRef} className="hidden">
-                <QRCodeCanvas value={packageId} size={256} />
+                <QRCodeCanvas value={packageId} size={256} level={logoUrl ? "H" : "L"} />
             </div>
 
             <p className="text-xs text-muted-foreground italic">

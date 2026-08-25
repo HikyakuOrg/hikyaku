@@ -1,3 +1,4 @@
+import { createOrganisation } from '@/lib/actions/organisations'
 import { orgPath } from '@/lib/subdomain'
 import type { createClient } from '@/lib/supabase/client'
 
@@ -74,10 +75,12 @@ export function isSafeRedirectPath(path: string | null | undefined): path is str
 
 /**
  * Resolves where to send a freshly-authenticated user. A signup triggers
- * DB-side creation of an organisations row owned by the new user, so we pick
- * that org's slug and land on its dashboard rather than the apex (where the
- * middleware would bounce to /select-org). Falls back to the org-creation flow
- * when no org exists yet.
+ * DB-side creation of an organisations row owned by the new user, so we
+ * normally just pick that org's slug and land on its dashboard rather than
+ * the apex (where the middleware would bounce to /select-org). If that row
+ * isn't there yet — the trigger hasn't landed, or the account predates it —
+ * this creates the personal org here instead of sending the user to the
+ * "name your company" form.
  */
 export async function resolveOrgPath(
   supabase: ReturnType<typeof createClient>,
@@ -90,8 +93,11 @@ export async function resolveOrgPath(
     .limit(1)
     .maybeSingle()
   if (error) throw error
-  const slug = org?.slug
-  return slug ? orgPath(slug, '/dashboard') : '/orgs/new'
+  if (org?.slug) return orgPath(org.slug, '/dashboard')
+
+  const created = await createOrganisation(null, 'personal')
+  if (typeof created === 'string') throw new Error(created)
+  return orgPath(created.slug, '/dashboard')
 }
 
 /**
