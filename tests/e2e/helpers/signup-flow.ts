@@ -20,7 +20,7 @@ type SignupOptions = Partial<SignupCredentials> & {
  *   2. Wait for the Supabase confirmation email to arrive at Resend.
  *   3. Visit the /auth/confirm link.
  *   4. Log in via /auth/login.
- *   5. Resolve once the page is at /dashboard/new (user has zero orgs).
+ *   5. Resolve once the page lands on the auto-created personal org's dashboard.
  *
  * Caller MUST use a browser context with no shared storageState so the signup
  * starts logged-out (see playwright.config.ts `chrome-unauthed` project).
@@ -63,8 +63,9 @@ export async function signUpAndConfirm(page: Page, options: SignupOptions = {}):
     await page.locator("#password").fill(credentials.password)
     await page.getByRole("button", { name: /^login$/i }).click()
 
-    // Fresh users have no org — the login-form redirects them to /orgs/new.
-    await expect(page).toHaveURL(/\/orgs\/new$/, { timeout: 15_000 })
+    // Fresh users already have a personal org (auto-created at signup, or
+    // defensively by the login redirect) — land straight on its dashboard.
+    await expect(page).toHaveURL(/\/orgs\/[a-z0-9-]+\/dashboard\/?$/, { timeout: 15_000 })
 
     return credentials
 }

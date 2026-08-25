@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useState } from "react"
-import { fetchAddressSuggestions, type AddressSuggestion } from "@/lib/maps/geocode-autocomplete"
+import { fetchAddressSuggestions, type AddressSuggestion } from "@/lib/actions/geocode"
 import {
     Combobox,
     ComboboxContent,

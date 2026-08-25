@@ -32,12 +32,10 @@ export interface AddressSuggestion {
     raw: unknown
 }
 
-export async function fetchAddressSuggestions(text: string): Promise<AddressSuggestion[]> {
-    const res = await fetch(
-        `${process.env.NEXT_PUBLIC_HIKYAKU_API_URL}/geocode/autocomplete?text=${encodeURIComponent(text)}`
-    )
-    if (!res.ok) return []
-    const data: FeatureCollection<Point, PhotonProperties> = await res.json()
+/** Maps a Photon GeoJSON feature collection (as returned by hikyaku-api's geocode endpoints) onto our suggestion shape. */
+export function parsePhotonFeatureCollection(
+    data: FeatureCollection<Point, PhotonProperties>
+): AddressSuggestion[] {
     return data.features.map((feature) => {
         const p = feature.properties
         const [lon, lat] = feature.geometry.coordinates

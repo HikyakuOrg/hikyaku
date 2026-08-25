@@ -21,6 +21,7 @@ test.describe("Organisation create — duplicate from another user fails", () =>
 
         await signUpAndConfirm(pageA, { displayName: "User A" })
 
+        await pageA.goto("/orgs/new")
         await pageA.locator("#org-name").fill(orgName)
         await pageA.getByRole("button", { name: /create organization/i }).click()
         await expect(pageA).toHaveURL(/\/orgs\/[a-z0-9-]+\/dashboard\/?$/, {
@@ -35,6 +36,7 @@ test.describe("Organisation create — duplicate from another user fails", () =>
 
         await signUpAndConfirm(pageB, { displayName: "User B" })
 
+        await pageB.goto("/orgs/new")
         await pageB.locator("#org-name").fill(orgName)
         await pageB.getByRole("button", { name: /create organization/i }).click()
 
