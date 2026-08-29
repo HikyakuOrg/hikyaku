@@ -33,6 +33,11 @@ export interface AccountSessionDto {
   publishableKey: string;
 }
 
+export interface AddPackagesToShiftDto {
+  /** Existing packages.id values. Candidate selection is bypassed, but feasibility still runs: a package that breaks a deadline is reported as a warning rather than refused. */
+  packageIds: string[];
+}
+
 export interface AddressDto {
   country: string;
   /**
@@ -105,12 +110,90 @@ export interface ApiErrorDto {
   statusCode: number;
 }
 
+export interface AssignedShiftDto {
+  /** @format uuid */
+  driverId: string | null;
+  /**
+   * Planner ETA (package_delivery_window.estimated_arrival). Rewritten on every replan; never a deadline.
+   * @format date-time
+   */
+  estimatedArrival: string | null;
+  /**
+   * vrp_optimization.id — a shift is a vrp_optimization row.
+   * @format uuid
+   */
+  id: string;
+  /** vrp_optimization.revision at the time of assignment. Clients compare this against GET /api/v1/shifts/{id}/version to detect a replan. */
+  revision: number;
+  /** @format date-time */
+  scheduledStart: string | null;
+  /**
+   * Warehouse-local service day.
+   * @format date
+   */
+  shiftDate: string;
+  /** Zero-based position of this package among the route job steps, excluding the depot start/end steps. */
+  stopIndex: number;
+  /** @format uuid */
+  vehicleId: string | null;
+}
+
+export interface AssignmentOutcomeDto {
+  /** Packages bumped off a shift to make room for this one. Each was re-assigned in the same request where possible; any that could not be are back at PENDING. Empty in the normal case. */
+  evictedPackageIds: string[];
+  /** `assigned` — joined an existing planned shift. `assigned_new_shift` — a new shift was opened for it, which consumes one shift from the organisation allowance. `deferred` — created but not assigned; it will be picked up by the next replan or by a dispatcher. `skipped` — assignment was not attempted. */
+  outcome: AssignmentOutcomeDtoOutcomeEnum;
+  /** Set for `deferred` and `skipped`; null otherwise. */
+  reason?: AssignmentOutcomeDtoReasonEnum | null;
+  /** Present for `assigned` and `assigned_new_shift`. */
+  shift?: AssignedShiftDto | null;
+}
+
+/** `assigned` — joined an existing planned shift. `assigned_new_shift` — a new shift was opened for it, which consumes one shift from the organisation allowance. `deferred` — created but not assigned; it will be picked up by the next replan or by a dispatcher. `skipped` — assignment was not attempted. */
+export type AssignmentOutcomeDtoOutcomeEnum =
+  | "assigned"
+  | "assigned_new_shift"
+  | "deferred"
+  | "skipped";
+
+/** Set for `deferred` and `skipped`; null otherwise. */
+export type AssignmentOutcomeDtoReasonEnum =
+  | "no_capacity"
+  | "no_free_driver_vehicle"
+  | "shift_allowance_exhausted"
+  | "no_geocode"
+  | "auto_assign_disabled"
+  | "deadline_infeasible";
+
 export interface BatchByDbIdsDto {
   ids: string[];
 }
 
 export interface BatchByStripeIdsDto {
   stripeIds: string[];
+}
+
+export interface BillingPortalSessionDto {
+  /** Stripe-hosted Billing Portal URL to redirect the browser to. */
+  url: string;
+}
+
+export interface BulkCreatePackageResultDto {
+  /** Failure detail for this entry. One bad entry does not fail the batch. */
+  error?: string | null;
+  /** Index into the submitted packages array. */
+  index: number;
+  /** Present when this entry succeeded. */
+  result?: CreatePackageResultDto | null;
+}
+
+export interface BulkCreatePackagesDto {
+  /** @maxItems 500 */
+  packages: CreatePackageDto[];
+}
+
+export interface BulkCreatePackagesResultDto {
+  results: BulkCreatePackageResultDto[];
 }
 
 export interface CatalogAddonDto {
@@ -251,6 +334,14 @@ export type CreateAddonDtoPricingUnitEnum =
   | "per_lb"
   | "per_recipient";
 
+export interface CreateBillingPortalSessionDto {
+  /**
+   * Where Stripe redirects the browser after the customer leaves the Billing Portal — typically the page the "Add payment method" button was clicked from.
+   * @example "https://acme.hikyaku.org/dashboard/settings/billing"
+   */
+  returnUrl: string;
+}
+
 export interface CreateEphemeralKeyDto {
   /** Stripe API version pinned by the client SDK */
   apiVersion: string;
@@ -295,6 +386,49 @@ export interface CreateInvitationResultDto {
  */
 export type CreateInvitationResultDtoStatusEnum = "pending";
 
+export interface CreatePackageDto {
+  /**
+   * Run assignment immediately after creation. The mobile create-shift wizard MUST send false: it creates packages then hands their ids to POST /api/v1/optimisation/adhoc, which rejects a package that already belongs to an optimisation.
+   * @default true
+   */
+  autoAssign?: boolean;
+  /**
+   * Hard deadline — the promise made to the customer, stored in package_delivery_window.scheduled_arrival and never overwritten by the planner. Packages WITHOUT a deadline are the ones eligible to be bumped off a shift to make room for one that has a deadline.
+   * @format date-time
+   */
+  deadlineAt?: string;
+  /** Free-text notes for the driver. */
+  deliveryNotes?: string;
+  dimensions: PackageDimensionsDto;
+  /**
+   * customer.id of the sender.
+   * @format uuid
+   */
+  fromCustomerId: string;
+  /**
+   * Client-supplied packages.id. Both clients mint a UUID before the call so they can name the storage path for photos; supplying it here keeps that working and makes the create idempotent on replay. Omitted, the server generates one.
+   * @format uuid
+   */
+  id?: string;
+  /**
+   * customer.id of the recipient. Its customer_location is the routed stop; a recipient with no geocode cannot be assigned.
+   * @format uuid
+   */
+  toCustomerId: string;
+  /** Human-facing tracking number. Omitted, the packages_set_tracking_number trigger generates one. Re-sending an existing number with an identical payload replays the original package instead of creating a second. */
+  trackingNumber?: string;
+  /**
+   * warehouse.id the package is dispatched from. Must belong to the active organisation.
+   * @format uuid
+   */
+  warehouseId: string;
+}
+
+export interface CreatePackageResultDto {
+  assignment: AssignmentOutcomeDto;
+  package: PackageDto;
+}
+
 export interface CreateServiceDto {
   /** Per-unit rate in major units (e.g. dollars). */
   amountMajor: number;
@@ -311,6 +445,35 @@ export type CreateServiceDtoPricingUnitEnum =
   | "per_kg"
   | "per_lb"
   | "per_recipient";
+
+export interface CreateShiftDto {
+  /**
+   * drivers.id. Must share a warehouse with vehicleId.
+   * @format uuid
+   */
+  driverId: string;
+  /**
+   * When the vehicle sets off. Omitted, the shift stays open to automatic assignment indefinitely; set, it closes 15 minutes before this time so nothing is added to a van about to roll.
+   * @format date-time
+   */
+  scheduledStart?: string;
+  /**
+   * Warehouse-local service day (YYYY-MM-DD). A driver or vehicle can hold at most one open shift per day.
+   * @format date
+   * @example "2026-09-01"
+   */
+  shiftDate: string;
+  /**
+   * vehicles.id. Also resolves the routing profile via vehicles.vehicle_type.
+   * @format uuid
+   */
+  vehicleId: string;
+  /**
+   * warehouse.id the shift starts and ends at.
+   * @format uuid
+   */
+  warehouseId: string;
+}
 
 export interface CreateUserDto {
   user_avatar?: boolean;
@@ -543,6 +706,14 @@ export interface GeoJsonPointDto {
 /** @example "Point" */
 export type GeoJsonPointDtoTypeEnum = "Point";
 
+export interface HealthDto {
+  /**
+   * Always "ok" — the endpoint only reports process liveness.
+   * @example "ok"
+   */
+  status: string;
+}
+
 export interface InvitationOrganisationDto {
   /** @format uuid */
   id: string;
@@ -768,6 +939,54 @@ export interface OrgIssuingStatusDto {
    * @example "acme-logistics"
    */
   slug: string;
+}
+
+export interface PackageDimensionsDto {
+  /**
+   * Height in centimetres.
+   * @example 15
+   */
+  heightCm: number;
+  /**
+   * Length in centimetres.
+   * @example 30
+   */
+  lengthCm: number;
+  /**
+   * Weight in kilograms.
+   * @example 2.5
+   */
+  weightKg: number;
+  /**
+   * Width in centimetres.
+   * @example 20
+   */
+  widthCm: number;
+}
+
+export interface PackageDto {
+  /** @format date-time */
+  createdAt: string;
+  /**
+   * The hard deadline (package_delivery_window.scheduled_arrival). Null means the package has no promise and may be bumped to make room.
+   * @format date-time
+   */
+  deadlineAt: string | null;
+  deliveryNotes: string | null;
+  /** @format uuid */
+  fromCustomerId: string;
+  /** @format uuid */
+  id: string;
+  /** @format uuid */
+  organisationId: string;
+  /** Latest package_timeline status enum, e.g. PENDING, ASSIGNED. */
+  status: string;
+  /** @format uuid */
+  toCustomerId: string;
+  /** Generated or client-supplied tracking number. */
+  trackingNumber: string;
+  /** @format uuid */
+  warehouseId: string | null;
 }
 
 export interface PaginatedCustomersDto {
@@ -1018,6 +1237,146 @@ export interface SetOffOverrideDto {
   vehicleId: string;
 }
 
+export interface ShiftDto {
+  /** @format uuid */
+  driverId: string | null;
+  /**
+   * vrp_optimization.id.
+   * @format uuid
+   */
+  id: string;
+  /** @format uuid */
+  organisationId: string;
+  /** Bumped on every plan rewrite. */
+  revision: number;
+  /**
+   * vrp_route.id of the single route, or null while the shift is empty.
+   * @format uuid
+   */
+  routeId: string | null;
+  /** @format date-time */
+  scheduledStart: string | null;
+  /** @format date */
+  shiftDate: string;
+  /** `planned` is the only state open to automatic assignment, and only until 15 minutes before scheduledStart. */
+  status: ShiftDtoStatusEnum;
+  /** Job steps on the route, excluding depot start/end. */
+  stopCount: number;
+  /** @format date-time */
+  updatedAt: string;
+  /** @format uuid */
+  vehicleId: string | null;
+  /** @format uuid */
+  warehouseId: string | null;
+}
+
+/** `planned` is the only state open to automatic assignment, and only until 15 minutes before scheduledStart. */
+export type ShiftDtoStatusEnum =
+  | "planned"
+  | "dispatched"
+  | "completed"
+  | "cancelled";
+
+export interface ShiftPackageOutcomeDto {
+  /** False when the package was already claimed elsewhere. */
+  added: boolean;
+  /** @format uuid */
+  packageId: string;
+  /** Set when the package was added but breaks something — e.g. its own deadline, or another stop’s. The dispatcher decided; we record it. */
+  warning?: string | null;
+}
+
+export interface ShiftPlanDto {
+  packages: ShiftPackageOutcomeDto[];
+  shift: ShiftDto;
+}
+
+export interface ShiftUsageStatusDto {
+  /**
+   * Shifts included before overage billing applies. PLACEHOLDER — see create-stripe-subscriptions.ps1 for the actual figure per org type.
+   * @example 30
+   */
+  freeAllowance: number;
+  /**
+   * Whether the organisation has a payment method on file. Once `shiftsUsedThisPeriod` reaches `freeAllowance`, further shift creation is blocked (HTTP 400 / check_violation) unless this is true.
+   * @example false
+   */
+  hasPaymentMethod: boolean;
+  /**
+   * ISO 8601 instant the free allowance resets (start of next calendar month).
+   * @example "2026-09-01T00:00:00.000Z"
+   */
+  periodEnd: string;
+  /**
+   * Shifts created by this organisation so far this calendar month.
+   * @example 23
+   */
+  shiftsUsedThisPeriod: number;
+}
+
+export interface ShiftVersionDto {
+  /** @format uuid */
+  id: string;
+  /** Compare against the loaded value; differs means replan. */
+  revision: number;
+  status: ShiftVersionDtoStatusEnum;
+  stopCount: number;
+  /** @format date-time */
+  updatedAt: string;
+}
+
+export type ShiftVersionDtoStatusEnum =
+  | "planned"
+  | "dispatched"
+  | "completed"
+  | "cancelled";
+
+export interface TrialStatusDto {
+  /**
+   * Whole days remaining, floored — so the final day reads 0, not 1. Null when `state` is `none`, and 0 rather than negative once expired.
+   * @example 6
+   */
+  daysRemaining: number | null;
+  /**
+   * `none` — no trial applies to this organisation, which is the case for personal orgs and for orgs created before trials existed. They are unrestricted, NOT expired. `active` — trial running. `expired` — the deadline has passed and tenant-scoped endpoints answer 402.
+   * @example "active"
+   */
+  state: TrialStatusDtoStateEnum;
+  /**
+   * ISO 8601 instant the trial ends, or null when `state` is `none`. Returned raw so the dashboard can render it in the viewer’s locale.
+   * @example "2026-08-22T04:12:57.000Z"
+   */
+  trialEndsAt: string | null;
+}
+
+/**
+ * `none` — no trial applies to this organisation, which is the case for personal orgs and for orgs created before trials existed. They are unrestricted, NOT expired. `active` — trial running. `expired` — the deadline has passed and tenant-scoped endpoints answer 402.
+ * @example "active"
+ */
+export type TrialStatusDtoStateEnum = "none" | "active" | "expired";
+
+export interface TzdataStatusDto {
+  /** Present only when importState is "failed". */
+  error?: string;
+  /** What this instance has observed/done for the background boot-time import. */
+  importState: TzdataStatusDtoImportStateEnum;
+  /** Live check: whether tzdata.timezone currently has rows. Authoritative regardless of whether this instance ran the import itself. */
+  populated: boolean;
+  /** ISO timestamp of the last state transition on this instance. */
+  updatedAt: string;
+}
+
+/** What this instance has observed/done for the background boot-time import. */
+export type TzdataStatusDtoImportStateEnum =
+  | "idle"
+  | "checking"
+  | "downloading"
+  | "importing"
+  | "completed"
+  | "skipped_already_populated"
+  | "skipped_locked_elsewhere"
+  | "failed";
+
 export interface UpdateAddonDto {
   /** Per-unit rate in major units (e.g. dollars). */
   amountMajor?: number;
@@ -1099,4 +1458,12 @@ export interface UserBatchFailureDto {
   reason: string;
   /** @format uuid */
   user_id: string;
+}
+
+export interface VanityUrlStatusDto {
+  /**
+   * Whether the organisation is currently entitled to a vanity booking subdomain (<vanity_slug>.hikyaku.org). True for a grandfathered company org unconditionally, otherwise mirrors the live vanity_url Stripe entitlement synced from that org's Billing customer.
+   * @example true
+   */
+  hasVanityUrlEntitlement: boolean;
 }
