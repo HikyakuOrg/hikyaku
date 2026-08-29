@@ -24,6 +24,9 @@
 - `.env.example` documents the main runtime keys: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY`, `NEXT_PUBLIC_HIKYAKU_API_URL` (hikyaku-api base URL — routing, services, payments, geocoding), `NEXT_PUBLIC_OSM_TILE_URL`, and Playwright auth cookie vars.
 - Playwright runs the Chrome project only, do not start `pnpm dev`(most of the time it has already been started). Bootstrap authenticated tests from `PLAYWRIGHT_EMAIL` and `PLAYWRIGHT_PASSWORD`.
 - When running playwright tests, do not restart the dev server
+## Tooling
+- `typescript-language-server` is installed globally (`npm install -g typescript-language-server typescript`). When writing or editing TypeScript/TSX, prefer it over grep-based guessing for type info, go-to-definition, find-references, and rename/refactor accuracy — especially across the generated `lib/api/generated.ts` DTOs and the Supabase `lib/supabase/supabase.ts` types, where types drift from source and a plain text search can miss usages. Run it over stdio (`typescript-language-server --stdio`) if your environment can speak LSP directly.
+
 ## Adjacent Repos And Generated Files
 - If you change SQL or RPC expectations, inspect `../hikyaku-api/infra/db/schema.sql`, `../hikyaku-api/infra/db/roles.sql`, and `../hikyaku-api/infra/db/seed.sql`; that folder is the canonical database bootstrap order. The schema is Supabase-owned — the API connects with TypeORM but does not manage it (`synchronize` is off and migrations do not run on boot).
 - Keep `lib/supabase/supabase.ts` aligned with schema/RPC changes; it is the generated Database type layer consumed throughout the app.

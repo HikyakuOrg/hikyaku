@@ -97,13 +97,10 @@ export function OverviewStep({
         try {
             const result = await createManualShift({
                 warehouseId: warehouse.warehouseId,
-                warehouseLng: warehouse.warehouseLocation[0],
-                warehouseLat: warehouse.warehouseLocation[1],
                 date: date.date,
                 driverId: driverVehicle.driverId,
                 vehicleId: driverVehicle.vehicleId,
-                orderedPackages: packagesRoute.orderedPackages,
-                routePreview: packagesRoute.routePreview,
+                orderedPackageIds: packagesRoute.orderedPackages.map((op) => op.packageId),
             })
 
             if (!result.success) {
@@ -112,7 +109,20 @@ export function OverviewStep({
             }
 
             toast.success("Shift created successfully!")
-            router.push(`/orgs/${slug}/dashboard/driver-shifts/${result.routeId}`)
+            // The API decided each package's feasibility; a warning means it was
+            // placed anyway and the dispatcher should know what it costs.
+            for (const warning of result.warnings) {
+                toast.warning(warning)
+            }
+
+            // The shift detail page is keyed on the route, which a shift with no
+            // stops may not have yet — fall back to the calendar, which shows
+            // empty shifts.
+            router.push(
+                result.routeId
+                    ? `/orgs/${slug}/dashboard/driver-shifts/${result.routeId}`
+                    : `/orgs/${slug}/dashboard/driver-shifts`,
+            )
         } catch (err) {
             toast.error(getErrorMessage(err) || "Failed to create shift")
         } finally {
@@ -144,7 +154,6 @@ export function OverviewStep({
                             month: "long",
                             day: "numeric",
                         })}
-                        {" "}· 08:00
                     </p>
                 </div>
                 <div className="rounded-lg border p-4 space-y-1">

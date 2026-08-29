@@ -18,8 +18,8 @@ export default async function DriverShiftsDetails({ params }: { params: Promise<
 
     const assignment = routeSteps.find(s => s.package_assignment?.package?.warehouse)?.package_assignment;
 
-    // A manual shift created with no packages has no package_assignment, so recover its
-    // driver/vehicle/warehouse from the _meta anchor on vrp_optimization.request.
+    // A shift created with no packages has no package_assignment, so its
+    // driver/vehicle/warehouse come from the shift row itself.
     const meta = assignment ? null : await getShiftMeta(id);
     const warehouseInfo = assignment?.package?.warehouse
         ?? (meta?.warehouse_id ? await getWarehouse(meta.warehouse_id) : null);
@@ -49,7 +49,8 @@ export default async function DriverShiftsDetails({ params }: { params: Promise<
     const route = hasStops ? await fetchRoutePreview(vehicleType, routeCoords, slug) : emptyPreview;
     const summary = route.summary;
 
-    // Driver/vehicle come from the package assignment when packages exist, else from _meta.
+    // Driver/vehicle come from the package assignment when packages exist, else
+    // from the shift row.
     const driverId = assignment?.driver?.id ?? meta?.driver_id ?? null;
     const vehicleForCard = assignment?.vehicle ?? (meta?.vehicle_id ? await getVehicleById(meta.vehicle_id) : null);
     const driverProfile = driverId ? await getDriversByIds([driverId]) : [];

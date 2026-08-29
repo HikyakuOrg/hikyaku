@@ -84,6 +84,7 @@ export async function updateSession(request: NextRequest) {
   const isAuthRoute = pathname.startsWith('/auth')
   const isBookingRoute = pathname.startsWith('/booking')
   const isApiEnvironmentRoute = pathname.startsWith('/api/environment')
+  const isApiHealthRoute = pathname.startsWith('/api/health')
 
   if (hostSlug) {
     // Subdomain host — booking is public, nothing else is served here.
@@ -105,7 +106,7 @@ export async function updateSession(request: NextRequest) {
   // let the apex /booking request reach the page so it can render a 404 (no org
   // slug to book with).
   if (!user) {
-    if (pathname.startsWith('/orgs') || (!isAuthRoute && !isBookingRoute && !isApiEnvironmentRoute)) {
+    if (pathname.startsWith('/orgs') || (!isAuthRoute && !isBookingRoute && !isApiEnvironmentRoute && !isApiHealthRoute)) {
       // Preserve the original destination (e.g. /oauth/consent?authorization_id=…)
       // so the login page can send the user back where they were headed.
       const destination = `${pathname}${request.nextUrl.search}`

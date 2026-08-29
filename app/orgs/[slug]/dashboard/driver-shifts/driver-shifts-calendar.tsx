@@ -12,7 +12,7 @@ import type { ToolbarProps } from 'react-big-calendar'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useOrgSlug } from '@/lib/use-org'
-import { getDeliveryRoutesByDates, getEmptyManualShiftsByDates, DeliveryRouteByDate } from '@/lib/supabase/db'
+import { getShiftsByDates, getShiftStartEnd, type CalendarShift } from '@/lib/supabase/db'
 import { getDriversByIds } from '@/lib/supabase/supabase-rpc'
 import type { ListDriverDto } from '@/lib/api'
 import { SHIFTS_REFRESH_EVENT } from './shift-events'
@@ -24,7 +24,7 @@ interface DriverShiftsCalendarProps {
 }
 
 
-function CalendarToolbar({ label, onNavigate }: ToolbarProps<DeliveryRouteByDate, object>) {
+function CalendarToolbar({ label, onNavigate }: ToolbarProps<CalendarShift, object>) {
     return (
         <div className="flex flex-wrap items-center justify-between gap-3 pb-3">
             <div className="flex items-center gap-2">
@@ -68,7 +68,7 @@ export function DriverShiftsCalendar({
     const slug = useOrgSlug()
     const [startDate, setStartDate] = useState(startOfWeek(new Date(), { weekStartsOn: 0 }))
     const [endDate, setEndDate] = useState(endOfWeek(new Date(), { weekStartsOn: 0 }))
-    const [events, setEvents] = useState<DeliveryRouteByDate[]>([])
+    const [events, setEvents] = useState<CalendarShift[]>([])
     const [drivers, setDrivers] = useState<Record<string, ListDriverDto>>({})
     // Bumped whenever an external actor (e.g. a completed optimisation run) signals
     // that shifts changed, forcing the fetch effect below to re-run.
@@ -86,36 +86,18 @@ export function DriverShiftsCalendar({
 
     useEffect(() => {
         const fetchEvents = async () => {
-            const [data, emptyShifts] = await Promise.all([
-                getDeliveryRoutesByDates(startDate.toISOString(), endDate.toISOString(), driverId),
-                getEmptyManualShiftsByDates(startDate.toISOString(), endDate.toISOString(), driverId),
-            ])
+            // One indexed query over vrp_optimization. Empty shifts are ordinary
+            // rows here, so there is no second source to dedupe against.
+            const shifts = await getShiftsByDates(
+                startDate.toISOString(),
+                endDate.toISOString(),
+                driverId,
+            )
+            setEvents(shifts)
 
-            const packageful = data ?? []
-
-            // Empty (package-less) manual shifts have no package rows, so they arrive from a
-            // separate source. Dedupe against package-ful routes so a manual shift that later
-            // gains packages is not shown twice.
-            const packagefulIds = new Set(packageful.map(r => r.route_id))
-            const emptyEvents: DeliveryRouteByDate[] = emptyShifts
-                .filter(s => !packagefulIds.has(s.route_id))
-                .map(s => ({
-                    route_id: s.route_id,
-                    package_assignment: [],
-                    driver_id: s.driver_id,
-                    shift_date: s.shift_date,
-                }))
-
-            const allEvents = [...packageful, ...emptyEvents]
-            setEvents(allEvents)
-
-            const driverIds = new Set<string>();
-            allEvents.forEach(route => {
-                route.package_assignment.forEach(p => {
-                    if (p.driver_id) driverIds.add(p.driver_id);
-                });
-                if (route.driver_id) driverIds.add(route.driver_id);
-            });
+            const driverIds = new Set(
+                shifts.map((s) => s.driver_id).filter((id): id is string => !!id),
+            )
 
             if (driverIds.size > 0) {
                 try {
@@ -158,7 +140,7 @@ export function DriverShiftsCalendar({
     })
 
 
-    const eventStyleGetter = (_event: DeliveryRouteByDate) => {
+    const eventStyleGetter = (_event: CalendarShift) => {
         return {
             style: {
                 backgroundColor: 'white',
@@ -171,57 +153,25 @@ export function DriverShiftsCalendar({
         };
     };
 
-    const getRouteStartEnd = (event: DeliveryRouteByDate) => {
-        // Empty manual shifts carry no package windows — anchor them at 08:00 UTC on their
-        // date (the departure convention createManualShift uses) as a 1h nominal block, so
-        // they land on the same day/time basis as package-ful shifts.
-        if (event.shift_date && event.package_assignment.length === 0) {
-            return {
-                start: new Date(`${event.shift_date}T08:00:00Z`),
-                end: new Date(`${event.shift_date}T09:00:00Z`),
-            };
-        }
-        let start: Date | null = null;
-        let end: Date | null = null;
-        event.package_assignment.forEach(p => {
-            if (p.scheduled_departure) {
-                const d = new Date(p.scheduled_departure);
-                if (!start || d < start) start = d;
-            }
-            if (p.scheduled_arrival) {
-                const a = new Date(p.scheduled_arrival);
-                if (!end || a > end) end = a;
-            }
-        });
-        return { start, end };
-    }
-
-    const CustomEvent = ({ event }: { event: DeliveryRouteByDate }) => {
-        const { start: depDate, end: arrDate } = getRouteStartEnd(event);
-
-        if (!depDate || !arrDate) {
-            return (
-                <div></div>
-            )
-        }
-
-        const hours = differenceInHours(arrDate, depDate);
-        const startStr = format(depDate, 'HH:mm');
-        const endStr = format(arrDate, 'HH:mm');
-
-        const driverId = event.driver_id ?? event.package_assignment[0]?.driver_id;
-        const driverAvatar = driverId ? (drivers[driverId]?.avatar_url ?? undefined) : undefined;
+    const CustomEvent = ({ event }: { event: CalendarShift }) => {
+        const { start, end } = getShiftStartEnd(event);
+        const hours = differenceInHours(end, start);
+        const driverAvatar = event.driver_id
+            ? (drivers[event.driver_id]?.avatar_url ?? undefined)
+            : undefined;
 
         return (
             <div className="flex flex-col h-full p-1 gap-1 text-black">
-                <div className="text-xs font-semibold">{startStr} - {endStr}</div>
+                <div className="text-xs font-semibold">
+                    {format(start, 'HH:mm')} - {format(end, 'HH:mm')}
+                </div>
                 <div className="flex items-center text-xs text-gray-600">
                     <Clock className="w-3 h-3 mr-1 text-gray-400" />
                     <span>{hours} hours</span>
                 </div>
                 <div className="flex items-center text-xs text-gray-600">
                     <Package className="w-3 h-3 mr-1 text-gray-400" />
-                    <span>{event.package_assignment.length} packages</span>
+                    <span>{event.stop_count} packages</span>
                 </div>
                 <div className="mt-auto pt-2">
                     <Avatar className="w-6 h-6 border bg-white">
@@ -236,15 +186,16 @@ export function DriverShiftsCalendar({
         <div className="space-y-3">
             <ShadcnBigCalendar
                 localizer={localizer}
-                startAccessor={(event) => getRouteStartEnd(event).start || new Date()}
-                endAccessor={(event) => getRouteStartEnd(event).end || new Date()}
+                startAccessor={(event) => getShiftStartEnd(event).start}
+                endAccessor={(event) => getShiftStartEnd(event).end}
                 events={events}
                 onRangeChange={onRangeChange}
                 eventPropGetter={eventStyleGetter}
                 onSelectEvent={(event) => {
-                    const routeId = event.route_id;
-                    if (routeId) {
-                        router.push(`/orgs/${slug}/dashboard/driver-shifts/${routeId}`);
+                    // The detail page is keyed on the route; a shift that has not
+                    // been planned yet has none, so there is nothing to open.
+                    if (event.route_id) {
+                        router.push(`/orgs/${slug}/dashboard/driver-shifts/${event.route_id}`);
                     }
                 }}
                 components={{

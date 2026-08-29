@@ -18,9 +18,9 @@ export async function updateServiceArea(id: string, name: string, geometry: stri
     if (error) throw error
     return data
 }
-import { QueryData, RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+import { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { createLazyClient } from "./client";
-import { Database, Tables, TablesInsert } from "./supabase";
+import { Database, Tables, TablesInsert, VrpOptimizationStatus } from "./supabase";
 import { TrackingLocationBroadcast } from "@/app/models/tracking";
 
 
@@ -581,52 +581,12 @@ export async function searchServiceArea(search: string) {
     return data
 }
 
-export async function insertPackage(packageId: string, organisationId: string, fromCustomer: string, toCustomer: string,
-    warehouseId: string, trackingNumber?: string, deliveryNotes?: string | null) {
-    const payload = {
-        id: packageId,
-        organisation_id: organisationId,
-        from_customer: fromCustomer,
-        to_customer: toCustomer,
-        warehouse_id: warehouseId,
-        delivery_notes: deliveryNotes,
-        ...(trackingNumber ? { tracking_number: trackingNumber } : {}),
-    } satisfies Partial<Database["public"]["Tables"]["packages"]["Insert"]>
-
-    const { data, error } = await supabase
-        .from("packages")
-        .insert(payload as Database["public"]["Tables"]["packages"]["Insert"])
-        .select()
-        .single()
-
-    if (error) throw error
-
-    return data
-}
-
-
-export async function insertPackageDimension(packageId: string, weight: number, height: number, length: number, width: number) {
-    const { data, error } = await supabase.from("package_dimensions").insert({
-        package_id: packageId,
-        weight_kg: weight,
-        height_cm: height,
-        length_cm: length,
-        width_cm: width,
-    })
-    if (error) throw error
-    return data
-}
-
-
-export async function insertPackageDeliveryWindow(packageId: string, scheduledArrival?: string) {
-    const { data, error } = await supabase.from("package_delivery_window").insert({
-        package_id: packageId,
-        scheduled_arrival: scheduledArrival,
-    })
-    if (error) throw error
-    return data
-}
-
+// Package creation lives behind POST /api/v1/packages (lib/actions/packages.ts).
+// insertPackage / insertPackageDimension / insertPackageDeliveryWindow used to
+// write those three tables from the browser, one round trip each and no
+// transaction — a half-created package survived any failure after the first
+// insert. The API writes all of them, plus the PENDING timeline row, in one
+// transaction and then assigns the package to a shift.
 
 export async function getPackageFailure(packageId: string) {
     const { data, error } = await supabase
@@ -672,147 +632,117 @@ export async function getDeliveryRoutes(page: number, pageSize: number) {
 }
 
 
-export interface DeliveryRouteByDate {
-    route_id: string;
-    package_assignment: {
-        driver_id: string | null;
-        package_id: string;
-        scheduled_departure: string | null;
-        scheduled_arrival: string | null;
-    }[]
-    /** Set only for empty (package-less) manual shifts, sourced from the _meta anchor. */
-    driver_id?: string | null;
-    /** YYYY-MM-DD, set only for empty manual shifts (no package windows to derive from). */
-    shift_date?: string;
-}
-
-export async function getDeliveryRoutesByDates(
-    startDate: string,
-    endDate: string,
-    driverId?: string
-): Promise<DeliveryRouteByDate[]> {
-    const query = supabase.from('package_delivery_window')
-        .select(`
-            package_id,
-            scheduled_departure,
-            scheduled_arrival,
-            packages!inner (
-                package_assignment!inner (
-                    driver_id,
-                    vrp_route_step!inner (
-                        route_id
-                    )
-                )
-            )
-        `)
-        .gt('scheduled_departure', startDate)
-        .lt('scheduled_departure', endDate)
-
-    const { data, error } = await query
-
-    if (error) throw error
-
-    const routesMap = new Map<string, DeliveryRouteByDate>();
-
-    for (const item of (data ?? []) as QueryData<typeof query>) {
-        const package_id = item.package_id;
-        const scheduled_departure = item.scheduled_departure;
-        const scheduled_arrival = item.scheduled_arrival;
-
-        const pgkg = item.packages;
-        if (!pgkg) continue;
-
-        const assignments = Array.isArray(pgkg.package_assignment)
-            ? pgkg.package_assignment
-            : [pgkg.package_assignment];
-
-        for (const assignment of assignments) {
-            if (!assignment) continue;
-            const driver_id = assignment.driver_id;
-            if (driverId && driver_id !== driverId) continue;
-
-            const steps = Array.isArray(assignment.vrp_route_step)
-                ? assignment.vrp_route_step
-                : [assignment.vrp_route_step];
-
-            for (const step of steps) {
-                if (!step) continue;
-                const route_id = step.route_id;
-
-                if (!routesMap.has(route_id)) {
-                    routesMap.set(route_id, {
-                        route_id,
-                        package_assignment: []
-                    });
-                }
-
-                routesMap.get(route_id)!.package_assignment.push({
-                    package_id,
-                    driver_id,
-                    scheduled_departure,
-                    scheduled_arrival
-                });
-            }
-        }
-    }
-
-    return Array.from(routesMap.values()).filter((route) => route.package_assignment.length > 0);
-}
-
-
-export interface EmptyManualShift {
-    route_id: string;
+/**
+ * One shift as the calendars render it.
+ *
+ * A shift is a `vrp_optimization` row. Until AddShiftLifecycleColumns it had no
+ * driver, vehicle, warehouse, date or status, so the calendar had to reconstruct
+ * shifts from two directions at once: package delivery windows (which missed
+ * every empty shift) plus an unbounded scan of manual optimisations filtered by
+ * a JSON blob in JavaScript. Both are replaced by one indexed query on
+ * (shift_date, status).
+ */
+export interface CalendarShift {
+    /** vrp_optimization.id. */
+    id: string;
+    /**
+     * vrp_route.id — what the shift detail page is keyed on. Null when the shift
+     * has no route row yet, in which case there is nothing to open.
+     */
+    route_id: string | null;
     driver_id: string | null;
-    shift_date: string; // YYYY-MM-DD
+    /** Warehouse-local service day, YYYY-MM-DD. */
+    shift_date: string;
+    scheduled_start: string | null;
+    status: VrpOptimizationStatus;
+    /** Bumped on every plan rewrite — the calendar re-fetches when it moves. */
+    revision: number;
+    /** Packages on the shift. Zero is a real, displayable state. */
+    stop_count: number;
+    /** Planned route duration in seconds, or null while the shift is empty. */
+    duration_seconds: number | null;
 }
+
+/** Shifts that are not cancelled, i.e. everything the calendar should draw. */
+const CALENDAR_SHIFT_STATUSES: VrpOptimizationStatus[] = [
+    "planned",
+    "dispatched",
+    "completed",
+]
 
 /**
- * Manual shifts created with no packages (see createManualShift) have no
- * package_delivery_window rows, so getDeliveryRoutesByDates cannot surface them.
- * They are recovered here from the `_meta` anchor on vrp_optimization.request.
- * Manual shifts are low-volume by design (the optimiser creates shifts normally),
- * so we fetch the manual set and filter by shift_date in JS rather than filtering
- * the jsonb column in SQL. Callers dedupe against package-ful routes by route_id.
+ * Every shift whose service day falls in [startDate, endDate]. Dates may be
+ * passed as ISO instants; only the calendar day is used, because `shift_date` is
+ * warehouse-local and has no time component.
+ *
+ * Empty shifts appear natively — they are rows here like any other, not a
+ * separate lookup that has to be deduped against this one.
  */
-export async function getEmptyManualShiftsByDates(
+export async function getShiftsByDates(
     startDate: string,
     endDate: string,
     driverId?: string
-): Promise<EmptyManualShift[]> {
-    const startDay = startDate.slice(0, 10)
-    const endDay = endDate.slice(0, 10)
-
-    const { data, error } = await supabase
+): Promise<CalendarShift[]> {
+    let query = supabase
         .from('vrp_optimization')
         .select(`
-            request,
-            vrp_solution ( vrp_route ( id ) )
+            id,
+            driver_id,
+            shift_date,
+            scheduled_start,
+            status,
+            revision,
+            vrp_solution:vrp_solution!vrp_solution_optimization_id_fkey (
+                vrp_route:vrp_route!vrp_route_solution_id_fkey ( id, duration )
+            ),
+            packages:packages!packages_optimisation_id_fkey ( id )
         `)
-        .eq('provider', 'manual')
+        .gte('shift_date', startDate.slice(0, 10))
+        .lte('shift_date', endDate.slice(0, 10))
+        .in('status', CALENDAR_SHIFT_STATUSES)
+        .order('shift_date', { ascending: true })
 
+    if (driverId) query = query.eq('driver_id', driverId)
+
+    const { data, error } = await query
     if (error) throw error
 
-    const rows = (data ?? []) as unknown as Array<{
-        request: { _meta?: { driver_id?: string; shift_date?: string } } | null
-        vrp_solution: Array<{ vrp_route: Array<{ id: string }> | null }> | null
-    }>
+    return (data ?? []).flatMap((row) => {
+        // shift_date is nullable in the schema (it is backfilled, not enforced),
+        // and a shift with no service day cannot be placed on a calendar.
+        if (!row.shift_date) return []
 
-    const results: EmptyManualShift[] = []
-    for (const opt of rows) {
-        const meta = opt.request?._meta
-        const shiftDate = meta?.shift_date
-        if (!shiftDate || shiftDate < startDay || shiftDate > endDay) continue
-        if (driverId && meta?.driver_id !== driverId) continue
+        const route = row.vrp_solution.flatMap((solution) => solution.vrp_route)[0] ?? null
 
-        for (const sol of opt.vrp_solution ?? []) {
-            for (const r of sol.vrp_route ?? []) {
-                if (r?.id) {
-                    results.push({ route_id: r.id, driver_id: meta?.driver_id ?? null, shift_date: shiftDate })
-                }
-            }
-        }
-    }
-    return results
+        return [{
+            id: row.id,
+            route_id: route?.id ?? null,
+            driver_id: row.driver_id,
+            shift_date: row.shift_date,
+            scheduled_start: row.scheduled_start,
+            status: row.status,
+            revision: row.revision,
+            stop_count: row.packages.length,
+            duration_seconds: route?.duration ?? null,
+        }]
+    })
+}
+
+/** Nominal block length for a shift with no planned route yet. */
+const EMPTY_SHIFT_DURATION_SECONDS = 60 * 60
+
+/**
+ * When a shift occupies the calendar grid. `scheduled_start` is the set-off time
+ * when one has been chosen; otherwise the shift is drawn from 08:00 on its
+ * service day, in the viewer's timezone, so it lands in the working part of the
+ * grid rather than at midnight.
+ */
+export function getShiftStartEnd(shift: CalendarShift): { start: Date; end: Date } {
+    const start = shift.scheduled_start
+        ? new Date(shift.scheduled_start)
+        : new Date(`${shift.shift_date}T08:00:00`)
+    const seconds = shift.duration_seconds ?? EMPTY_SHIFT_DURATION_SECONDS
+    return { start, end: new Date(start.getTime() + seconds * 1000) }
 }
 
 
