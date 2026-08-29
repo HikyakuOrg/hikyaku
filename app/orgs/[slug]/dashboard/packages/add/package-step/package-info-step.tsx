@@ -162,18 +162,18 @@ export function PackageInfo({ onNext, defaultValues }: {
                             (Optional)
                         </span>
                     </FieldLabel>
-                    <Controller
-                        name="files"
-                        control={form.control}
-                        render={() => (
-                            <div className="flex-1">
-                                <Dropzone {...props}>
-                                    <DropzoneEmptyState />
-                                    <DropzoneContent />
-                                </Dropzone>
-                            </div>
-                        )}
-                    />
+                    {/*
+                      * Not a form field. The dropzone owns its own file state and
+                      * uploads to Supabase Storage under the package id, so there is
+                      * nothing for react-hook-form to hold — the Controller that used
+                      * to wrap this ignored its `field` entirely.
+                      */}
+                    <div className="flex-1">
+                        <Dropzone {...props}>
+                            <DropzoneEmptyState />
+                            <DropzoneContent />
+                        </Dropzone>
+                    </div>
                 </Field>
 
             </FieldGroup>

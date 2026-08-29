@@ -3,15 +3,133 @@ import { FormData } from "./stepper-form";
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useOrgSlug } from "@/lib/use-org";
-import { createClient } from "@/lib/supabase/client";
-import { insertPackage, insertPackageDimension, insertPackageDeliveryWindow, getOrganisationIdBySlug } from "@/lib/supabase/db";
+import { createPackage, type CreatePackageSuccess } from "@/lib/actions/packages";
+import type { AssignmentOutcomeDto, AssignmentOutcomeDtoReasonEnum } from "@/lib/api";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
-import { Loader2, Printer, CheckCircle2 } from "lucide-react";
+import { Loader2, Printer, CheckCircle2, Truck, Clock, MapPin, Info } from "lucide-react";
 import { PackageLabel, downloadLabelAsPNG } from "@/components/package-label";
-import { insertPackageTimeline } from "@/lib/supabase/supabase-rpc";
 
+/**
+ * Why a package was not put on a shift, in the dispatcher's language.
+ *
+ * An exhaustive Record over the generated union rather than a lookup with a
+ * fallback: if the API grows a new reason, this fails the build instead of
+ * silently rendering nothing.
+ */
+const ASSIGNMENT_REASON_COPY: Record<AssignmentOutcomeDtoReasonEnum, string> = {
+    no_capacity: "Every shift running today is already full.",
+    no_free_driver_vehicle: "No driver and van are free today.",
+    shift_allowance_exhausted:
+        "This billing period's shift allowance is used up, so no new shift could be opened.",
+    no_geocode: "The recipient's address has no map location yet, so it cannot be routed.",
+    auto_assign_disabled: "Automatic assignment was turned off for this package.",
+    deadline_infeasible: "No shift can reach the recipient before the promised time.",
+};
+
+function formatEta(estimatedArrival: string | null): string | null {
+    if (!estimatedArrival) return null;
+    try {
+        return format(parseISO(estimatedArrival), "HH:mm");
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * The payoff of instant assignment: what happened to the package, right now.
+ *
+ * Four outcomes, two shapes — assigned (which shift, which stop, what time) and
+ * not assigned (why, and what happens next). Never the raw enum.
+ */
+function AssignmentPanel({
+    assignment,
+    driverName,
+}: {
+    assignment: AssignmentOutcomeDto;
+    driverName: string | null;
+}) {
+    const { outcome, shift, reason, evictedPackageIds } = assignment;
+    const isAssigned = outcome === "assigned" || outcome === "assigned_new_shift";
+
+    if (isAssigned && shift) {
+        const driver = driverName ?? "a driver";
+        const eta = formatEta(shift.estimatedArrival);
+        return (
+            <div className="w-full max-w-md rounded-lg border border-green-600/30 bg-green-600/5 p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                    <Truck className="h-5 w-5 shrink-0 text-green-600" />
+                    <div className="space-y-0.5">
+                        <p className="font-medium leading-snug">
+                            {outcome === "assigned_new_shift"
+                                ? `A new shift was opened for ${driver}`
+                                : `Assigned to ${driver}'s shift`}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                            {format(parseISO(`${shift.shiftDate}T00:00:00`), "EEEE, d MMMM")}
+                        </p>
+                    </div>
+                </div>
+
+                <div className="flex flex-wrap gap-x-6 gap-y-2 pl-8 text-sm">
+                    <span className="flex items-center gap-1.5">
+                        <MapPin className="h-4 w-4 text-muted-foreground" />
+                        {/* stopIndex is zero-based; drivers count from one. */}
+                        Stop {shift.stopIndex + 1}
+                    </span>
+                    {eta && (
+                        <span className="flex items-center gap-1.5">
+                            <Clock className="h-4 w-4 text-muted-foreground" />
+                            ETA {eta}
+                        </span>
+                    )}
+                </div>
+
+                {evictedPackageIds.length > 0 && (
+                    <p className="pl-8 text-xs text-muted-foreground">
+                        {evictedPackageIds.length === 1
+                            ? "1 package was moved off this shift to make room."
+                            : `${evictedPackageIds.length} packages were moved off this shift to make room.`}
+                    </p>
+                )}
+
+                <p className="pl-8 text-xs text-muted-foreground">
+                    The stop order is re-optimised in the background, so the ETA may shift
+                    slightly.
+                </p>
+            </div>
+        );
+    }
+
+    const isDeferred = outcome === "deferred";
+    return (
+        <div className="w-full max-w-md rounded-lg border border-amber-600/30 bg-amber-600/5 p-4">
+            <div className="flex items-start gap-3">
+                {isDeferred ? (
+                    <Clock className="h-5 w-5 shrink-0 text-amber-600" />
+                ) : (
+                    <Info className="h-5 w-5 shrink-0 text-muted-foreground" />
+                )}
+                <div className="space-y-1">
+                    <p className="font-medium leading-snug">
+                        {isDeferred ? "Queued — not on a shift yet" : "Not assigned to a shift"}
+                    </p>
+                    {reason && (
+                        <p className="text-sm text-muted-foreground">
+                            {ASSIGNMENT_REASON_COPY[reason]}
+                        </p>
+                    )}
+                    <p className="text-sm text-muted-foreground">
+                        {isDeferred
+                            ? "It joins a shift automatically as soon as one has room, or a dispatcher can place it from Driver Shifts."
+                            : "Place it on a shift from Driver Shifts when you are ready."}
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 export function OverviewStep({ onPrev, formData }: {
     onPrev: () => void;
@@ -20,9 +138,8 @@ export function OverviewStep({ onPrev, formData }: {
     const router = useRouter();
     const slug = useOrgSlug();
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isSubmitted, setIsSubmitted] = useState(false);
+    const [submitted, setSubmitted] = useState<CreatePackageSuccess | null>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const supabase = createClient();
 
     const handleSubmit = async () => {
         if (!formData.packageInfo || !formData.customerInfo || !formData.logisticsAssignment) {
@@ -32,44 +149,43 @@ export function OverviewStep({ onPrev, formData }: {
 
         setIsSubmitting(true);
         const { packageInfo, customerInfo, logisticsAssignment } = formData;
-        const packageId = packageInfo.packageId;
 
         try {
-            const organisationId = await getOrganisationIdBySlug(slug);
-            await insertPackage(
-                packageId,
-                organisationId,
-                customerInfo.senderId,
-                customerInfo.receiverId,
-                logisticsAssignment.warehouseId,
-                logisticsAssignment.trackingNumber,
-                logisticsAssignment.deliveryNotes
-            );
+            // One call replaces the four non-atomic table writes this step used to
+            // make. `id` is the UUID minted back in the package-info step — it names
+            // the Storage folder the photos were dropped into, so it is sent rather
+            // than letting the server generate one.
+            const response = await createPackage({
+                id: packageInfo.packageId,
+                warehouseId: logisticsAssignment.warehouseId,
+                fromCustomerId: customerInfo.senderId,
+                toCustomerId: customerInfo.receiverId,
+                trackingNumber: logisticsAssignment.trackingNumber || undefined,
+                deliveryNotes: logisticsAssignment.deliveryNotes || undefined,
+                // The customer promise, never overwritten by the planner.
+                deadlineAt: logisticsAssignment.scheduledArrival || undefined,
+                dimensions: {
+                    weightKg: packageInfo.weight,
+                    lengthCm: packageInfo.length,
+                    widthCm: packageInfo.width,
+                    heightCm: packageInfo.height,
+                },
+            });
 
-            const uploadPromises = (packageInfo.files || []).map(file =>
-                supabase.storage
-                    .from('packages')
-                    .upload(`${packageId}/images/received/${file.name}`, file)
-            );
+            if (!response.success) {
+                toast.error(response.error);
+                return;
+            }
 
-            await Promise.all([
-                ...uploadPromises,
-                insertPackageDimension(
-                    packageId,
-                    packageInfo.weight,
-                    packageInfo.height,
-                    packageInfo.length,
-                    packageInfo.width
-                ),
-                insertPackageDeliveryWindow(
-                    packageId,
-                    logisticsAssignment.scheduledArrival
-                ),
-                insertPackageTimeline(packageId, "PENDING")
-            ]);
-
-            toast.success("Package added successfully!");
-            setIsSubmitted(true);
+            // Creation succeeded even when assignment did not — the outcome decides
+            // the tone of the toast, not whether this is an error.
+            const { outcome } = response.result.assignment;
+            if (outcome === "assigned" || outcome === "assigned_new_shift") {
+                toast.success("Package added and assigned to a shift.");
+            } else {
+                toast.message("Package added. It is queued for a shift.");
+            }
+            setSubmitted(response);
         } catch (error) {
             console.error("Submission error:", error);
             toast.error(getErrorMessage(error) || "Failed to add package. Please try again.");
@@ -78,24 +194,28 @@ export function OverviewStep({ onPrev, formData }: {
         }
     };
 
-    if (isSubmitted && formData.packageInfo && formData.logisticsAssignment && formData.customerInfo?.receiver) {
+    if (submitted && formData.customerInfo?.receiver) {
+        const { package: createdPackage, assignment } = submitted.result;
         return (
             <div className="flex flex-col items-center justify-center py-8 space-y-6">
                 <div className="text-center space-y-2">
                     <div className="flex justify-center">
                         <CheckCircle2 className="h-12 w-12 text-green-500" />
                     </div>
-                    <h3 className="text-2xl font-bold tracking-tight">Success!</h3>
+                    <h3 className="text-2xl font-bold tracking-tight">Package added</h3>
                     <p className="text-muted-foreground">
-                        Package has been added to the database. You can now print the shipping label.
+                        Tracking number{" "}
+                        <span className="font-mono">{createdPackage.trackingNumber}</span>
                     </p>
                 </div>
+
+                <AssignmentPanel assignment={assignment} driverName={submitted.driverName} />
 
                 <div className="w-full max-w-md">
                     <PackageLabel
                         canvasRef={canvasRef}
-                        packageId={formData.packageInfo.packageId}
-                        trackingNumber={formData.logisticsAssignment.trackingNumber || ''}
+                        packageId={createdPackage.id}
+                        trackingNumber={createdPackage.trackingNumber}
                         receiver={formData.customerInfo.receiver}
                     />
                 </div>
@@ -107,7 +227,7 @@ export function OverviewStep({ onPrev, formData }: {
                         className="gap-2"
                         onClick={() => {
                             if (canvasRef.current) {
-                                downloadLabelAsPNG(canvasRef.current, `label-${formData.logisticsAssignment?.trackingNumber}.png`);
+                                downloadLabelAsPNG(canvasRef.current, `label-${createdPackage.trackingNumber}.png`);
                             }
                         }}
                     >
@@ -149,7 +269,7 @@ export function OverviewStep({ onPrev, formData }: {
                             )}
 
                             {formData.logisticsAssignment?.scheduledArrival && (
-                                <p className="text-sm"><span className="text-muted-foreground">Scheduled Arrival:</span> {format(parseISO(formData.logisticsAssignment.scheduledArrival), "PPP p")}</p>
+                                <p className="text-sm"><span className="text-muted-foreground">Deliver By:</span> {format(parseISO(formData.logisticsAssignment.scheduledArrival), "PPP p")}</p>
                             )}
                         </div>
 

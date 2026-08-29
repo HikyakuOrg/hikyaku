@@ -581,52 +581,12 @@ export async function searchServiceArea(search: string) {
     return data
 }
 
-export async function insertPackage(packageId: string, organisationId: string, fromCustomer: string, toCustomer: string,
-    warehouseId: string, trackingNumber?: string, deliveryNotes?: string | null) {
-    const payload = {
-        id: packageId,
-        organisation_id: organisationId,
-        from_customer: fromCustomer,
-        to_customer: toCustomer,
-        warehouse_id: warehouseId,
-        delivery_notes: deliveryNotes,
-        ...(trackingNumber ? { tracking_number: trackingNumber } : {}),
-    } satisfies Partial<Database["public"]["Tables"]["packages"]["Insert"]>
-
-    const { data, error } = await supabase
-        .from("packages")
-        .insert(payload as Database["public"]["Tables"]["packages"]["Insert"])
-        .select()
-        .single()
-
-    if (error) throw error
-
-    return data
-}
-
-
-export async function insertPackageDimension(packageId: string, weight: number, height: number, length: number, width: number) {
-    const { data, error } = await supabase.from("package_dimensions").insert({
-        package_id: packageId,
-        weight_kg: weight,
-        height_cm: height,
-        length_cm: length,
-        width_cm: width,
-    })
-    if (error) throw error
-    return data
-}
-
-
-export async function insertPackageDeliveryWindow(packageId: string, scheduledArrival?: string) {
-    const { data, error } = await supabase.from("package_delivery_window").insert({
-        package_id: packageId,
-        scheduled_arrival: scheduledArrival,
-    })
-    if (error) throw error
-    return data
-}
-
+// Package creation lives behind POST /api/v1/packages (lib/actions/packages.ts).
+// insertPackage / insertPackageDimension / insertPackageDeliveryWindow used to
+// write those three tables from the browser, one round trip each and no
+// transaction — a half-created package survived any failure after the first
+// insert. The API writes all of them, plus the PENDING timeline row, in one
+// transaction and then assigns the package to a shift.
 
 export async function getPackageFailure(packageId: string) {
     const { data, error } = await supabase
