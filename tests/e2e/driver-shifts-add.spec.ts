@@ -425,7 +425,7 @@ test.describe("Driver Shifts — Validation and error handling", () => {
             .catch(() => false)
 
         if (isNoAvailableVisible) {
-            // The scheduler correctly blocks the duplicate — no cards are shown
+            // The driver is already booked, so no cards are offered at all.
             await expect(noAvailableMsg).toBeVisible()
         } else {
             // A different driver is available; attempt to submit and expect a
