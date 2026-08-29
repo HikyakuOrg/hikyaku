@@ -2,6 +2,15 @@ import { test, expect } from "@playwright/test"
 import { d } from "./helpers/org-url"
 
 // ---------------------------------------------------------------------------
+// Shift creation goes through hikyaku-api now: POST /api/v1/shifts opens the
+// shift, POST /api/v1/shifts/:id/packages puts the wizard's picks on it. Both
+// are server-side transactions, so the failure modes these specs exercise are
+// HTTP statuses rather than half-finished sequences of PostgREST writes.
+// Like the other API-backed specs they need a seeded environment and a
+// reachable API, and skip in CI.
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
 // Shared state for the serial "creation + post-creation" group.
 // Module-level lets are safe here because test.describe.configure({ mode:
 // "serial" }) keeps that describe block on a single worker process.
@@ -175,7 +184,10 @@ test.describe("Driver Shifts — Happy path creation and post-creation checks", 
         await expect(createShiftBtn).toBeVisible({ timeout: 5000 })
         await createShiftBtn.click()
 
-        // Should redirect to /dashboard/driver-shifts/<uuid>
+        // A shift with packages has a route, and the detail page is keyed on the
+        // route, so the wizard redirects to /dashboard/driver-shifts/<uuid>.
+        // (An empty shift has no route and lands on the calendar instead —
+        // covered by driver-shifts-calendar-live.spec.ts.)
         await expect(page).toHaveURL(
             /\/dashboard\/driver-shifts\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i,
             { timeout: 30000 }
@@ -324,11 +336,13 @@ test.describe("Driver Shifts — Validation and error handling", () => {
     // ── 8. Concurrent assignment error ───────────────────────────────────────
     test("concurrent assignment — second shift for the same driver and date shows an error", async ({ page }) => {
         test.setTimeout(120000)
-        // Requires seed data and will write two rows to the database.
-        // The second createManualShift RPC call should return an error because
-        // fetchAvailableDriverVehiclePairs excludes already-scheduled drivers,
-        // so the driver selected in attempt 1 won't appear in attempt 2 unless
-        // the RPC surface allows it (in which case the server action returns an error).
+        // Requires seed data and will write two shifts to the database.
+        // Two layers stop the duplicate. fetchAvailableDriverVehiclePairs hides
+        // an already-scheduled driver, so step 3 usually offers nothing. If a
+        // pair does slip through, POST /api/v1/shifts answers 409 — backed by the
+        // partial unique indexes on (driver_id, shift_date) and
+        // (vehicle_id, shift_date) for open shifts, so it holds even under two
+        // concurrent writers.
         test.skip(!!process.env.CI, "Requires seed data and may mutate state — skipped in CI")
 
         // ── First attempt: full happy path ────────────────────────────────
@@ -401,7 +415,10 @@ test.describe("Driver Shifts — Validation and error handling", () => {
         // Step 3 — driver should be unavailable; "No available" message OR a
         // different driver is shown. Either way, an error path is exercised.
         const noAvailableMsg = page.getByText(/no available driver/i)
-        const conflictMsg = page.getByText(/already.*shift|conflict|duplicate|scheduled/i)
+        // The 409 surfaces as the toast createManualShift maps it to.
+        const conflictMsg = page.getByText(
+            /already has an open shift on this date|already.*shift|conflict|duplicate|scheduled/i
+        )
 
         const isNoAvailableVisible = await noAvailableMsg
             .isVisible({ timeout: 10000 })
