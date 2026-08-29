@@ -133,7 +133,7 @@ export function OptimiseRoutesButton() {
         const isTerminal = s === "completed" || s === "failed" || s === "skipped"
         if (!wasActive || !isTerminal) return
         if (s === "completed") {
-            toast.success("Routes optimised.")
+            toast.success("Routes re-optimised.")
             router.refresh()
             // The calendar fetches its shifts client-side, so router.refresh()
             // (server components only) won't surface the new shift — signal it directly.
@@ -176,7 +176,7 @@ export function OptimiseRoutesButton() {
                 toast.error(res.error)
                 return
             }
-            toast.success("Optimisation started. Routes will appear shortly.")
+            toast.success("Re-optimisation started. Updated routes will appear shortly.")
             setOpen(false)
             setSetOffByVehicle({})
             // Optimistic in-flight state so polling + cooldown start immediately.
@@ -193,10 +193,10 @@ export function OptimiseRoutesButton() {
 
     let disabledReason: string | null = null
     if (loaded && warehouses.length === 0) disabledReason = "No warehouse available."
-    else if (isInFlight) disabledReason = "Optimisation in progress…"
+    else if (isInFlight) disabledReason = "Re-optimisation in progress…"
     else if (isCoolingDown && nextAllowed && now) {
         const at = nextAllowed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-        disabledReason = `Next optimisation at ${at} (in ${formatCountdown(nextAllowed.getTime() - now.getTime())})`
+        disabledReason = `Next re-optimisation at ${at} (in ${formatCountdown(nextAllowed.getTime() - now.getTime())})`
     }
 
     return (
@@ -210,7 +210,7 @@ export function OptimiseRoutesButton() {
                             ) : (
                                 <Sparkles className="h-4 w-4" />
                             )}
-                            {isInFlight ? "Optimising…" : "Optimise routes"}
+                            {isInFlight ? "Re-optimising…" : "Re-optimise"}
                         </Button>
                     </TooltipTrigger>
                     {disabledReason && (
@@ -222,11 +222,12 @@ export function OptimiseRoutesButton() {
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
-                        <DialogTitle>Optimise routes</DialogTitle>
+                        <DialogTitle>Re-optimise routes</DialogTitle>
                         <DialogDescription>
-                            Build routes now for pending packages. Vehicles already out keep their
-                            current trip and are planned for a new wave 30&nbsp;min after they return.
-                            Optionally set a custom set-off time per vehicle.
+                            Re-plan today&apos;s shifts at this warehouse and pick up anything still
+                            queued. Existing shifts are rewritten in place, so this never opens a new
+                            shift and never counts against your allowance. Vehicles already out keep
+                            their current trip. Optionally set a custom set-off time per vehicle.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -306,7 +307,7 @@ export function OptimiseRoutesButton() {
                                     <Loader2 className="h-4 w-4 animate-spin" /> Starting…
                                 </>
                             ) : (
-                                "Optimise"
+                                "Re-optimise"
                             )}
                         </Button>
                     </DialogFooter>

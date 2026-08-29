@@ -31,9 +31,10 @@ export default async function DriverShiftsPage({ params }: { params: Promise<{ s
                                 <Info className="h-4 w-4 text-muted-foreground cursor-help" />
                             </TooltipTrigger>
                             <TooltipContent side="left" className="max-w-xs text-sm">
-                                Shifts are typically created automatically by the route optimiser.
-                                Use manual creation only when the scheduler is unavailable or you
-                                need to override the optimised route.
+                                Shifts are typically created automatically: a new package joins an
+                                open shift the moment it is added, and opens one when nothing has
+                                room. Create a shift by hand to reserve a driver and van ahead of
+                                time, or to override the planned route.
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
