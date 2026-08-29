@@ -1,6 +1,6 @@
 import { PackageStatus } from "@/app/models/package-status"
 import { createServiceAreaFeatureCollection, emptyServiceAreaFeatureCollection } from "@/lib/maps/service-area-geometry"
-import { Tables } from "./supabase"
+import { Tables, VrpOptimizationStatus } from "./supabase"
 import { createClient } from "./server"
 import { PackageOptimisation, Location } from "@/app/models/package-optimisation"
 import { listCustomersAction, getCustomerAction } from "@/lib/actions/customers"
@@ -354,20 +354,28 @@ export async function getRouteSteps(routeId: string) {
     return data as PackageOptimisation[]
 }
 
+/** The shift (`vrp_optimization` row) a route belongs to. */
 export interface ShiftMeta {
-    created_by?: string
-    created_at?: string
-    driver_id?: string
-    vehicle_id?: string
-    warehouse_id?: string
-    shift_date?: string
+    /** vrp_optimization.id — what the /api/v1/shifts endpoints are keyed on. */
+    optimisation_id: string
+    driver_id: string | null
+    vehicle_id: string | null
+    warehouse_id: string | null
+    /** Warehouse-local service day, YYYY-MM-DD. */
+    shift_date: string | null
+    status: VrpOptimizationStatus
+    scheduled_start: string | null
+    revision: number
 }
 
 /**
- * Reads the `_meta` anchor a manual shift writes to vrp_optimization.request (see
- * createManualShift). A manual shift created with no packages has no package_assignment
- * rows, so its driver/vehicle/warehouse/date are recovered from here. Returns null for
- * optimiser-generated routes (no `_meta`) or an unknown route.
+ * The shift behind a route. A shift with no packages has no package_assignment
+ * rows, so its driver/vehicle/warehouse/date can only come from here.
+ *
+ * These used to live in a `request->_meta` JSON blob that the web manual-shift
+ * action stuffed by hand; AddShiftLifecycleColumns made them real, indexed
+ * columns and backfilled the historical blobs, so this reads them directly.
+ * Returns null for an unknown route.
  */
 export async function getShiftMeta(routeId: string): Promise<ShiftMeta | null> {
     const supabase = await createClient()
@@ -376,7 +384,14 @@ export async function getShiftMeta(routeId: string): Promise<ShiftMeta | null> {
         .select(`
             vrp_solution:vrp_solution!vrp_route_solution_id_fkey(
                 vrp_optimization:vrp_optimization!vrp_solution_optimization_id_fkey(
-                    request
+                    id,
+                    driver_id,
+                    vehicle_id,
+                    warehouse_id,
+                    shift_date,
+                    status,
+                    scheduled_start,
+                    revision
                 )
             )
         `)
@@ -385,10 +400,19 @@ export async function getShiftMeta(routeId: string): Promise<ShiftMeta | null> {
 
     if (error || !data) return null
 
-    const row = data as unknown as {
-        vrp_solution?: { vrp_optimization?: { request?: { _meta?: ShiftMeta } | null } | null } | null
+    const optimisation = data.vrp_solution?.vrp_optimization
+    if (!optimisation) return null
+
+    return {
+        optimisation_id: optimisation.id,
+        driver_id: optimisation.driver_id,
+        vehicle_id: optimisation.vehicle_id,
+        warehouse_id: optimisation.warehouse_id,
+        shift_date: optimisation.shift_date,
+        status: optimisation.status,
+        scheduled_start: optimisation.scheduled_start,
+        revision: optimisation.revision,
     }
-    return row.vrp_solution?.vrp_optimization?.request?._meta ?? null
 }
 
 /** Server-side vehicle fetch for the shift detail card (satisfies VehicleCardData). */

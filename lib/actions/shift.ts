@@ -1,13 +1,9 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
-import { getSupabaseServerClaims } from "@/lib/supabase/server"
-import { insertPackageTimeline } from "@/lib/supabase/supabase-rpc"
+import type { CreateShiftDto, ShiftDto, ShiftPlanDto } from "@/lib/api"
 import { getAvailableDriverVehiclePairs, getUnassignedPackagesByWarehouse } from "@/lib/supabase/db-server"
 import type { DriverVehiclePair, UnassignedPackage } from "@/lib/supabase/db-server"
-import type { RoutePreview } from "@/app/models/route-preview"
-import { getErrorMessage } from "@/lib/utils"
-import type { Database } from "@/lib/supabase/supabase"
+import { buildApiContext, parseApiError } from "./api-client"
 
 export async function fetchAvailableDriverVehiclePairs(
     warehouseId: string,
@@ -22,187 +18,171 @@ export async function fetchUnassignedPackages(warehouseId: string): Promise<Unas
 
 export interface ManualShiftParams {
     warehouseId: string
-    warehouseLng: number
-    warehouseLat: number
-    date: string // YYYY-MM-DD
+    /** Warehouse-local service day, YYYY-MM-DD. */
+    date: string
     driverId: string
     vehicleId: string
-    orderedPackages?: {
-        packageId: string
-        customerLng: number
-        customerLat: number
-    }[]
-    routePreview: RoutePreview
+    /**
+     * Packages to put on the shift, in the dispatcher's chosen order. Optional —
+     * a shift can be opened with nothing on it and fill up by assignment.
+     */
+    orderedPackageIds?: string[]
 }
 
-export async function createManualShift(params: ManualShiftParams): Promise<{ success: true; routeId: string } | { success: false; error: string }> {
-    const { data: claimsData, error: claimsError } = await getSupabaseServerClaims()
-    if (claimsError || !claimsData?.claims?.sub) {
-        return { success: false, error: "Not authenticated" }
+export type CreateManualShiftResult =
+    | {
+          success: true
+          /** vrp_optimization.id. */
+          shiftId: string
+          /**
+           * vrp_route.id, which is what the shift detail page is keyed on. Null
+           * when the shift has no route yet, in which case the caller should
+           * fall back to the shifts list.
+           */
+          routeId: string | null
+          /** Packages the API declined to place, with the reason it gave. */
+          warnings: string[]
+      }
+    | { success: false; error: string }
+
+/**
+ * Open a manual shift and, when the wizard picked packages, put them on it.
+ *
+ * This used to be seven separate PostgREST writes from the browser —
+ * vrp_optimization, vrp_solution, vrp_route, a package_assignment per package,
+ * the route steps, a package_delivery_window upsert per package, and a timeline
+ * row per package — with no transaction anywhere. Three specific problems went
+ * with that:
+ *
+ *  - driver, vehicle, warehouse and date were stuffed into a `request._meta`
+ *    JSON blob because the schema had nowhere to put them. They are columns now.
+ *  - the delivery-window upsert overwrote `scheduled_arrival` — the customer's
+ *    deadline — with a computed ETA. The planner writes `estimated_arrival`
+ *    instead, and never touches the promise.
+ *  - a failure partway through left a half-built shift behind.
+ *
+ * Two calls rather than one, because creating a shift and filling it are two
+ * endpoints: POST /shifts opens an empty planned shift (this is the one place a
+ * human deliberately bills a shift), POST /shifts/:id/packages is the dispatcher
+ * override that places specific packages on it. Each is atomic server-side.
+ *
+ * RoutePreview stays client-side — it draws the map, and the API plans the route.
+ */
+export async function createManualShift(params: ManualShiftParams): Promise<CreateManualShiftResult> {
+    const ctx = await buildApiContext()
+    if ("error" in ctx) return ctx
+
+    const body: CreateShiftDto = {
+        warehouseId: params.warehouseId,
+        driverId: params.driverId,
+        vehicleId: params.vehicleId,
+        shiftDate: params.date,
+        // scheduledStart is deliberately omitted. The old action invented 08:00
+        // UTC as a departure time; the shift now simply stays open to assignment
+        // until someone dispatches it.
     }
-    const userId = claimsData.claims.sub
 
-    const supabase = await createClient()
-
-    // orderedPackages is optional — a shift can be created with no packages yet.
-    // All the per-package loops below no-op over an empty array.
-    const orderedPackages = params.orderedPackages ?? []
-
+    let created: Response
     try {
-        // 0. Resolve the org owning this shift. The vrp_optimization RLS
-        // insert policy (migration 0031) requires organisation_id to be set.
-        const { data: warehouse, error: warehouseError } = await supabase
-            .from("warehouse")
-            .select("organisation_id")
-            .eq("id", params.warehouseId)
-            .single()
-
-        if (warehouseError || !warehouse) {
-            throw new Error(`warehouse lookup (${params.warehouseId}): ${warehouseError?.message ?? "not found"}`)
-        }
-
-        // 1. Insert vrp_optimization
-        const { data: optimization, error: optError } = await supabase
-            .from("vrp_optimization")
-            .insert({
-                provider: "manual",
-                organisation_id: warehouse.organisation_id,
-                request: {
-                    _meta: {
-                        created_by: userId,
-                        created_at: new Date().toISOString(),
-                        // Anchor the shift to its driver/vehicle/warehouse/date. There is no
-                        // route->driver link in the schema (it is otherwise derived through
-                        // package_assignment), so a package-less shift relies on these to stay
-                        // tied to the driver and visible on the calendar.
-                        driver_id: params.driverId,
-                        vehicle_id: params.vehicleId,
-                        warehouse_id: params.warehouseId,
-                        shift_date: params.date,
-                    },
-                },
-                response: { _meta: { manual: true } },
-            })
-            .select("id")
-            .single()
-
-        if (optError) throw new Error(`vrp_optimization insert: ${optError.message}`)
-
-        // 2. Insert vrp_solution
-        const { data: solution, error: solError } = await supabase
-            .from("vrp_solution")
-            .insert({
-                optimization_id: optimization.id,
-                routes_count: 1,
-                unassigned_count: 0,
-                duration: params.routePreview.summary.duration,
-            })
-            .select("id")
-            .single()
-
-        if (solError) throw new Error(`vrp_solution insert: ${solError.message}`)
-
-        // 3. Insert vrp_route
-        const { data: route, error: routeError } = await supabase
-            .from("vrp_route")
-            .insert({
-                solution_id: solution.id,
-                duration: params.routePreview.summary.duration,
-            })
-            .select("id")
-            .single()
-
-        if (routeError) throw new Error(`vrp_route insert: ${routeError.message}`)
-
-        // 4. Insert package_assignment rows
-        for (const pkg of orderedPackages) {
-            const { error: paError } = await supabase
-                .from("package_assignment")
-                .insert({
-                    package_id: pkg.packageId,
-                    driver_id: params.driverId,
-                    vehicle_id: params.vehicleId,
-                })
-
-            if (paError) throw new Error(`package_assignment insert (${pkg.packageId}): ${paError.message}`)
-        }
-
-        // 5. Build vrp_route_step rows
-        // Arrival per stop is derived from the cumulative leg durations
-        // (legs[i] connects stop i to stop i+1).
-        const segmentDurations: number[] = params.routePreview.legs.map((leg) => leg.duration)
-
-        const routeStepInserts: Database["public"]["Tables"]["vrp_route_step"]["Insert"][] = []
-
-        // start step
-        routeStepInserts.push({
-            route_id: route.id,
-            solution_id: solution.id,
-            step_index: 0,
-            type: "start",
-            location: `SRID=4326;POINT(${params.warehouseLng} ${params.warehouseLat})`,
-            arrival: 0,
+        created = await fetch(`${ctx.apiUrl}/api/v1/shifts`, {
+            method: "POST",
+            headers: ctx.headers,
+            body: JSON.stringify(body),
+            cache: "no-store",
         })
-
-        // job steps
-        let cumulativeArrival = 0
-        for (let i = 0; i < orderedPackages.length; i++) {
-            cumulativeArrival += segmentDurations[i] ?? 0
-            const pkg = orderedPackages[i]
-            routeStepInserts.push({
-                route_id: route.id,
-                solution_id: solution.id,
-                step_index: i + 1,
-                type: "job",
-                location: `SRID=4326;POINT(${pkg.customerLng} ${pkg.customerLat})`,
-                arrival: Math.round(cumulativeArrival),
-                package_id: pkg.packageId,
-            })
-        }
-
-        // end step
-        cumulativeArrival += segmentDurations[orderedPackages.length] ?? 0
-        routeStepInserts.push({
-            route_id: route.id,
-            solution_id: solution.id,
-            step_index: orderedPackages.length + 1,
-            type: "end",
-            location: `SRID=4326;POINT(${params.warehouseLng} ${params.warehouseLat})`,
-            arrival: Math.round(cumulativeArrival),
-        })
-
-        const { error: stepsError } = await supabase.from("vrp_route_step").insert(routeStepInserts)
-        if (stepsError) throw new Error(`vrp_route_step insert: ${stepsError.message}`)
-
-        // 6. Upsert package_delivery_window per package
-        const [year, month, day] = params.date.split("-").map(Number)
-        const departureDate = new Date(Date.UTC(year, month - 1, day, 8, 0, 0))
-
-        let cumSecs = 0
-        for (let i = 0; i < orderedPackages.length; i++) {
-            cumSecs += segmentDurations[i] ?? 0
-            const pkg = orderedPackages[i]
-            const scheduledArrival = new Date(departureDate.getTime() + cumSecs * 1000)
-
-            const { error: pdwError } = await supabase
-                .from("package_delivery_window")
-                .upsert({
-                    package_id: pkg.packageId,
-                    scheduled_departure: departureDate.toISOString(),
-                    scheduled_arrival: scheduledArrival.toISOString(),
-                })
-
-            if (pdwError) throw new Error(`package_delivery_window upsert (${pkg.packageId}): ${pdwError.message}`)
-        }
-
-        // 7. Insert package_timeline ASSIGNED for each package
-        for (const pkg of orderedPackages) {
-            await insertPackageTimeline(pkg.packageId, "ASSIGNED", supabase)
-        }
-
-        return { success: true, routeId: route.id }
-    } catch (err) {
-        console.error("createManualShift error:", err)
-        return { success: false, error: getErrorMessage(err) || "An unexpected error occurred" }
+    } catch {
+        return { success: false, error: "Failed to reach the API." }
     }
+
+    if (created.status === 409) {
+        return {
+            success: false,
+            error: "That driver or vehicle already has an open shift on this date.",
+        }
+    }
+    if (created.status === 402) {
+        return {
+            success: false,
+            error:
+                "This billing period's shift allowance is used up. Add a payment method to create more shifts.",
+        }
+    }
+    if (!created.ok) return { success: false, error: await parseApiError(created) }
+
+    const shift: ShiftDto = await created.json()
+
+    const packageIds = params.orderedPackageIds ?? []
+    if (packageIds.length === 0) {
+        return { success: true, shiftId: shift.id, routeId: shift.routeId, warnings: [] }
+    }
+
+    let planned: Response
+    try {
+        planned = await fetch(`${ctx.apiUrl}/api/v1/shifts/${shift.id}/packages`, {
+            method: "POST",
+            headers: ctx.headers,
+            body: JSON.stringify({ packageIds }),
+            cache: "no-store",
+        })
+    } catch {
+        // The shift exists and is empty — a real, recoverable state the
+        // dispatcher can fill from the shift page. Say so rather than implying
+        // nothing happened.
+        return {
+            success: false,
+            error: "The shift was created, but adding the packages failed. Open it and add them again.",
+        }
+    }
+
+    if (!planned.ok) {
+        return {
+            success: false,
+            error: `The shift was created, but adding the packages failed: ${await parseApiError(planned)}`,
+        }
+    }
+
+    const plan: ShiftPlanDto = await planned.json()
+    const warnings = plan.packages
+        .filter((p) => !p.added || p.warning)
+        .map((p) => p.warning ?? `Package ${p.packageId.slice(0, 8)} could not be added.`)
+
+    return {
+        success: true,
+        shiftId: plan.shift.id,
+        routeId: plan.shift.routeId,
+        warnings,
+    }
+}
+
+/**
+ * Take one package off a shift: the assignment is dropped, the route steps are
+ * rewritten without it, and the package goes back to PENDING for reassignment.
+ *
+ * Replaces a browser-side delete-then-renumber that could not be atomic, and
+ * whose PENDING timeline write silently did nothing until AllowStatusRevisits
+ * dropped the unique constraint that was swallowing it.
+ *
+ * The API refuses (409) a package that is already IN_TRANSIT, onboard or
+ * delivered.
+ */
+export async function removePackageFromShift(
+    shiftId: string,
+    packageId: string,
+): Promise<{ success: true; plan: ShiftPlanDto } | { success: false; error: string }> {
+    const ctx = await buildApiContext()
+    if ("error" in ctx) return ctx
+
+    let res: Response
+    try {
+        res = await fetch(`${ctx.apiUrl}/api/v1/shifts/${shiftId}/packages/${packageId}`, {
+            method: "DELETE",
+            headers: ctx.headers,
+            cache: "no-store",
+        })
+    } catch {
+        return { success: false, error: "Failed to reach the API." }
+    }
+
+    if (!res.ok) return { success: false, error: await parseApiError(res) }
+    return { success: true, plan: await res.json() }
 }
