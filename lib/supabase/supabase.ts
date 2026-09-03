@@ -6,6 +6,21 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+/**
+ * Shift lifecycle, from `vrp_optimization_status_check` (migration
+ * AddShiftLifecycleColumns). The column is `text` with a CHECK rather than a
+ * Postgres enum, so it is narrowed here by hand — `Constants.public.Enums` is
+ * empty because the schema has no real enum types.
+ *
+ * `planned` is the only state open to automatic assignment, and only until 15
+ * minutes before `scheduled_start`.
+ */
+export type VrpOptimizationStatus =
+  | "planned"
+  | "dispatched"
+  | "completed"
+  | "cancelled"
+
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
@@ -451,13 +466,17 @@ export type Database = {
         Row: {
           actual_arrival: string | null
           actual_departure: string | null
+          /** Planner output, rewritten on every replan. Never a promise. */
+          estimated_arrival: string | null
           package_id: string
+          /** The customer deadline. Never written by the planner. */
           scheduled_arrival: string | null
           scheduled_departure: string | null
         }
         Insert: {
           actual_arrival?: string | null
           actual_departure?: string | null
+          estimated_arrival?: string | null
           package_id?: string
           scheduled_arrival?: string | null
           scheduled_departure?: string | null
@@ -465,6 +484,7 @@ export type Database = {
         Update: {
           actual_arrival?: string | null
           actual_departure?: string | null
+          estimated_arrival?: string | null
           package_id?: string
           scheduled_arrival?: string | null
           scheduled_departure?: string | null
@@ -678,6 +698,11 @@ export type Database = {
         Row: {
           created_at: string
           delivery_notes: string | null
+          /**
+           * Times this package has been bumped off a shift to make room for a
+           * package with a deadline. At 2 it becomes immovable.
+           */
+          eviction_count: number
           from_customer: string
           id: string
           optimisation_id: string | null
@@ -689,6 +714,7 @@ export type Database = {
         Insert: {
           created_at?: string
           delivery_notes?: string | null
+          eviction_count?: number
           from_customer: string
           id?: string
           optimisation_id?: string | null
@@ -700,6 +726,7 @@ export type Database = {
         Update: {
           created_at?: string
           delivery_notes?: string | null
+          eviction_count?: number
           from_customer?: string
           id?: string
           optimisation_id?: string | null
@@ -794,51 +821,10 @@ export type Database = {
           },
         ]
       }
-      scheduler_runs: {
-        Row: {
-          id: string
-          organisation_id: string
-          ran_at: string
-          retry_count: number
-          run_date: string
-          status: string
-          warehouse_id: string
-        }
-        Insert: {
-          id?: string
-          organisation_id: string
-          ran_at?: string
-          retry_count?: number
-          run_date?: string
-          status?: string
-          warehouse_id: string
-        }
-        Update: {
-          id?: string
-          organisation_id?: string
-          ran_at?: string
-          retry_count?: number
-          run_date?: string
-          status?: string
-          warehouse_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "scheduler_runs_organisation_id_fkey"
-            columns: ["organisation_id"]
-            isOneToOne: false
-            referencedRelation: "organisations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "scheduler_runs_warehouse_id_fkey"
-            columns: ["warehouse_id"]
-            isOneToOne: false
-            referencedRelation: "warehouse"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      // scheduler_runs is gone (migration DropSchedulerRuns). It existed only so
+      // the nightly 02:00 cron could claim a warehouse-day; assignment now
+      // happens inside POST /api/v1/packages and there is no nightly run to
+      // claim.
       service_areas: {
         Row: {
           geometry: unknown
@@ -1075,38 +1061,86 @@ export type Database = {
       }
       vrp_optimization: {
         Row: {
+          completed_at: string | null
           created_at: string
+          dispatched_at: string | null
+          driver_id: string | null
           id: string
           organisation_id: string | null
           provider: string
           request: Json
           response: Json
+          revision: number
           scheduled_start: string | null
+          shift_date: string | null
+          status: VrpOptimizationStatus
+          updated_at: string
+          vehicle_id: string | null
+          warehouse_id: string | null
         }
         Insert: {
+          completed_at?: string | null
           created_at?: string
+          dispatched_at?: string | null
+          driver_id?: string | null
           id?: string
           organisation_id?: string | null
           provider: string
           request: Json
           response: Json
+          revision?: number
           scheduled_start?: string | null
+          shift_date?: string | null
+          status?: VrpOptimizationStatus
+          updated_at?: string
+          vehicle_id?: string | null
+          warehouse_id?: string | null
         }
         Update: {
+          completed_at?: string | null
           created_at?: string
+          dispatched_at?: string | null
+          driver_id?: string | null
           id?: string
           organisation_id?: string | null
           provider?: string
           request?: Json
           response?: Json
+          revision?: number
           scheduled_start?: string | null
+          shift_date?: string | null
+          status?: VrpOptimizationStatus
+          updated_at?: string
+          vehicle_id?: string | null
+          warehouse_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "vrp_optimization_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "vrp_optimization_organisation_id_fkey"
             columns: ["organisation_id"]
             isOneToOne: false
             referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vrp_optimization_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vrp_optimization_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse"
             referencedColumns: ["id"]
           },
         ]
@@ -1332,6 +1366,11 @@ export type Database = {
         Row: {
           id: string
           organisation_id: string
+          /**
+           * IANA zone, derived from warehouse_location by trigger. The
+           * warehouse-local service day comes from here.
+           */
+          timezone: string
           warehouse_address: string
           warehouse_city: string
           warehouse_country: string
@@ -1343,6 +1382,7 @@ export type Database = {
         Insert: {
           id?: string
           organisation_id: string
+          timezone?: string
           warehouse_address: string
           warehouse_city: string
           warehouse_country: string
@@ -1354,6 +1394,7 @@ export type Database = {
         Update: {
           id?: string
           organisation_id?: string
+          timezone?: string
           warehouse_address?: string
           warehouse_city?: string
           warehouse_country?: string

@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useOrgSlug } from '@/lib/use-org'
-import { getDeliveryRoutesByDates, DeliveryRouteByDate } from '@/lib/supabase/db'
+import { getShiftsByDates, getShiftStartEnd, type CalendarShift } from '@/lib/supabase/db'
 
 function resolveLocale(): { tag: string; locale: Locale } {
     try {
@@ -38,41 +38,22 @@ const eventStyleGetter = () => ({
     }
 })
 
-function getRouteStartEnd(event: DeliveryRouteByDate) {
-    let start: Date | null = null
-    let end: Date | null = null
-    event.package_assignment.forEach(p => {
-        if (p.scheduled_departure) {
-            const d = new Date(p.scheduled_departure)
-            if (!start || d < start) start = d
-        }
-        if (p.scheduled_arrival) {
-            const a = new Date(p.scheduled_arrival)
-            if (!end || a > end) end = a
-        }
-    })
-    return { start, end }
-}
-
-function CustomEvent({ event }: { event: DeliveryRouteByDate }) {
-    const { start: depDate, end: arrDate } = getRouteStartEnd(event)
-
-    if (!depDate || !arrDate) return <div />
-
-    const hours = differenceInHours(arrDate, depDate)
-    const startStr = format(depDate, 'HH:mm')
-    const endStr = format(arrDate, 'HH:mm')
+function CustomEvent({ event }: { event: CalendarShift }) {
+    const { start, end } = getShiftStartEnd(event)
+    const hours = differenceInHours(end, start)
 
     return (
         <div className="flex flex-col h-full p-1 gap-1 text-black">
-            <div className="text-xs font-semibold">{startStr} - {endStr}</div>
+            <div className="text-xs font-semibold">
+                {format(start, 'HH:mm')} - {format(end, 'HH:mm')}
+            </div>
             <div className="flex items-center text-xs text-gray-600">
                 <Clock className="w-3 h-3 mr-1 text-gray-400" />
                 <span>{hours} hours</span>
             </div>
             <div className="flex items-center text-xs text-gray-600">
                 <Package className="w-3 h-3 mr-1 text-gray-400" />
-                <span>{event.package_assignment.length} packages</span>
+                <span>{event.stop_count} packages</span>
             </div>
         </div>
     )
@@ -86,7 +67,7 @@ export function TodayShiftsCalendar() {
     const slug = useOrgSlug()
     // Pinned at mount so the fetch effect below has a stable dependency.
     const [today] = useState(() => new Date())
-    const [events, setEvents] = useState<DeliveryRouteByDate[]>([])
+    const [events, setEvents] = useState<CalendarShift[]>([])
     const [loading, setLoading] = useState(true)
     const [localizer] = useState(() => {
         if (typeof navigator === 'undefined') return makeLocalizer('en-US', dateFnsLocales.enUS)
@@ -97,19 +78,17 @@ export function TodayShiftsCalendar() {
     useEffect(() => {
         const fetchEvents = async () => {
             setLoading(true)
-            const data = await getDeliveryRoutesByDates(
-                startOfDay(today).toISOString(),
-                endOfDay(today).toISOString(),
-            )
-
-            if (!data) {
+            try {
+                setEvents(await getShiftsByDates(
+                    startOfDay(today).toISOString(),
+                    endOfDay(today).toISOString(),
+                ))
+            } catch (e) {
+                console.error('Failed to fetch shifts', e)
                 setEvents([])
+            } finally {
                 setLoading(false)
-                return
             }
-
-            setEvents(data)
-            setLoading(false)
         }
         fetchEvents()
     }, [today])
@@ -143,8 +122,8 @@ export function TodayShiftsCalendar() {
                     <div className="h-[400px] px-4 pb-4">
                         <ShadcnBigCalendar
                             localizer={localizer}
-                            startAccessor={(event) => getRouteStartEnd(event).start || new Date()}
-                            endAccessor={(event) => getRouteStartEnd(event).end || new Date()}
+                            startAccessor={(event) => getShiftStartEnd(event).start}
+                            endAccessor={(event) => getShiftStartEnd(event).end}
                             events={events}
                             eventPropGetter={eventStyleGetter}
                             components={{

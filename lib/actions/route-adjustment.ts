@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache"
 import { getSupabaseServerClaims } from "@/lib/supabase/server"
 import { createClient } from "@/lib/supabase/server"
+import { getShiftMeta } from "@/lib/supabase/db-server"
 import { getOrgSlug } from "./api-client"
+import { removePackageFromShift } from "./shift"
 
 /** Statuses that are immovable/undeletable */
 const LOCKED_STATUSES = ["DELIVERED", "IN_TRANSIT"] as const
@@ -147,68 +149,97 @@ export async function adjustRoute(params: AdjustRouteParams): Promise<AdjustRout
         }
     }
 
-    // 6. Execute changes with the authenticated client.
-    // RLS policies grant packages.edit users UPDATE/DELETE on vrp_route_step,
-    // DELETE on package_assignment, and INSERT on package_timeline.
+    // 6. Execute the changes.
     try {
-        // 6a. Delete removed steps and their package assignments
-        for (const stepId of deletedStepIds) {
-            const step = currentSteps.find(s => s.id === stepId)!
-
-            const { error: deleteStepError } = await supabase
-                .from("vrp_route_step")
-                .delete()
-                .eq("id", stepId)
-            if (deleteStepError) {
-                throw new Error(`Failed to delete route step ${stepId}: ${deleteStepError.message}`)
+        // 6a. Removals go to the API, which drops the assignment, rewrites the
+        // route's steps without the package and puts it back to PENDING — all in
+        // one transaction. Doing that from here took three round trips per
+        // package with nothing holding them together, and its PENDING write was
+        // silently swallowed by the timeline's unique constraint (dropped in
+        // AllowStatusRevisits), so a removed package showed ASSIGNED forever.
+        if (deletedStepIds.length > 0) {
+            const shift = await getShiftMeta(routeId)
+            if (!shift) {
+                throw new Error("Could not resolve the shift this route belongs to")
             }
 
-            // Unassign the package and reset its status to PENDING
-            if (step.package_id) {
-                const { error: deleteAssignError } = await supabase
-                    .from("package_assignment")
-                    .delete()
-                    .eq("package_id", step.package_id)
-                if (deleteAssignError) {
-                    throw new Error(
-                        `Failed to delete package assignment for ${step.package_id}: ${deleteAssignError.message}`
-                    )
-                }
+            for (const stepId of deletedStepIds) {
+                const step = currentSteps.find(s => s.id === stepId)
+                // Validation above already rejected non-job steps, and every job
+                // step carries a package.
+                if (!step?.package_id) continue
 
-                const { error: timelineError } = await supabase.rpc("insert_package_timeline", {
-                    p_package_id: step.package_id,
-                    p_status_enum: "PENDING",
-                })
-                if (timelineError) {
-                    throw new Error(
-                        `Failed to reset package ${step.package_id} to PENDING: ${timelineError.message}`
-                    )
+                const removal = await removePackageFromShift(shift.optimisation_id, step.package_id)
+                if (!removal.success) {
+                    throw new Error(`Failed to remove package ${step.package_id}: ${removal.error}`)
                 }
             }
         }
 
-        // 6b. Reorder remaining steps
-        // Phase 1: set all step_indexes to -(id) to avoid the UNIQUE(route_id, step_index) constraint
-        const remainingSteps = currentSteps.filter(s => !deletedStepIds.includes(s.id))
-        for (const step of remainingSteps) {
-            const { error } = await supabase
-                .from("vrp_route_step")
-                .update({ step_index: -step.id })
-                .eq("id", step.id)
-            if (error) {
-                throw new Error(`Failed to negate step_index for step ${step.id}: ${error.message}`)
-            }
+        // 6b. Reorder whatever is left.
+        //
+        // There is no reorder endpoint — the API rewrites step order as a result
+        // of adding or removing a package, not as an operation of its own — so
+        // this stays a direct write. Removal already compacted the indexes, so
+        // it runs only when the dispatcher actually dragged something, which is
+        // also why the step ids have to be re-read: the API deletes and
+        // re-inserts the surviving steps, giving them new ids.
+        const desiredPackageOrder = orderedStepIds
+            .map(id => stepMap.get(id))
+            .filter(s => s?.type === "job")
+            .map(s => s?.package_id)
+            .filter((id): id is string => !!id)
+
+        const { data: liveSteps, error: reloadError } = await supabase
+            .from("vrp_route_step")
+            .select("id, step_index, type, package_id")
+            .eq("route_id", routeId)
+            .order("step_index", { ascending: true })
+
+        if (reloadError) {
+            throw new Error(`Failed to re-read route steps: ${reloadError.message}`)
         }
 
-        // Phase 2: apply the new step_index values
-        for (let newIndex = 0; newIndex < orderedStepIds.length; newIndex++) {
-            const stepId = orderedStepIds[newIndex]
-            const { error } = await supabase
-                .from("vrp_route_step")
-                .update({ step_index: newIndex })
-                .eq("id", stepId)
-            if (error) {
-                throw new Error(`Failed to update step_index for step ${stepId}: ${error.message}`)
+        const liveJobsByPackage = new Map(
+            (liveSteps ?? [])
+                .filter(s => s.type === "job" && s.package_id)
+                .map(s => [s.package_id as string, s])
+        )
+        const liveStart = (liveSteps ?? []).find(s => s.type === "start")
+        const liveEnd = (liveSteps ?? []).find(s => s.type === "end")
+
+        const target = [
+            ...(liveStart ? [liveStart] : []),
+            ...desiredPackageOrder
+                .map(packageId => liveJobsByPackage.get(packageId))
+                .filter((s): s is NonNullable<typeof s> => !!s),
+            ...(liveEnd ? [liveEnd] : []),
+        ]
+
+        const alreadyOrdered = target.every((step, index) => step.step_index === index)
+        if (!alreadyOrdered) {
+            // Two phases, because UNIQUE(route_id, step_index) rejects any
+            // intermediate state where two steps share an index. Negating by id
+            // parks every row somewhere no positive index can collide with.
+            for (const step of target) {
+                const { error } = await supabase
+                    .from("vrp_route_step")
+                    .update({ step_index: -step.id })
+                    .eq("id", step.id)
+                if (error) {
+                    throw new Error(`Failed to negate step_index for step ${step.id}: ${error.message}`)
+                }
+            }
+
+            for (let newIndex = 0; newIndex < target.length; newIndex++) {
+                const step = target[newIndex]
+                const { error } = await supabase
+                    .from("vrp_route_step")
+                    .update({ step_index: newIndex })
+                    .eq("id", step.id)
+                if (error) {
+                    throw new Error(`Failed to update step_index for step ${step.id}: ${error.message}`)
+                }
             }
         }
     } catch (err: unknown) {

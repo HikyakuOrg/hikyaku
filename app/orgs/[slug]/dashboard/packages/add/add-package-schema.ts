@@ -1,13 +1,17 @@
 import { z } from "zod/v4";
 
 
+/**
+ * No `files` field: the photo dropzone in package-info-step uploads straight to
+ * Supabase Storage under `<packageId>/images/received`, so the File objects
+ * never need to reach this form's value or the submit step.
+ */
 export const packageSchema = z.object({
     packageId: z.uuid(),
     weight: z.number().min(0.1),
     length: z.number().min(0.1),
     width: z.number().min(0.1),
     height: z.number().min(0.1),
-    files: z.array(z.instanceof(File)).optional(),
 })
 
 
