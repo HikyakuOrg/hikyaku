@@ -170,7 +170,7 @@ export function ServiceAreasTable({
                 <h2 className="text-lg font-semibold tracking-tight">All service areas</h2>
                 <p className="text-sm text-muted-foreground">
                     Every area in this organisation, including any drawn outside the current map view.
-                    Tick one to show it on the map, or open a row to edit it.
+                    Tick one to show it on the map, or open a row to see and change who covers it.
                 </p>
             </div>
 

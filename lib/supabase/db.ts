@@ -52,10 +52,314 @@ export async function deleteServiceArea(id: string) {
     if (error) throw error
     return data
 }
+
+/**
+ * A driver, shaped for the two tables on the service area detail page: the ones
+ * already covering the area, and the ones that could be attached to it.
+ *
+ * Extends the driver shape the rest of the app uses rather than inventing a
+ * second one, because both tables render through `components/driver/driver-table`.
+ *
+ * `warehouse_name` is carried alongside because dispatch only ever offers a
+ * driver work out of their own warehouse, so which depot a driver sits at is the
+ * difference between coverage that does something and coverage that quietly does
+ * nothing. See the note in `service-area-driver-sheet.tsx` for why the picker
+ * shows the column instead of filtering on it.
+ */
+export type ServiceAreaDriver = ListDriverDto & {
+    warehouse_id: string | null
+    /** Null when the driver has no warehouse, or when the caller cannot read it. */
+    warehouse_name: string | null
+}
+
+/** One page of drivers that are not yet attached to an area. */
+export type AttachableDriverPage = {
+    drivers: ServiceAreaDriver[]
+    total: number
+    totalPages: number
+}
+
+/**
+ * Driver ids already attached to an area.
+ *
+ * `driver_service_area` has no `is_deleted`: retiring a territory keeps its
+ * staffing so it can be un-retired, which means the soft delete lives entirely
+ * on `service_areas`. Nothing here has to filter it, because every caller has
+ * already resolved a live area to get its id.
+ */
+async function getServiceAreaDriverIds(areaId: string): Promise<string[]> {
+    const { data, error } = await supabase
+        .from("driver_service_area")
+        .select("driver_id")
+        .eq("service_area_id", areaId)
+    if (error) throw error
+    return (data ?? []).map((link) => link.driver_id)
+}
+
+/**
+ * Warehouse id and name for a set of drivers, as two plain lookups rather than a
+ * PostgREST embed.
+ *
+ * Reading `warehouse` needs `warehouse.view`, which is a different permission
+ * from the `drivers.view` that got us the driver rows, so a caller can
+ * legitimately be allowed one and not the other. Keeping them separate means
+ * that case degrades to an empty warehouse column instead of failing the whole
+ * read.
+ */
+async function getDriverWarehouses(driverIds: string[]) {
+    if (driverIds.length === 0) {
+        return new Map<string, { warehouseId: string | null; warehouseName: string | null }>()
+    }
+
+    const { data: driverRows, error: driverError } = await supabase
+        .from("drivers")
+        .select("id, warehouse_id")
+        .in("id", driverIds)
+    if (driverError) throw driverError
+
+    const warehouseIds = Array.from(
+        new Set((driverRows ?? []).map((row) => row.warehouse_id).filter((id): id is string => Boolean(id)))
+    )
+
+    const warehouseNames = new Map<string, string>()
+
+    if (warehouseIds.length > 0) {
+        const { data: warehouseRows, error: warehouseError } = await supabase
+            .from("warehouse")
+            .select("id, warehouse_name")
+            .in("id", warehouseIds)
+
+        // Not fatal. A caller without warehouse.view sees the drivers and an
+        // empty warehouse column, which is more useful than an error panel.
+        if (warehouseError) {
+            console.error(warehouseError)
+        }
+
+        for (const warehouse of warehouseRows ?? []) {
+            warehouseNames.set(warehouse.id, warehouse.warehouse_name)
+        }
+    }
+
+    return new Map(
+        (driverRows ?? []).map((row) => [
+            row.id,
+            {
+                warehouseId: row.warehouse_id,
+                warehouseName: row.warehouse_id ? warehouseNames.get(row.warehouse_id) ?? null : null,
+            },
+        ])
+    )
+}
+
+/**
+ * Merge driver ids with the profile and warehouse lookups into display rows.
+ *
+ * A driver whose profile does not come back keeps its row rather than
+ * disappearing: dropping it would make the attachable page counts disagree with
+ * what is on screen, and on the attached list it would hide a driver who really
+ * is covering the area. It happens when the `auth.users` row behind a driver is
+ * gone, which the RPC's join filters out.
+ */
+function toServiceAreaDrivers(
+    driverIds: string[],
+    profiles: ListDriverDto[],
+    warehouses: Map<string, { warehouseId: string | null; warehouseName: string | null }>,
+): ServiceAreaDriver[] {
+    const profilesById = new Map(profiles.map((profile) => [profile.id, profile]))
+
+    return driverIds.map((driverId) => {
+        const profile = profilesById.get(driverId)
+        const warehouse = warehouses.get(driverId)
+
+        return {
+            id: driverId,
+            email: profile?.email ?? "",
+            phone_number: profile?.phone_number ?? "",
+            display_name: profile?.display_name ?? "Unnamed driver",
+            avatar_url: profile?.avatar_url ?? null,
+            driver_license: profile?.driver_license ?? null,
+            license_expiry: profile?.license_expiry ?? null,
+            warehouse_id: warehouse?.warehouseId ?? null,
+            warehouse_name: warehouse?.warehouseName ?? null,
+        }
+    })
+}
+
+/**
+ * The drivers currently covering one service area.
+ *
+ * Three reads rather than one join, because the pieces live in three places that
+ * PostgREST cannot join across: the pairings are in `driver_service_area`, the
+ * warehouse is on `drivers`, and display name, phone and avatar are in
+ * `auth.users.raw_user_meta_data`, reachable only through the SECURITY DEFINER
+ * `get_drivers_by_ids` RPC the rest of the app already uses for exactly this.
+ * The row counts here are a depot's worth of drivers, not a page of packages, so
+ * the extra round trips are cheaper than a new database function would be.
+ *
+ * Sorted by name, since the order drivers happened to be attached in is not
+ * something a dispatcher is looking for.
+ */
+export async function getDriversByServiceArea(areaId: string): Promise<ServiceAreaDriver[]> {
+    const driverIds = await getServiceAreaDriverIds(areaId)
+
+    if (driverIds.length === 0) {
+        return []
+    }
+
+    const [profiles, warehouses] = await Promise.all([
+        getDriversByIds(driverIds),
+        getDriverWarehouses(driverIds),
+    ])
+
+    return toServiceAreaDrivers(driverIds, profiles, warehouses)
+        .sort((left, right) => left.display_name.localeCompare(right.display_name))
+}
+
+/**
+ * One page of drivers that could still be attached to an area.
+ *
+ * The exclusion is applied in the database, not after paging, so page 2 is the
+ * real second page of attachable drivers rather than the second page of all
+ * drivers with some rows missing. None of the existing driver RPCs
+ * (`get_drivers_paginated`, `list_unassigned_drivers`, `list_drivers_by_warehouse`)
+ * takes a service-area argument, and this table is owned by the web app rather
+ * than by the API, so this pages `drivers` directly and picks the names up
+ * afterwards.
+ *
+ * Ordered by id descending to match `get_drivers_paginated`, so paging through
+ * this picker behaves like paging through the other driver pickers. Sorting by
+ * name is not available here: the name is not a column on this table.
+ */
+export async function getAttachableDriversForServiceArea(
+    areaId: string,
+    page: number,
+    pageSize: number,
+): Promise<AttachableDriverPage> {
+    const attachedIds = await getServiceAreaDriverIds(areaId)
+    const from = (page - 1) * pageSize
+    const to = from + pageSize - 1
+
+    let query = supabase
+        .from("drivers")
+        .select("id", { count: "exact" })
+        .order("id", { ascending: false })
+        .range(from, to)
+
+    if (attachedIds.length > 0) {
+        // PostgREST wants a parenthesised list here rather than an array. The
+        // ids are uuids read back out of the database a moment ago, so there is
+        // nothing in them to quote or escape.
+        query = query.not("id", "in", `(${attachedIds.join(",")})`)
+    }
+
+    const { data, error, count } = await query
+    if (error) throw error
+
+    const driverIds = (data ?? []).map((row) => row.id)
+    const total = count ?? 0
+
+    if (driverIds.length === 0) {
+        return { drivers: [], total, totalPages: Math.max(1, Math.ceil(total / pageSize)) }
+    }
+
+    const [profiles, warehouses] = await Promise.all([
+        getDriversByIds(driverIds),
+        getDriverWarehouses(driverIds),
+    ])
+
+    return {
+        drivers: toServiceAreaDrivers(driverIds, profiles, warehouses),
+        total,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    }
+}
+
+/**
+ * Attach a whole selection of drivers to one service area.
+ *
+ * ONE INSERT FOR THE WHOLE SELECTION. Forty drivers is forty rows in one
+ * request, never forty requests, which is also what makes the whole selection
+ * land or not land together.
+ *
+ * Already-attached drivers are a no-op rather than an error, resolved by
+ * `ON CONFLICT (driver_id, service_area_id) DO NOTHING` (the table's primary
+ * key) rather than by filtering them out here first. The filter version is a
+ * read followed by a write, so two dispatchers staffing the same area at the
+ * same time can both read "not attached yet" and the second insert then fails
+ * on the primary key with nothing having gone wrong. `ON CONFLICT` is decided
+ * inside the one statement, where that race has nowhere to happen. The picker
+ * hides attached drivers anyway, so a duplicate reaching here means a sheet that
+ * has been open a while, which is exactly the case that should stay quiet.
+ *
+ * `organisation_id` is NOT NULL with no default, so the insert has to carry it,
+ * and it is read off the area rather than off the session: composite foreign
+ * keys pin it to both parents, so a value disagreeing with either the area or
+ * the driver cannot be inserted by any role. Reading it here just means sending
+ * the value the database is going to insist on.
+ */
+export async function attachDriversToServiceArea(areaId: string, driverIds: string[]) {
+    if (driverIds.length === 0) {
+        return []
+    }
+
+    const { data: area, error: areaError } = await supabase
+        .from("service_areas")
+        .select("organisation_id")
+        .eq("id", areaId)
+        .eq("is_deleted", false)
+        .single()
+    if (areaError) throw areaError
+
+    const { data, error } = await supabase
+        .from("driver_service_area")
+        .upsert(
+            driverIds.map((driverId) => ({
+                driver_id: driverId,
+                service_area_id: areaId,
+                organisation_id: area.organisation_id,
+            })),
+            { onConflict: "driver_id,service_area_id", ignoreDuplicates: true }
+        )
+        .select()
+
+    // Unlike a refused UPDATE, a refused INSERT does raise: an RLS WITH CHECK
+    // failure comes back as 42501, which describeWriteError() words. So an empty
+    // `data` here means every row was already attached, not that the write was
+    // turned away.
+    if (error) throw error
+    return data ?? []
+}
+
+/**
+ * Detach one driver from one service area.
+ *
+ * A plain delete of the single link row. It does not touch work that already
+ * exists: coverage is decided once, when a package is created, so stops already
+ * on a driver's route stay there.
+ *
+ * `.select().single()` for the same reason `deleteServiceArea` uses it. A delete
+ * the RLS policy refuses is not an error in Postgres, it simply matches zero
+ * rows, so without this it would return quietly and look like a success. With
+ * it the refusal arrives as PGRST116, which describeWriteError() turns into a
+ * sentence covering both readings (the row is gone, or the permission is).
+ */
+export async function detachDriverFromServiceArea(areaId: string, driverId: string) {
+    const { data, error } = await supabase
+        .from("driver_service_area")
+        .delete()
+        .eq("service_area_id", areaId)
+        .eq("driver_id", driverId)
+        .select()
+        .single()
+    if (error) throw error
+    return data
+}
 import { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { createLazyClient } from "./client";
 import { Database, Tables, TablesInsert, VrpOptimizationStatus } from "./supabase";
 import { TrackingLocationBroadcast } from "@/app/models/tracking";
+import { ListDriverDto } from "../api";
+import { getDriversByIds } from "./supabase-rpc";
 
 
 const supabase = createLazyClient()

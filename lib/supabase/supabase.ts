@@ -166,6 +166,49 @@ export type Database = {
         }
         Relationships: []
       }
+      driver_service_area: {
+        Row: {
+          created_at: string
+          driver_id: string
+          organisation_id: string
+          service_area_id: string
+        }
+        Insert: {
+          created_at?: string
+          driver_id: string
+          organisation_id: string
+          service_area_id: string
+        }
+        Update: {
+          created_at?: string
+          driver_id?: string
+          organisation_id?: string
+          service_area_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driver_service_area_area_org_fkey"
+            columns: ["service_area_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "service_areas"
+            referencedColumns: ["id", "organisation_id"]
+          },
+          {
+            foreignKeyName: "driver_service_area_driver_org_fkey"
+            columns: ["driver_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id", "organisation_id"]
+          },
+          {
+            foreignKeyName: "driver_service_area_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       driver_vehicle_assignment: {
         Row: {
           assigned_at: string

@@ -49,10 +49,12 @@ export function ServiceAreasExplorer({
     const [pendingDeleteArea, setPendingDeleteArea] = useState<ServiceAreaListItem | null>(null)
     const [isDeleting, setIsDeleting] = useState(false)
 
-    // Both surfaces open the editor for now. A later ticket introduces a service
-    // area detail page and repoints them together.
+    // Both surfaces open the area's detail page, where its coverage is staffed.
+    // Redrawing the boundary is a separate route reached from there, because
+    // "who covers this" is the question somebody has when they open an area, and
+    // dropping them straight into a drawing tool answered a different one.
     const openArea = (id: string) => {
-        router.push(`/orgs/${slug}/dashboard/service/areas/edit/${id}`)
+        router.push(`/orgs/${slug}/dashboard/service/areas/${id}`)
     }
 
     // Picking from the list also moves the camera, since the area is usually not

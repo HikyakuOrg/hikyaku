@@ -4,6 +4,7 @@ import {
     emptyServiceAreaFeatureCollection,
     getServiceAreaFeatureCollectionBounds,
     type ServiceAreaBounds,
+    type ServiceAreaFeatureCollection,
 } from "@/lib/maps/service-area-geometry"
 import { Tables, VrpOptimizationStatus } from "./supabase"
 import { createClient } from "./server"
@@ -251,6 +252,72 @@ export async function getServiceAreas(): Promise<ServiceAreaListResult> {
                 createServiceAreaFeatureCollection([serviceArea])
             ),
         })),
+    }
+}
+
+/** One service area, with its polygon already prepared for a map. */
+export type ServiceAreaDetail = {
+    id: string
+    name: string
+    created_at: string
+    /**
+     * The area's own geometry as a one-feature collection, so the detail map can
+     * draw it without a second fetch. Empty when the stored geometry is not
+     * something we can read, which the map reports rather than rendering blank.
+     */
+    featureCollection: ServiceAreaFeatureCollection
+    bounds: ServiceAreaBounds | null
+}
+
+export type ServiceAreaDetailResult =
+    | { status: "ok"; area: ServiceAreaDetail }
+    /** No live area with this id is visible to this user. */
+    | { status: "not-found" }
+    | { status: "error" }
+
+/**
+ * One service area by id, for its detail page.
+ *
+ * Three outcomes rather than a nullable row, for the same reason getServiceAreas()
+ * returns a status: a failed read and a retired-or-missing area are different
+ * things to say to a dispatcher, and collapsing them means a broken backend
+ * renders as "this area does not exist".
+ *
+ * "not-found" also covers an area belonging to another organisation. RLS filters
+ * it out of the select rather than raising, which is the behaviour to want:
+ * confirming that an id exists somewhere else would be a small tenancy leak.
+ */
+export async function getServiceAreaDetail(id: string): Promise<ServiceAreaDetailResult> {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+        .from("service_areas")
+        .select("id, name, geometry, created_at")
+        // The soft delete on this table is filtered in the query layer, never in
+        // RLS, so a retired area is only "not found" because of this line.
+        .eq("is_deleted", false)
+        .eq("id", id)
+        .maybeSingle()
+
+    if (error) {
+        console.error(error)
+        return { status: "error" }
+    }
+
+    if (!data) {
+        return { status: "not-found" }
+    }
+
+    const featureCollection = createServiceAreaFeatureCollection([data])
+
+    return {
+        status: "ok",
+        area: {
+            id: data.id,
+            name: data.name,
+            created_at: data.created_at,
+            featureCollection,
+            bounds: getServiceAreaFeatureCollectionBounds(featureCollection),
+        },
     }
 }
 
