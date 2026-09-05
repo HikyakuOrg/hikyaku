@@ -6,21 +6,6 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-/**
- * Shift lifecycle, from `vrp_optimization_status_check` (migration
- * AddShiftLifecycleColumns). The column is `text` with a CHECK rather than a
- * Postgres enum, so it is narrowed here by hand — `Constants.public.Enums` is
- * empty because the schema has no real enum types.
- *
- * `planned` is the only state open to automatic assignment, and only until 15
- * minutes before `scheduled_start`.
- */
-export type VrpOptimizationStatus =
-  | "planned"
-  | "dispatched"
-  | "completed"
-  | "cancelled"
-
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
@@ -76,6 +61,7 @@ export type Database = {
           organisation_id: string
           pelias_gid: string | null
           pelias_raw: Json | null
+          shopify_customer_id: string | null
           stripe_customer_id: string | null
         }
         Insert: {
@@ -94,6 +80,7 @@ export type Database = {
           organisation_id: string
           pelias_gid?: string | null
           pelias_raw?: Json | null
+          shopify_customer_id?: string | null
           stripe_customer_id?: string | null
         }
         Update: {
@@ -112,6 +99,7 @@ export type Database = {
           organisation_id?: string
           pelias_gid?: string | null
           pelias_raw?: Json | null
+          shopify_customer_id?: string | null
           stripe_customer_id?: string | null
         }
         Relationships: [
@@ -128,19 +116,19 @@ export type Database = {
         Row: {
           driver_id: string
           location: unknown
-          speed: number
+          speed: number | null
           updated_at: string
         }
         Insert: {
           driver_id: string
           location: unknown
-          speed: number
+          speed?: number | null
           updated_at?: string
         }
         Update: {
           driver_id?: string
           location?: unknown
-          speed?: number
+          speed?: number | null
           updated_at?: string
         }
         Relationships: []
@@ -423,13 +411,10 @@ export type Database = {
           name: string | null
           org_type: string
           slug: string
+          subscription_status: string | null
           trial_ends_at: string | null
           vanity_slug: string | null
         }
-        // trial_ends_at/vanity_slug are intentionally absent from Insert: the
-        // organisations_set_trial / set_organisation_vanity_slug triggers
-        // overwrite whatever is supplied, so accepting them here would type a
-        // value that the database discards.
         Insert: {
           created_at?: string
           created_by?: string
@@ -438,12 +423,10 @@ export type Database = {
           name?: string | null
           org_type?: string
           slug?: string
+          subscription_status?: string | null
+          trial_ends_at?: string | null
+          vanity_slug?: string | null
         }
-        // trial_ends_at/vanity_slug are absent from Update too, same reasoning
-        // as Insert above. `authenticated` holds column-level UPDATE on
-        // ("name", "org_type", "logo_url") only — id/created_at/created_by/slug
-        // are listed here because the generator emits every column, not
-        // because they're writable.
         Update: {
           created_at?: string
           created_by?: string
@@ -452,6 +435,9 @@ export type Database = {
           name?: string | null
           org_type?: string
           slug?: string
+          subscription_status?: string | null
+          trial_ends_at?: string | null
+          vanity_slug?: string | null
         }
         Relationships: []
       }
@@ -509,10 +495,8 @@ export type Database = {
         Row: {
           actual_arrival: string | null
           actual_departure: string | null
-          /** Planner output, rewritten on every replan. Never a promise. */
           estimated_arrival: string | null
           package_id: string
-          /** The customer deadline. Never written by the planner. */
           scheduled_arrival: string | null
           scheduled_departure: string | null
         }
@@ -627,6 +611,7 @@ export type Database = {
       package_proof_of_delivery: {
         Row: {
           created_at: string
+          description: string | null
           file_url: string | null
           id: number
           location: unknown
@@ -636,6 +621,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          description?: string | null
           file_url?: string | null
           id?: never
           location?: unknown
@@ -645,6 +631,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          description?: string | null
           file_url?: string | null
           id?: never
           location?: unknown
@@ -741,10 +728,6 @@ export type Database = {
         Row: {
           created_at: string
           delivery_notes: string | null
-          /**
-           * Times this package has been bumped off a shift to make room for a
-           * package with a deadline. At 2 it becomes immovable.
-           */
           eviction_count: number
           from_customer: string
           id: string
@@ -864,10 +847,6 @@ export type Database = {
           },
         ]
       }
-      // scheduler_runs is gone (migration DropSchedulerRuns). It existed only so
-      // the nightly 02:00 cron could claim a warehouse-day; assignment now
-      // happens inside POST /api/v1/packages and there is no nightly run to
-      // claim.
       service_areas: {
         Row: {
           created_at: string
@@ -1125,7 +1104,7 @@ export type Database = {
           revision: number
           scheduled_start: string | null
           shift_date: string | null
-          status: VrpOptimizationStatus
+          status: string
           updated_at: string
           vehicle_id: string | null
           warehouse_id: string | null
@@ -1143,7 +1122,7 @@ export type Database = {
           revision?: number
           scheduled_start?: string | null
           shift_date?: string | null
-          status?: VrpOptimizationStatus
+          status?: string
           updated_at?: string
           vehicle_id?: string | null
           warehouse_id?: string | null
@@ -1161,7 +1140,7 @@ export type Database = {
           revision?: number
           scheduled_start?: string | null
           shift_date?: string | null
-          status?: VrpOptimizationStatus
+          status?: string
           updated_at?: string
           vehicle_id?: string | null
           warehouse_id?: string | null
@@ -1193,6 +1172,47 @@ export type Database = {
             columns: ["warehouse_id"]
             isOneToOne: false
             referencedRelation: "warehouse"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vrp_optimization_revision: {
+        Row: {
+          created_at: string
+          id: number
+          optimisation_id: string
+          reason: string
+          request: Json | null
+          response: Json | null
+          revision: number
+          steps: Json | null
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          optimisation_id: string
+          reason: string
+          request?: Json | null
+          response?: Json | null
+          revision: number
+          steps?: Json | null
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          optimisation_id?: string
+          reason?: string
+          request?: Json | null
+          response?: Json | null
+          revision?: number
+          steps?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vrp_optimization_revision_optimisation_id_fkey"
+            columns: ["optimisation_id"]
+            isOneToOne: false
+            referencedRelation: "vrp_optimization"
             referencedColumns: ["id"]
           },
         ]
@@ -1418,10 +1438,6 @@ export type Database = {
         Row: {
           id: string
           organisation_id: string
-          /**
-           * IANA zone, derived from warehouse_location by trigger. The
-           * warehouse-local service day comes from here.
-           */
           timezone: string
           warehouse_address: string
           warehouse_city: string
@@ -1512,6 +1528,7 @@ export type Database = {
         Returns: boolean
       }
       folder_package_id: { Args: { p_name: string }; Returns: string }
+      gate_oauth_token_to_company_org: { Args: { event: Json }; Returns: Json }
       generate_tracking_number: { Args: never; Returns: string }
       get_booking_organisation: {
         Args: { p_slug: string }
@@ -1655,6 +1672,10 @@ export type Database = {
         Returns: undefined
       }
       is_assigned_driver: { Args: { p_package_id: string }; Returns: boolean }
+      is_company_organisation: {
+        Args: { p_organisation_id: string }
+        Returns: boolean
+      }
       is_optimization_driver: { Args: { p_opt_id: string }; Returns: boolean }
       is_org_member: { Args: { p_org: string }; Returns: boolean }
       is_personal_org_owner: { Args: { p_org: string }; Returns: boolean }
@@ -1747,12 +1768,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1776,11 +1797,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1801,11 +1822,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1826,11 +1847,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1843,11 +1864,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
