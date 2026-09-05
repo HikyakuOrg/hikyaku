@@ -1,5 +1,10 @@
 import { PackageStatus } from "@/app/models/package-status"
-import { createServiceAreaFeatureCollection, emptyServiceAreaFeatureCollection } from "@/lib/maps/service-area-geometry"
+import {
+    createServiceAreaFeatureCollection,
+    emptyServiceAreaFeatureCollection,
+    getServiceAreaFeatureCollectionBounds,
+    type ServiceAreaBounds,
+} from "@/lib/maps/service-area-geometry"
 import { Tables, VrpOptimizationStatus } from "./supabase"
 import { createClient } from "./server"
 import { PackageOptimisation, Location } from "@/app/models/package-optimisation"
@@ -172,11 +177,60 @@ export async function getWarehouseLocations(): Promise<WarehousePin[]> {
     })
 }
 
-export async function getServiceAreas() {
+/** One row of the service area list: what the table shows, plus where to point the camera. */
+export type ServiceAreaListItem = {
+    id: string
+    name: string
+    created_at: string
+    /**
+     * Bounding box of this area's geometry, so a row can drive map.fitBounds
+     * without the polygon itself crossing to the browser. Null when the stored
+     * geometry is not something we can read (nothing this app writes is, but a
+     * direct SQL insert could be), in which case the row still lists and only
+     * the focus-on-map gesture is unavailable.
+     */
+    bounds: ServiceAreaBounds | null
+}
+
+/**
+ * Reads that can legitimately come back with nothing. "No rows" and "the read
+ * failed" used to be the same empty value, which let a broken backend render as
+ * a healthy org that had simply never drawn an area. Callers branch on `status`
+ * to tell those apart.
+ */
+export type ServiceAreaListResult =
+    | { status: "ok"; areas: ServiceAreaListItem[] }
+    | { status: "error" }
+
+export type ServiceAreaExtent = {
+    minLat: number
+    minLng: number
+    maxLat: number
+    maxLng: number
+}
+
+export type ServiceAreaExtentResult =
+    /** `extent` is null when the organisation genuinely has no areas. */
+    | { status: "ok"; extent: ServiceAreaExtent | null }
+    | { status: "error" }
+
+/**
+ * Every service area the caller can see, for the list on the service areas page.
+ *
+ * Deliberately unscoped by viewport: the map next to this list fetches only what
+ * is on screen (a city's worth of polygons is too much to draw at once), but an
+ * area drawn in the wrong place is exactly the one the dispatcher needs to find,
+ * and it is never in view. There is no pagination either; the table pages
+ * client-side. That is fine at the number of areas an organisation draws by
+ * hand, and is a known limit rather than an oversight.
+ *
+ * Organisation isolation is enforced by RLS, as it is for every other read here.
+ */
+export async function getServiceAreas(): Promise<ServiceAreaListResult> {
     const supabase = await createClient()
     const { data, error } = await supabase
         .from("service_areas")
-        .select("id, name, geometry")
+        .select("id, name, geometry, created_at")
         // Soft deletes on this table are filtered here rather than in RLS, so a
         // read without this predicate would keep showing retired territories.
         .eq("is_deleted", false)
@@ -184,10 +238,20 @@ export async function getServiceAreas() {
 
     if (error) {
         console.error(error)
-        return emptyServiceAreaFeatureCollection
+        return { status: "error" }
     }
 
-    return createServiceAreaFeatureCollection(data ?? [])
+    return {
+        status: "ok",
+        areas: (data ?? []).map((serviceArea) => ({
+            id: serviceArea.id,
+            name: serviceArea.name,
+            created_at: serviceArea.created_at,
+            bounds: getServiceAreaFeatureCollectionBounds(
+                createServiceAreaFeatureCollection([serviceArea])
+            ),
+        })),
+    }
 }
 
 // Minimal organisation shape the public booking page needs (id to scope rates,
@@ -217,26 +281,45 @@ export async function getOrganisationBySlug(slug: string): Promise<BookingOrgani
     return data
 }
 
-export async function getServiceAreaExtent() {
+/**
+ * The bounding box of every service area in the organisation, used to point the
+ * map somewhere useful on first paint.
+ *
+ * Returns a status rather than a bare extent: a failed RPC and an organisation
+ * with nothing drawn yet both used to come back as null, so a page could only
+ * render one of them, and it picked the friendly onboarding panel. The error is
+ * still logged here; the status is what lets the caller say so on screen.
+ *
+ * Note the RPC itself (get_service_area_extent) does not filter `is_deleted`,
+ * so the box it returns can still cover a retired area. The only effect is a
+ * slightly wider opening view, and the areas actually drawn come from
+ * getServiceAreasInBounds(), which reads live rows.
+ */
+export async function getServiceAreaExtent(): Promise<ServiceAreaExtentResult> {
     const supabase = await createClient()
     const { data, error } = await supabase.rpc("get_service_area_extent")
 
     if (error) {
         console.error(error)
-        return null
+        return { status: "error" }
     }
 
+    // The function is `WHERE extent IS NOT NULL`, so an organisation with no
+    // areas returns no rows at all rather than a row of nulls.
     const extent = (data as ServiceAreaExtentRow[] | null)?.[0]
 
     if (!extent) {
-        return null
+        return { status: "ok", extent: null }
     }
 
     return {
-        minLat: extent.min_lat,
-        minLng: extent.min_lng,
-        maxLat: extent.max_lat,
-        maxLng: extent.max_lng,
+        status: "ok",
+        extent: {
+            minLat: extent.min_lat,
+            minLng: extent.min_lng,
+            maxLat: extent.max_lat,
+            maxLng: extent.max_lng,
+        },
     }
 }
 

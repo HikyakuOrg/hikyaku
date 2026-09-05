@@ -26,6 +26,32 @@ export async function updateServiceArea(id: string, name: string, geometry: stri
     if (error) throw error
     return data
 }
+
+/**
+ * Retire a service area. Soft delete, the same shape deleteVehicle() uses: the
+ * row stays so anything already pointing at it keeps resolving, and every read
+ * of this table filters `is_deleted` itself.
+ *
+ * Retiring an area does not re-route work that already exists. Coverage is
+ * decided once, when a package is created, not continuously, so packages and
+ * shifts already booked are untouched by this.
+ *
+ * `.select().single()` on purpose: an update the RLS policy refuses is not an
+ * error in Postgres, it just matches zero rows, so without this it would return
+ * quietly and look like a success. With it the refusal arrives as PGRST116,
+ * which describeWriteError() turns into a sentence.
+ */
+export async function deleteServiceArea(id: string) {
+    const { data, error } = await supabase
+        .from("service_areas")
+        .update({ is_deleted: true })
+        .eq("id", id)
+        .eq("is_deleted", false)
+        .select()
+        .single()
+    if (error) throw error
+    return data
+}
 import { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { createLazyClient } from "./client";
 import { Database, Tables, TablesInsert, VrpOptimizationStatus } from "./supabase";
