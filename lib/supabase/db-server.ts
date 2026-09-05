@@ -177,6 +177,9 @@ export async function getServiceAreas() {
     const { data, error } = await supabase
         .from("service_areas")
         .select("id, name, geometry")
+        // Soft deletes on this table are filtered here rather than in RLS, so a
+        // read without this predicate would keep showing retired territories.
+        .eq("is_deleted", false)
         .order("name", { ascending: true })
 
     if (error) {

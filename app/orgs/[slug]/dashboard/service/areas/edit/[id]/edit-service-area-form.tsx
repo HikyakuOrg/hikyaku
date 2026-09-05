@@ -5,7 +5,11 @@ import { useParams, useRouter } from "next/navigation"
 import { ChevronLeft, Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { getEditableServiceAreaPolygonFeature, polygonFeatureToEwkt } from "@/lib/maps/service-area-geometry"
+import {
+    getEditableServiceAreaPolygonFeature,
+    polygonFeatureToEwkt,
+    type EditableServiceAreaPolygon,
+} from "@/lib/maps/service-area-geometry"
 import { getServiceAreaById, updateServiceArea } from "@/lib/supabase/db"
 import { toast } from "sonner"
 
@@ -14,7 +18,7 @@ import { ServiceAreaForm, type ServiceAreaFormValues } from "../../service-area-
 type EditableServiceArea = {
     id: string
     name: string
-    polygon: NonNullable<ReturnType<typeof getEditableServiceAreaPolygonFeature>>
+    polygon: EditableServiceAreaPolygon
 }
 
 export function EditServiceAreaForm({ canEdit }: { canEdit: boolean }) {
@@ -33,9 +37,22 @@ export function EditServiceAreaForm({ canEdit }: { canEdit: boolean }) {
 
             try {
                 const data = await getServiceAreaById(id)
-                const polygon = getEditableServiceAreaPolygonFeature(data.geometry)
+                const editable = getEditableServiceAreaPolygonFeature(data.geometry)
 
-                if (!polygon) {
+                // Refuse to open a multi-part area rather than show one of its
+                // parts. This form saves back the single polygon it is holding,
+                // so opening a two-part territory and pressing save would
+                // replace both parts with whichever one had been drawn on
+                // screen. Nothing this app writes is multi-part today, but a
+                // direct SQL insert or a later multi-part drawing feature would
+                // be, and this is the path that would quietly lose it.
+                if (editable.status === "multiple-parts") {
+                    throw new Error(
+                        `"${data.name}" is made up of ${editable.partCount} separate parts, which this editor cannot open yet. Contact support, or recreate each part as its own service area.`
+                    )
+                }
+
+                if (editable.status === "unsupported") {
                     throw new Error("This service area does not contain editable polygon geometry.")
                 }
 
@@ -43,7 +60,7 @@ export function EditServiceAreaForm({ canEdit }: { canEdit: boolean }) {
                     setServiceArea({
                         id: data.id,
                         name: data.name,
-                        polygon,
+                        polygon: editable.feature,
                     })
                 }
             } catch (error) {

@@ -90,6 +90,56 @@ test.describe("Service Area Add Flow", () => {
         await expect(page.getByTestId("service-area-last-submission")).toContainText(serviceAreaName)
     })
 
+    /**
+     * `service_areas.name` is unique per organisation rather than globally, so a
+     * second area by the same name inside this org is a 23505 the dispatcher can
+     * fix without leaving the form. It has to land on the name field, not in a
+     * toast that disappears before it can be read.
+     *
+     * Submitting twice without touching the form in between is the cheapest way
+     * to provoke it: a successful save leaves the name and the polygon in place,
+     * so the second click sends the identical insert.
+     */
+    test("reports a duplicate service area name on the name field", async ({ page }) => {
+        const serviceAreaName = `Duplicate Area ${Date.now()}`
+        await page.goto(d('/service/areas/add'))
+
+        await page.waitForFunction(() => {
+            const canvas = document.querySelector('[data-testid="service-area-map-container"] canvas') as HTMLCanvasElement | null
+            return Boolean(canvas && canvas.width > 0 && canvas.height > 0)
+        })
+
+        await page.getByTestId("service-area-name-input").fill(serviceAreaName)
+
+        const mapContainer = page.getByTestId("service-area-map-container")
+        await mapContainer.click({ position: { x: 120, y: 120 } })
+        await mapContainer.click({ position: { x: 240, y: 120 } })
+        await mapContainer.click({ position: { x: 240, y: 240 } })
+        await mapContainer.dblclick({ position: { x: 120, y: 240 } })
+
+        const submitButton = page.getByTestId("service-area-submit-button")
+        await expect(submitButton).toBeEnabled()
+
+        // First save succeeds, which is also the assertion that a drawn polygon
+        // still reaches the database at all now that the column is a MultiPolygon.
+        await submitButton.click()
+        await expect(page.getByTestId("service-area-last-submission")).toContainText(serviceAreaName)
+
+        await expect(page.getByTestId("service-area-name-error")).toHaveCount(0)
+
+        await expect(submitButton).toBeEnabled()
+        await submitButton.click()
+
+        const nameError = page.getByTestId("service-area-name-error")
+        await expect(nameError).toBeVisible()
+        await expect(nameError).toContainText(serviceAreaName)
+        await expect(page.getByTestId("service-area-name-input")).toHaveAttribute("aria-invalid", "true")
+
+        // Editing the name clears the conflict so the dispatcher can retry.
+        await page.getByTestId("service-area-name-input").fill(`${serviceAreaName} B`)
+        await expect(page.getByTestId("service-area-name-error")).toHaveCount(0)
+    })
+
     test("uploads a geojson overlay and captures a screenshot", async ({ page }, testInfo) => {
         const serviceAreaName = `Test Service Area ${Date.now()}`
         const response = await page.goto(d('/service/areas/add'))

@@ -91,6 +91,10 @@ async function getServiceAreas(): Promise<ServiceAreaRecord[]> {
     const { data, error } = await supabase
         .from("service_areas")
         .select("id, name, geometry")
+        // Coverage is decided against live territories only. Soft deletes are
+        // filtered in the query layer here, not in RLS, so leaving this out
+        // would count a retired area as still covering an address.
+        .eq("is_deleted", false)
 
     if (error) {
         throw error

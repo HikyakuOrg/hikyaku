@@ -827,22 +827,31 @@ export type Database = {
       // claim.
       service_areas: {
         Row: {
+          created_at: string
           geometry: unknown
           id: string
+          is_deleted: boolean
           name: string
           organisation_id: string
+          updated_at: string
         }
         Insert: {
+          created_at?: string
           geometry: unknown
           id?: string
+          is_deleted?: boolean
           name: string
           organisation_id: string
+          updated_at?: string
         }
         Update: {
+          created_at?: string
           geometry?: unknown
           id?: string
+          is_deleted?: boolean
           name?: string
           organisation_id?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -1565,6 +1574,7 @@ export type Database = {
           geometry: Json
           id: string
           name: string
+          organisation_id: string
         }[]
       }
       get_team_members_paginated: {

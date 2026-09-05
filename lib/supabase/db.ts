@@ -1,8 +1,12 @@
+// service_areas.is_deleted is a soft delete filtered in the query layer, never
+// in RLS (the same convention vehicles.is_deleted follows), so every read of the
+// table has to exclude retired rows itself. Nothing in the database will do it.
 export async function getServiceAreaById(id: string) {
     const { data, error } = await supabase
         .from("service_areas")
         .select("id, name, geometry")
         .eq("id", id)
+        .eq("is_deleted", false)
         .single()
     if (error) throw error
     return data
@@ -13,6 +17,10 @@ export async function updateServiceArea(id: string, name: string, geometry: stri
         .from("service_areas")
         .update({ name, geometry })
         .eq("id", id)
+        // A retired area is not editable. Matching zero rows here surfaces as
+        // PGRST116 from .single(), which describeWriteError already words for a
+        // row that has gone out of reach since the page loaded.
+        .eq("is_deleted", false)
         .select()
         .single()
     if (error) throw error
@@ -574,6 +582,7 @@ export async function searchServiceArea(search: string) {
     const { data, error } = await supabase
         .from("service_areas")
         .select("id, name")
+        .eq("is_deleted", false)
         .ilike("name", `%${search}%`)
         .order("name", { ascending: true })
         .limit(20)

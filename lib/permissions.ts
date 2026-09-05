@@ -25,6 +25,14 @@ const INSUFFICIENT_PRIVILEGE = "42501"
 const NO_ROWS_RETURNED = "PGRST116"
 
 /**
+ * Postgres `unique_violation`. `service_areas.name` is unique per
+ * organisation rather than globally, so this now means the caller's own org
+ * already has an area by that name. The same name in another org is not a
+ * conflict and saves fine.
+ */
+const UNIQUE_VIOLATION = "23505"
+
+/**
  * The stated reason shown next to a control we have disabled. Keep it in one
  * place so the tooltip, the inline note and the failed-write toast all name the
  * same permission.
@@ -47,6 +55,15 @@ export function isPermissionDeniedError(error: unknown): boolean {
     if (!postgrest) return false
     if (postgrest.code === INSUFFICIENT_PRIVILEGE) return true
     return /row-level security|permission denied/i.test(postgrest.message ?? "")
+}
+
+/**
+ * Whether a failed write collided with a unique index rather than with RLS.
+ * Callers use it to put the failure on the offending field instead of in a
+ * toast, since a name clash is something the dispatcher can fix in place.
+ */
+export function isUniqueViolationError(error: unknown): boolean {
+    return asPostgrestError(error)?.code === UNIQUE_VIOLATION
 }
 
 /**

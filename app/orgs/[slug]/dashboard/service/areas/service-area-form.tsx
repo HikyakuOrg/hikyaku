@@ -31,7 +31,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { SERVICE_AREAS_EDIT, describeWriteError, permissionRequiredMessage } from "@/lib/permissions"
+import { SERVICE_AREAS_EDIT, describeWriteError, isUniqueViolationError, permissionRequiredMessage } from "@/lib/permissions"
 
 const MAP_STYLE = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
 const MELBOURNE_CENTER: [number, number] = [144.9436365307524, -37.81073062548168]
@@ -368,6 +368,7 @@ export function ServiceAreaForm({
     canEdit,
 }: ServiceAreaFormProps) {
     const [name, setName] = useState(initialName)
+    const [nameError, setNameError] = useState<string | null>(null)
     const [polygon, setPolygon] = useState<ServiceAreaPolygonFeature | null>(initialPolygon)
     const [mapReady, setMapReady] = useState(false)
     const [activeMode, setActiveMode] = useState<"polygon" | "select">(initialPolygon ? "select" : "polygon")
@@ -389,6 +390,7 @@ export function ServiceAreaForm({
 
     useEffect(() => {
         setName(initialName)
+        setNameError(null)
     }, [initialName])
 
     useEffect(() => {
@@ -734,10 +736,21 @@ export function ServiceAreaForm({
 
             try {
                 setIsSubmitting(true)
+                setNameError(null)
                 await onSubmit(payload)
                 setLastSubmission(payload)
                 toast.success(successMessage)
             } catch (error) {
+                // A name clash is the one failure the dispatcher can fix without
+                // leaving the form, so it belongs on the field rather than in a
+                // toast that disappears. The name is unique per organisation, so
+                // this only ever means their own org already has one; the same
+                // name in another org saves fine.
+                if (isUniqueViolationError(error)) {
+                    setNameError(`This organisation already has a service area called "${trimmedName}". Pick a different name.`)
+                    return
+                }
+
                 // Defense in depth. Gating the button is UX; RLS is what actually
                 // refuses the write, and it can still refuse one (a permission
                 // revoked after this page rendered), so translate its PostgREST
@@ -794,12 +807,27 @@ export function ServiceAreaForm({
                             data-testid="service-area-name-input"
                             placeholder="Central delivery zone"
                             value={name}
-                            onChange={(event) => setName(event.target.value)}
+                            onChange={(event) => {
+                                setName(event.target.value)
+                                setNameError(null)
+                            }}
                             disabled={!canEdit}
+                            aria-invalid={nameError !== null}
+                            aria-describedby="service-area-name-description"
                         />
-                        <p className="text-sm text-muted-foreground">
-                            Use a name that dispatch can recognize immediately.
-                        </p>
+                        {nameError ? (
+                            <p
+                                id="service-area-name-description"
+                                className="text-destructive text-sm"
+                                data-testid="service-area-name-error"
+                            >
+                                {nameError}
+                            </p>
+                        ) : (
+                            <p id="service-area-name-description" className="text-sm text-muted-foreground">
+                                Use a name that dispatch can recognize immediately.
+                            </p>
+                        )}
                     </div>
 
                     <div className="space-y-3">
