@@ -9,7 +9,6 @@ import {
     TerraDrawSelectMode,
 } from "terra-draw"
 import { TerraDrawMapLibreGLAdapter } from "terra-draw-maplibre-gl-adapter"
-import { PostgrestError } from "@supabase/supabase-js"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -26,6 +25,13 @@ import {
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { SERVICE_AREAS_EDIT, describeWriteError, permissionRequiredMessage } from "@/lib/permissions"
 
 const MAP_STYLE = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
 const MELBOURNE_CENTER: [number, number] = [144.9436365307524, -37.81073062548168]
@@ -63,6 +69,13 @@ type ServiceAreaFormProps = {
     submitLabel: string
     submittingLabel: string
     successMessage: string
+    /**
+     * Whether the signed-in user holds `service_areas.edit` in this org. Resolved
+     * server-side by the page that renders this form and passed down, so no
+     * control here asks for itself. UI gating only: the RLS policies on
+     * `service_areas` remain the boundary that actually refuses the write.
+     */
+    canEdit: boolean
 }
 
 function roundCoordinate(value: number, decimalPlaces = 6) {
@@ -352,6 +365,7 @@ export function ServiceAreaForm({
     submitLabel,
     submittingLabel,
     successMessage,
+    canEdit,
 }: ServiceAreaFormProps) {
     const [name, setName] = useState(initialName)
     const [polygon, setPolygon] = useState<ServiceAreaPolygonFeature | null>(initialPolygon)
@@ -369,8 +383,9 @@ export function ServiceAreaForm({
     const uploadInputRef = useRef<HTMLInputElement | null>(null)
     const syncingRef = useRef(false)
 
-    const canSubmit = useMemo(() => name.trim().length > 0 && polygon !== null, [name, polygon])
+    const canSubmit = useMemo(() => canEdit && name.trim().length > 0 && polygon !== null, [canEdit, name, polygon])
     const drawingLocked = uploadedGeoJsonName !== null
+    const permissionNote = permissionRequiredMessage(SERVICE_AREAS_EDIT)
 
     useEffect(() => {
         setName(initialName)
@@ -446,7 +461,11 @@ export function ServiceAreaForm({
             })
 
             draw.start()
-            draw.setMode(initialPolygon ? "select" : "polygon")
+            // TerraDraw always registers its built-in `static` mode. Without the
+            // edit permission we park the map there: a saved area still renders,
+            // but clicks and drags do nothing, so nobody spends time shaping a
+            // polygon the insert/update RLS policy is certain to refuse.
+            draw.setMode(canEdit ? (initialPolygon ? "select" : "polygon") : "static")
             draw.on("change", syncPolygonState)
             draw.on("finish", syncPolygonState)
 
@@ -489,7 +508,7 @@ export function ServiceAreaForm({
             mapRef.current = null
             setMapReady(false)
         }
-    }, [initialPolygon])
+    }, [canEdit, initialPolygon])
 
     useEffect(() => {
         if (!mapReady || !drawRef.current) {
@@ -499,7 +518,7 @@ export function ServiceAreaForm({
         drawRef.current.clear()
 
         if (!initialPolygon) {
-            drawRef.current.setMode("polygon")
+            drawRef.current.setMode(canEdit ? "polygon" : "static")
             setActiveMode("polygon")
             return
         }
@@ -511,13 +530,15 @@ export function ServiceAreaForm({
             return
         }
 
-        drawRef.current.setMode("select")
+        drawRef.current.setMode(canEdit ? "select" : "static")
         setActiveMode("select")
 
-        if (result.id) {
+        // selectFeature puts the polygon into the select mode's editable state,
+        // which static mode does not have.
+        if (canEdit && result.id) {
             drawRef.current.selectFeature(result.id)
         }
-    }, [initialPolygon, mapReady])
+    }, [canEdit, initialPolygon, mapReady])
 
     useEffect(() => {
         if (!polygon || !mapRef.current) {
@@ -532,7 +553,7 @@ export function ServiceAreaForm({
     }, [polygon])
 
     const switchMode = (mode: "polygon" | "select") => {
-        if (!drawRef.current) {
+        if (!drawRef.current || !canEdit) {
             return
         }
 
@@ -695,6 +716,11 @@ export function ServiceAreaForm({
 
     const handleSubmit = () => {
         void (async () => {
+            if (!canEdit) {
+                toast.error(permissionNote)
+                return
+            }
+
             if (!polygon) {
                 toast.error("Draw or upload a polygon-based service area before submitting.")
                 return
@@ -712,11 +738,11 @@ export function ServiceAreaForm({
                 setLastSubmission(payload)
                 toast.success(successMessage)
             } catch (error) {
-                const message = error instanceof PostgrestError || error instanceof Error
-                    ? error.message
-                    : "Failed to save the service area."
-
-                toast.error(message)
+                // Defense in depth. Gating the button is UX; RLS is what actually
+                // refuses the write, and it can still refuse one (a permission
+                // revoked after this page rendered), so translate its PostgREST
+                // code rather than showing the raw string.
+                toast.error(describeWriteError(error, SERVICE_AREAS_EDIT, "Failed to save the service area."))
             } finally {
                 setIsSubmitting(false)
             }
@@ -752,6 +778,15 @@ export function ServiceAreaForm({
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                    {!canEdit && (
+                        <p
+                            className="rounded-md border border-dashed bg-muted/30 p-3 text-sm text-muted-foreground"
+                            data-testid="service-area-permission-note"
+                        >
+                            {permissionNote} You can still view the coverage below.
+                        </p>
+                    )}
+
                     <div className="space-y-2">
                         <Label htmlFor="service-area-name">Service Area Name</Label>
                         <Input
@@ -760,6 +795,7 @@ export function ServiceAreaForm({
                             placeholder="Central delivery zone"
                             value={name}
                             onChange={(event) => setName(event.target.value)}
+                            disabled={!canEdit}
                         />
                         <p className="text-sm text-muted-foreground">
                             Use a name that dispatch can recognize immediately.
@@ -772,7 +808,7 @@ export function ServiceAreaForm({
                                 type="button"
                                 variant={activeMode === "polygon" ? "default" : "outline"}
                                 onClick={() => switchMode("polygon")}
-                                disabled={!mapReady || drawingLocked}
+                                disabled={!mapReady || drawingLocked || !canEdit}
                             >
                                 Draw Area
                             </Button>
@@ -780,7 +816,7 @@ export function ServiceAreaForm({
                                 type="button"
                                 variant={activeMode === "select" ? "default" : "outline"}
                                 onClick={() => switchMode("select")}
-                                disabled={!mapReady || polygon === null}
+                                disabled={!mapReady || polygon === null || !canEdit}
                             >
                                 Edit Area
                             </Button>
@@ -788,7 +824,7 @@ export function ServiceAreaForm({
                                 type="button"
                                 variant="outline"
                                 onClick={openGeoJsonPicker}
-                                disabled={!mapReady}
+                                disabled={!mapReady || !canEdit}
                                 data-testid="service-area-upload-button"
                             >
                                 Upload GeoJSON
@@ -805,7 +841,7 @@ export function ServiceAreaForm({
                                 type="button"
                                 variant="ghost"
                                 onClick={clearUploadedGeoJson}
-                                disabled={!mapReady || uploadedGeoJsonName === null}
+                                disabled={!mapReady || uploadedGeoJsonName === null || !canEdit}
                             >
                                 Clear GeoJSON
                             </Button>
@@ -813,7 +849,7 @@ export function ServiceAreaForm({
                                 type="button"
                                 variant="ghost"
                                 onClick={handleClearArea}
-                                disabled={!mapReady || polygon === null}
+                                disabled={!mapReady || polygon === null || !canEdit}
                             >
                                 Clear Area
                             </Button>
@@ -827,7 +863,9 @@ export function ServiceAreaForm({
 
                         <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
                             <p>
-                                {drawingLocked
+                                {!canEdit
+                                    ? "This map is read-only for you. Drawing and uploading are disabled."
+                                    : drawingLocked
                                     ? "GeoJSON overlay loaded. You can edit the service area, but drawing new geometry is locked until the upload is cleared."
                                     : "Upload a GeoJSON file to show boundary lines, then draw one polygon to define the service area."}
                             </p>
@@ -835,14 +873,22 @@ export function ServiceAreaForm({
                     </div>
                 </CardContent>
                 <CardFooter className="flex-col items-stretch gap-4 border-t">
-                    <Button
-                        type="button"
-                        onClick={handleSubmit}
-                        disabled={!canSubmit || isSubmitting}
-                        data-testid="service-area-submit-button"
-                    >
-                        {isSubmitting ? submittingLabel : submitLabel}
-                    </Button>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger render={<span className="inline-flex" />}>
+                                <Button
+                                    type="button"
+                                    onClick={handleSubmit}
+                                    disabled={!canSubmit || isSubmitting}
+                                    data-testid="service-area-submit-button"
+                                    className="w-full"
+                                >
+                                    {isSubmitting ? submittingLabel : submitLabel}
+                                </Button>
+                            </TooltipTrigger>
+                            {!canEdit && <TooltipContent side="top">{permissionNote}</TooltipContent>}
+                        </Tooltip>
+                    </TooltipProvider>
 
                     {lastSubmission && (
                         <div

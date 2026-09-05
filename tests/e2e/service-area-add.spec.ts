@@ -2,6 +2,34 @@ import { expect, test } from "@playwright/test"
 import { d } from "./helpers/org-url"
 
 test.describe("Service Area Add Flow", () => {
+    /**
+     * Positive branch of the `service_areas.edit` gate.
+     *
+     * The negative branch is not reachable from this harness: every identity it
+     * can produce is an org creator, and handle_new_organisation() grants the
+     * creator every seeded permission in the org it just made. Reaching a member
+     * WITHOUT `service_areas.edit` needs a restricted invitation issued through
+     * hikyaku-api plus a second inbox to accept it, which no helper here does
+     * yet. What this test does guard is the dangerous regression in the other
+     * direction: hasOrgPermission() wrongly returning false and locking a
+     * legitimate admin out of their own service areas.
+     */
+    test("a member holding service_areas.edit gets a live add entry point", async ({ page }) => {
+        await page.goto(d('/service/areas'))
+
+        // Only the permitted variant renders as a link. Without the permission it
+        // is a disabled button carrying the reason in a tooltip, so matching the
+        // link role is itself the assertion that the gate opened.
+        const addLink = page.getByRole("link", { name: "Add Service Area" })
+        await expect(addLink).toBeVisible()
+
+        await addLink.click()
+        await expect(page).toHaveURL(d('/service/areas/add'))
+
+        await expect(page.getByTestId("service-area-permission-note")).toHaveCount(0)
+        await expect(page.getByTestId("service-area-name-input")).toBeEnabled()
+    })
+
     test("warns before replacing a drawn area with uploaded geojson", async ({ page }) => {
         const serviceAreaName = `Replacement Area ${Date.now()}`
         const response = await page.goto(d('/service/areas/add'))

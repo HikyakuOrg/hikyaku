@@ -6,7 +6,7 @@ import { useOrgSlug } from "@/lib/use-org"
 
 import { ServiceAreaForm, type ServiceAreaFormValues } from "../service-area-form"
 
-export function ServiceAreaAddForm() {
+export function ServiceAreaAddForm({ canEdit }: { canEdit: boolean }) {
     const slug = useOrgSlug()
 
     const handleSubmit = async ({ name, polygon }: ServiceAreaFormValues) => {
@@ -20,6 +20,7 @@ export function ServiceAreaAddForm() {
             submitLabel="Create Service Area"
             submittingLabel="Creating Service Area..."
             successMessage="Service area created."
+            canEdit={canEdit}
         />
     )
 }
