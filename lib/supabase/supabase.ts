@@ -6,6 +6,21 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+/**
+ * Shift lifecycle, from `vrp_optimization_status_check` (migration
+ * AddShiftLifecycleColumns). The column is `text` with a CHECK rather than a
+ * Postgres enum, so it is narrowed here by hand — `Constants.public.Enums` is
+ * empty because the schema has no real enum types.
+ *
+ * `planned` is the only state open to automatic assignment, and only until 15
+ * minutes before `scheduled_start`.
+ */
+export type VrpOptimizationStatus =
+  | "planned"
+  | "dispatched"
+  | "completed"
+  | "cancelled"
+
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
@@ -1107,7 +1122,7 @@ export type Database = {
           revision: number
           scheduled_start: string | null
           shift_date: string | null
-          status: string
+          status: VrpOptimizationStatus
           updated_at: string
           vehicle_id: string | null
           warehouse_id: string | null
@@ -1125,7 +1140,7 @@ export type Database = {
           revision?: number
           scheduled_start?: string | null
           shift_date?: string | null
-          status?: string
+          status?: VrpOptimizationStatus
           updated_at?: string
           vehicle_id?: string | null
           warehouse_id?: string | null
@@ -1143,7 +1158,7 @@ export type Database = {
           revision?: number
           scheduled_start?: string | null
           shift_date?: string | null
-          status?: string
+          status?: VrpOptimizationStatus
           updated_at?: string
           vehicle_id?: string | null
           warehouse_id?: string | null
