@@ -6,7 +6,8 @@ import {
     type ServiceAreaBounds,
     type ServiceAreaFeatureCollection,
 } from "@/lib/maps/service-area-geometry"
-import { Tables, VrpOptimizationStatus } from "./supabase"
+import { Tables } from "./supabase"
+import { VrpOptimizationStatus } from "@/app/models/vrp-optimization-status"
 import { createClient } from "./server"
 import { PackageOptimisation, Location } from "@/app/models/package-optimisation"
 import { listCustomersAction, getCustomerAction } from "@/lib/actions/customers"
@@ -563,7 +564,7 @@ export async function getShiftMeta(routeId: string): Promise<ShiftMeta | null> {
         vehicle_id: optimisation.vehicle_id,
         warehouse_id: optimisation.warehouse_id,
         shift_date: optimisation.shift_date,
-        status: optimisation.status,
+        status: optimisation.status as VrpOptimizationStatus,
         scheduled_start: optimisation.scheduled_start,
         revision: optimisation.revision,
     }

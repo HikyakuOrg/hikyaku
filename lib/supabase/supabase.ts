@@ -1110,7 +1110,7 @@ export type Database = {
           revision: number
           scheduled_start: string | null
           shift_date: string | null
-          status: VrpOptimizationStatus
+          status: string
           updated_at: string
           vehicle_id: string | null
           warehouse_id: string | null
@@ -1128,7 +1128,7 @@ export type Database = {
           revision?: number
           scheduled_start?: string | null
           shift_date?: string | null
-          status?: VrpOptimizationStatus
+          status?: string
           updated_at?: string
           vehicle_id?: string | null
           warehouse_id?: string | null
@@ -1146,7 +1146,7 @@ export type Database = {
           revision?: number
           scheduled_start?: string | null
           shift_date?: string | null
-          status?: VrpOptimizationStatus
+          status?: string
           updated_at?: string
           vehicle_id?: string | null
           warehouse_id?: string | null

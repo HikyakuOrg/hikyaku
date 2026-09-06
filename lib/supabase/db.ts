@@ -513,7 +513,8 @@ export async function getDriverWarehouse(driverId: string): Promise<{ id: string
 
 import { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { createLazyClient } from "./client";
-import { Database, Tables, TablesInsert, VrpOptimizationStatus } from "./supabase";
+import { Database, Tables, TablesInsert } from "./supabase";
+import { VrpOptimizationStatus } from "@/app/models/vrp-optimization-status";
 import { TrackingLocationBroadcast } from "@/app/models/tracking";
 import { ListDriverDto } from "../api";
 import { getDriversByIds } from "./supabase-rpc";
@@ -1216,7 +1217,7 @@ export async function getShiftsByDates(
             driver_id: row.driver_id,
             shift_date: row.shift_date,
             scheduled_start: row.scheduled_start,
-            status: row.status,
+            status: row.status as VrpOptimizationStatus,
             revision: row.revision,
             stop_count: row.packages.length,
             duration_seconds: route?.duration ?? null,
