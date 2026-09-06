@@ -354,6 +354,163 @@ export async function detachDriverFromServiceArea(areaId: string, driverId: stri
     if (error) throw error
     return data
 }
+
+/** One area a driver covers, for the "where does this driver work" card on their detail page (HIK-16). */
+export type DriverServiceArea = {
+    id: string
+    name: string
+}
+
+/**
+ * The areas one driver covers, for the driver detail page's Service Areas
+ * card. The reverse direction of `getDriversByServiceArea`: same link table,
+ * read from the driver side instead of the area side.
+ *
+ * Two reads rather than one embedded select: `driver_service_area`'s foreign
+ * key into `service_areas` is composite (`service_area_id, organisation_id`,
+ * see `driver_service_area_area_org_fkey`), which Supabase's generated types
+ * treat as a to-many relationship regardless of actual cardinality. Reading it
+ * as two plain queries, the same shape `getServiceAreaDriverIds` already uses
+ * on the other side of this table, sidesteps that rather than fighting it.
+ */
+export async function getServiceAreasByDriver(driverId: string): Promise<DriverServiceArea[]> {
+    const { data: links, error: linksError } = await supabase
+        .from("driver_service_area")
+        .select("service_area_id")
+        .eq("driver_id", driverId)
+    if (linksError) throw linksError
+
+    const areaIds = (links ?? []).map((link) => link.service_area_id)
+    if (areaIds.length === 0) return []
+
+    const { data: areas, error: areasError } = await supabase
+        .from("service_areas")
+        .select("id, name")
+        .in("id", areaIds)
+        .eq("is_deleted", false)
+    if (areasError) throw areasError
+
+    return (areas ?? []).sort((left, right) => left.name.localeCompare(right.name))
+}
+
+/**
+ * Live areas this driver does not already cover, newest first, optionally
+ * narrowed by name. Powers the search box in the card's add-area combobox;
+ * `search` is matched with `ilike` so it works the moment a dispatcher starts
+ * typing rather than only on a prefix.
+ */
+export async function searchAttachableServiceAreasForDriver(
+    driverId: string,
+    search: string,
+): Promise<DriverServiceArea[]> {
+    const { data: links, error: linksError } = await supabase
+        .from("driver_service_area")
+        .select("service_area_id")
+        .eq("driver_id", driverId)
+    if (linksError) throw linksError
+    const attachedIds = (links ?? []).map((link) => link.service_area_id)
+
+    let query = supabase
+        .from("service_areas")
+        .select("id, name")
+        .eq("is_deleted", false)
+        .order("name", { ascending: true })
+        .limit(20)
+
+    if (search.trim()) {
+        query = query.ilike("name", `%${search.trim()}%`)
+    }
+
+    if (attachedIds.length > 0) {
+        // Same parenthesised-list requirement `getAttachableDriversForServiceArea` notes: PostgREST
+        // wants `(id1,id2)` here, not an array, and these ids came back from the database a moment
+        // ago so there is nothing in them that needs escaping.
+        query = query.not("id", "in", `(${attachedIds.join(",")})`)
+    }
+
+    const { data, error } = await query
+    if (error) throw error
+    return data ?? []
+}
+
+/**
+ * Attach a driver to a whole selection of areas in one bulk write, the same
+ * shape `attachDriversToServiceArea` uses in the other direction: one insert
+ * for every area picked, `ON CONFLICT DO NOTHING` on the table's own primary
+ * key so an area the picker already excluded cannot fail the request if it was
+ * attached moments ago by someone else.
+ */
+export async function attachServiceAreasToDriver(driverId: string, areaIds: string[]) {
+    if (areaIds.length === 0) {
+        return []
+    }
+
+    const { data: driver, error: driverError } = await supabase
+        .from("drivers")
+        .select("organisation_id")
+        .eq("id", driverId)
+        .single()
+    if (driverError) throw driverError
+
+    const { data, error } = await supabase
+        .from("driver_service_area")
+        .upsert(
+            areaIds.map((areaId) => ({
+                driver_id: driverId,
+                service_area_id: areaId,
+                organisation_id: driver.organisation_id,
+            })),
+            { onConflict: "driver_id,service_area_id", ignoreDuplicates: true }
+        )
+        .select()
+
+    if (error) throw error
+    return data ?? []
+}
+
+/**
+ * Detach one area from one driver. `.select().single()` for the same reason
+ * `detachDriverFromServiceArea` uses it: a delete RLS refuses matches zero
+ * rows rather than raising, and without this it would look identical to a
+ * success.
+ */
+export async function detachServiceAreaFromDriver(driverId: string, areaId: string) {
+    const { data, error } = await supabase
+        .from("driver_service_area")
+        .delete()
+        .eq("driver_id", driverId)
+        .eq("service_area_id", areaId)
+        .select()
+        .single()
+    if (error) throw error
+    return data
+}
+
+/** A driver's own warehouse, for the Driver Profile card's Warehouse field. */
+export async function getDriverWarehouse(driverId: string): Promise<{ id: string; name: string } | null> {
+    const { data: driver, error: driverError } = await supabase
+        .from("drivers")
+        .select("warehouse_id")
+        .eq("id", driverId)
+        .single()
+    if (driverError) throw driverError
+    if (!driver.warehouse_id) return null
+
+    const { data: warehouse, error: warehouseError } = await supabase
+        .from("warehouse")
+        .select("id, warehouse_name")
+        .eq("id", driver.warehouse_id)
+        .maybeSingle()
+    // Not fatal, same reasoning getDriverWarehouses() documents: a caller
+    // without warehouse.view still gets the rest of the driver page.
+    if (warehouseError) {
+        console.error(warehouseError)
+        return null
+    }
+
+    return warehouse ? { id: warehouse.id, name: warehouse.warehouse_name } : null
+}
+
 import { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { createLazyClient } from "./client";
 import { Database, Tables, TablesInsert, VrpOptimizationStatus } from "./supabase";
