@@ -1,0 +1,35 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "osm_type": "W",
+                "osm_id": 672552145,
+                "osm_key": "highway",
+                "osm_value": "primary",
+                "type": "street",
+                "name": "Baker Street",
+                "district": "Marylebone",
+                "city": "London",
+                "state": "England",
+                "country": "United Kingdom",
+                "postcode": "W1U 6RJ",
+                "countrycode": "GB",
+                "extent": [
+                    -0.1566822,
+                    51.5202948,
+                    -0.1565499,
+                    51.5200044
+                ]
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -0.1566153,
+                    51.52015
+                ]
+            }
+        }
+    ]
+}

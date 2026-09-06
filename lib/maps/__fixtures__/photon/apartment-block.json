@@ -1,0 +1,36 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "osm_type": "W",
+                "osm_id": 463858905,
+                "osm_key": "building",
+                "osm_value": "residential",
+                "type": "house",
+                "name": "Marina One Residences - Park Tower",
+                "street": "Park Street",
+                "locality": "Central Subzone",
+                "district": "Downtown Core",
+                "city": "Singapore",
+                "country": "Singapore",
+                "postcode": "018935",
+                "countrycode": "SG",
+                "extent": [
+                    103.8528166,
+                    1.2769223,
+                    103.8535394,
+                    1.2762253
+                ]
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    103.8532725,
+                    1.2765755
+                ]
+            }
+        }
+    ]
+}

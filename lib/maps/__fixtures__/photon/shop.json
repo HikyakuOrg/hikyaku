@@ -1,0 +1,32 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "osm_type": "N",
+                "osm_id": 3594690095,
+                "osm_key": "shop",
+                "osm_value": "electronics",
+                "type": "house",
+                "housenumber": "940",
+                "name": "Apple Store",
+                "street": "Madison Avenue",
+                "locality": "Upper East Side",
+                "district": "Manhattan",
+                "city": "New York",
+                "state": "NY",
+                "country": "United States",
+                "postcode": "10021",
+                "countrycode": "US"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.9644948,
+                    40.7733551
+                ]
+            }
+        }
+    ]
+}

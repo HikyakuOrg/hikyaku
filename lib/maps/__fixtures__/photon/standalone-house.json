@@ -1,0 +1,30 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "osm_type": "N",
+                "osm_id": 12410850501,
+                "osm_key": "place",
+                "osm_value": "house",
+                "type": "house",
+                "housenumber": "48",
+                "street": "Newman Street",
+                "district": "Thornbury",
+                "city": "Melbourne",
+                "state": "Victoria",
+                "country": "Australia",
+                "postcode": "3071",
+                "countrycode": "AU"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    144.985075,
+                    -37.7564989
+                ]
+            }
+        }
+    ]
+}

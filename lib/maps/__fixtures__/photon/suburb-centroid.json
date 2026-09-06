@@ -1,0 +1,37 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "osm_type": "R",
+                "osm_id": 2383196,
+                "osm_key": "place",
+                "osm_value": "suburb",
+                "type": "district",
+                "name": "Fitzroy",
+                "city": "Melbourne",
+                "state": "Victoria",
+                "country": "Australia",
+                "postcode": "3065",
+                "countrycode": "AU",
+                "extra": {
+                    "admin_level": "9"
+                },
+                "extent": [
+                    144.9732006,
+                    -37.792913,
+                    144.985143,
+                    -37.8089071
+                ]
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    144.9792611,
+                    -37.8010382
+                ]
+            }
+        }
+    ]
+}
