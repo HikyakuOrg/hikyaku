@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { Controller, useFieldArray, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { PlusIcon, TrashIcon } from "@phosphor-icons/react"
@@ -24,10 +24,12 @@ function AddressSection({
     title,
     prefix,
     form,
+    onBlockedChange,
 }: {
     title: string
     prefix: "sender"
     form: ReturnType<typeof useForm<AddressesFormValues>>
+    onBlockedChange: (blocked: boolean) => void
 }) {
     return (
         <div className="space-y-4">
@@ -63,7 +65,11 @@ function AddressSection({
                                             form.setValue("sender.state", s.state)
                                             form.setValue("sender.country", s.country)
                                         }}
+                                        unitValue={form.watch("sender.unit")}
+                                        onUnitChange={(v) => form.setValue("sender.unit", v)}
+                                        onEscalationBlockedChange={onBlockedChange}
                                         id={`${prefix}-${name}`}
+                                        unitId={`${prefix}-unit`}
                                         placeholder={placeholder}
                                         aria-invalid={fieldState.invalid}
                                     />
@@ -93,9 +99,11 @@ function AddressSection({
 function RecipientSection({
     index,
     form,
+    onBlockedChange,
 }: {
     index: number
     form: ReturnType<typeof useForm<AddressesFormValues>>
+    onBlockedChange: (blocked: boolean) => void
 }) {
     return (
         <FieldGroup>
@@ -127,7 +135,13 @@ function RecipientSection({
                                         form.setValue(`recipients.${index}.state` as `recipients.${number}.state`, s.state)
                                         form.setValue(`recipients.${index}.country` as `recipients.${number}.country`, s.country)
                                     }}
+                                    unitValue={form.watch(`recipients.${index}.unit` as `recipients.${number}.unit`)}
+                                    onUnitChange={(v) =>
+                                        form.setValue(`recipients.${index}.unit` as `recipients.${number}.unit`, v)
+                                    }
+                                    onEscalationBlockedChange={onBlockedChange}
                                     id={`recipient-${index}-${name}`}
+                                    unitId={`recipient-${index}-unit`}
                                     placeholder={placeholder}
                                     aria-invalid={fieldState.invalid}
                                 />
@@ -157,7 +171,8 @@ const emptyAddress = {
     fullName: "",
     email: "",
     phone: "",
-    address: ""
+    address: "",
+    unit: ""
 }
 
 export function AddressesStep({
@@ -188,6 +203,22 @@ export function AddressesStep({
         name: "recipients",
     })
 
+    // Building-escalation soft block, tracked per address (sender + each
+    // recipient by its stable useFieldArray id) so one unresolved address
+    // holds up the step regardless of how many others are already clear.
+    const [blockedKeys, setBlockedKeys] = useState<ReadonlySet<string>>(new Set())
+    const handleBlockedChange = useCallback((key: string, blocked: boolean) => {
+        setBlockedKeys((prev) => {
+            const has = prev.has(key)
+            if (has === blocked) return prev
+            const next = new Set(prev)
+            if (blocked) next.add(key)
+            else next.delete(key)
+            return next
+        })
+    }, [])
+    const isAnyAddressBlocked = blockedKeys.size > 0
+
     return (
         <form
             id="addresses"
@@ -203,7 +234,12 @@ export function AddressesStep({
                 </p>
             </div>
 
-            <AddressSection title="Sender" prefix="sender" form={form} />
+            <AddressSection
+                title="Sender"
+                prefix="sender"
+                form={form}
+                onBlockedChange={(blocked) => handleBlockedChange("sender", blocked)}
+            />
 
             <Separator />
 
@@ -220,14 +256,21 @@ export function AddressesStep({
                                     variant="ghost"
                                     size="sm"
                                     className="h-7 gap-1 text-destructive hover:text-destructive"
-                                    onClick={() => remove(index)}
+                                    onClick={() => {
+                                        remove(index)
+                                        handleBlockedChange(fieldItem.id, false)
+                                    }}
                                 >
                                     <TrashIcon className="size-3.5" />
                                     Remove
                                 </Button>
                             )}
                         </div>
-                        <RecipientSection index={index} form={form} />
+                        <RecipientSection
+                            index={index}
+                            form={form}
+                            onBlockedChange={(blocked) => handleBlockedChange(fieldItem.id, blocked)}
+                        />
                         {index < fields.length - 1 && <Separator />}
                     </div>
                 ))}
@@ -244,11 +287,18 @@ export function AddressesStep({
                 </Button>
             </div>
 
-            <div className="flex justify-between pt-6 border-t">
+            <div className="flex items-center justify-between pt-6 border-t">
                 <Button type="button" variant="outline" onClick={onPrev}>
                     Previous
                 </Button>
-                <Button type="submit">Next</Button>
+                <div className="flex items-center gap-3">
+                    {isAnyAddressBlocked && (
+                        <p className="text-sm text-muted-foreground">
+                            Resolve the building prompts above to continue.
+                        </p>
+                    )}
+                    <Button type="submit" disabled={isAnyAddressBlocked}>Next</Button>
+                </div>
             </div>
         </form>
     )

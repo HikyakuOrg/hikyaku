@@ -40,6 +40,17 @@ function formatAddress(addr: AddressesFormValues["sender"] | undefined): string 
     return addr?.address ?? "—"
 }
 
+function AddressValue({ addr }: { addr: AddressesFormValues["sender"] | undefined }) {
+    return (
+        <div className="space-y-0.5">
+            <div>{formatAddress(addr)}</div>
+            {addr?.unit && (
+                <div className="text-xs text-muted-foreground">{addr.unit}</div>
+            )}
+        </div>
+    )
+}
+
 function formatTimeWindow(from?: string, to?: string): string {
     if (!from && !to) return "—"
     if (from && to) return `${from} – ${to}`
@@ -137,7 +148,7 @@ export function ReviewStep({
                     <ReviewRow label="Name" value={addresses?.sender?.fullName ?? "—"} />
                     <ReviewRow label="Email" value={addresses?.sender?.email ?? "—"} />
                     <ReviewRow label="Phone" value={addresses?.sender?.phone ?? "—"} />
-                    <ReviewRow label="Address" value={formatAddress(addresses?.sender)} />
+                    <ReviewRow label="Address" value={<AddressValue addr={addresses?.sender} />} />
                 </ReviewSection>
 
                 {/* Recipients */}
@@ -153,7 +164,7 @@ export function ReviewStep({
                         <ReviewRow label="Name" value={recipient.fullName ?? "—"} />
                         <ReviewRow label="Email" value={recipient.email ?? "—"} />
                         <ReviewRow label="Phone" value={recipient.phone ?? "—"} />
-                        <ReviewRow label="Address" value={formatAddress(recipient)} />
+                        <ReviewRow label="Address" value={<AddressValue addr={recipient} />} />
                     </ReviewSection>
                 ))}
 

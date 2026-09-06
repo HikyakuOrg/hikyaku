@@ -18,6 +18,7 @@ export const addressSchema = z.object({
     email: z.email("Enter a valid email"),
     phone: z.string().min(1, "Phone number is required").refine(isValidPhoneNumber, "Enter a valid phone number"),
     address: z.string().min(1, "Address is required"),
+    unit: z.string().optional(),
     // Populated when user selects from the address autocomplete dropdown
     lat: z.number().optional(),
     lon: z.number().optional(),
