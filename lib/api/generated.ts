@@ -272,6 +272,16 @@ export type CatalogServiceDtoPricingUnitEnum =
   | "per_lb"
   | "per_recipient";
 
+export interface CheckDigitResultDto {
+  /** Actual check digit character from the VIN. */
+  actual: string;
+  /** Check digit calculated from the VIN. */
+  expected?: string;
+  isValid: boolean;
+  /** Position in the VIN, typically 9. */
+  position: number;
+}
+
 export interface CheckoutResultDto {
   /**
    * Stripe-hosted Checkout URL. Redirect the browser to it — do not fetch or embed it.
@@ -312,6 +322,215 @@ export interface ConnectStatusDto {
   detailsSubmitted: boolean;
   /** Whether Stripe will pay out to the account. */
   payoutsEnabled: boolean;
+}
+
+export interface CoverageAreaDto {
+  /**
+   * How many drivers at this warehouse are staffed on this area. Zero means the territory was drawn and then left unstaffed, which reads identically to "no territory here" from the driver list alone.
+   * @example 2
+   */
+  driverCount: number;
+  /** GeoJSON MultiPolygon, present only when `includeGeometry=true` was passed. Omitted by default: a handful of city-sized territories is megabytes of coordinates that a coverage question does not need. */
+  geometry?: Record<string, any> | null;
+  /**
+   * service_areas.id.
+   * @format uuid
+   */
+  id: string;
+  /** The name a dispatcher gave the territory. */
+  name: string;
+}
+
+export interface CoverageAssignmentDto {
+  /** Shorthand for `matchedBy` being explicit or floater. False on an assignment coverage does not explain, which is the case worth escalating. */
+  covered: boolean;
+  /**
+   * The driver on that shift, or null.
+   * @format uuid
+   */
+  driverId: string | null;
+  /** How the driver that actually got this package relates to the coverage above. `explicit` and `floater` mirror the driver list. `not_covering` is the interesting one: the package went to a driver no territory selects and who is not a floater either, so coverage did not produce this assignment. `unassigned` means no shift or no driver on it yet. */
+  matchedBy: CoverageAssignmentDtoMatchedByEnum;
+  /**
+   * What the assignment engine recorded WHEN IT PLACED THIS PACKAGE (`package_assignment.coverage_outcome`), as opposed to `matchedBy` above, which is recomputed against the territories as they stand right now.
+   *
+   * The two disagreeing is not a bug, it is the most useful thing on this response: it means the map changed after the package was placed. A package recorded as `covered` that now reads `not_covering` was routed correctly and then had its territory redrawn underneath it.
+   *
+   * `floater` is kept distinct from `covered` because during rollout most matches are floater matches, and merging them would report the feature as working better than it is. `disabled` means SERVICE_AREA_MATCHING was off and no coverage question was asked. Null means no automatic assignment wrote this row: the package was pinned by a dispatcher, or it predates this column.
+   */
+  recordedOutcome?: CoverageAssignmentDtoRecordedOutcomeEnum | null;
+  /**
+   * vrp_optimization.id, or null if not on a shift yet.
+   * @format uuid
+   */
+  shiftId: string | null;
+  /**
+   * Status of the shift the package sits on.
+   * @example "planned"
+   */
+  shiftStatus: string | null;
+}
+
+/** How the driver that actually got this package relates to the coverage above. `explicit` and `floater` mirror the driver list. `not_covering` is the interesting one: the package went to a driver no territory selects and who is not a floater either, so coverage did not produce this assignment. `unassigned` means no shift or no driver on it yet. */
+export type CoverageAssignmentDtoMatchedByEnum =
+  | "explicit"
+  | "floater"
+  | "not_covering"
+  | "unassigned";
+
+/**
+ * What the assignment engine recorded WHEN IT PLACED THIS PACKAGE (`package_assignment.coverage_outcome`), as opposed to `matchedBy` above, which is recomputed against the territories as they stand right now.
+ *
+ * The two disagreeing is not a bug, it is the most useful thing on this response: it means the map changed after the package was placed. A package recorded as `covered` that now reads `not_covering` was routed correctly and then had its territory redrawn underneath it.
+ *
+ * `floater` is kept distinct from `covered` because during rollout most matches are floater matches, and merging them would report the feature as working better than it is. `disabled` means SERVICE_AREA_MATCHING was off and no coverage question was asked. Null means no automatic assignment wrote this row: the package was pinned by a dispatcher, or it predates this column.
+ */
+export type CoverageAssignmentDtoRecordedOutcomeEnum =
+  | "covered"
+  | "floater"
+  | "fallback_no_covering_capacity"
+  | "fallback_no_covering_driver"
+  | "disabled";
+
+export interface CoverageDiagnosticDto {
+  /** True when at least one territory covers the point. Kept separate from the driver list so "nobody covers this", "territories exist but none match here" and "everyone matches, as floaters" are three distinguishable answers rather than one empty array. */
+  anyAreaCovers: boolean;
+  /** Every live territory containing the point, staffed or not, ordered by name. Not filtered by warehouse: an unstaffed territory over the address is the most useful thing this endpoint can show. */
+  areas: CoverageAreaDto[];
+  /** Null for the coordinate form. For the package form, who actually got it and whether coverage explains that. */
+  assignment: CoverageAssignmentDto | null;
+  /** Every driver at the warehouse who covers the point, explicit matches first, each group ordered by id. */
+  drivers: CoverageDriverDto[];
+  /**
+   * One sentence a support engineer can paste into a ticket. Derived entirely from the fields below; it adds no information of its own.
+   * @example "No territory covers this address; 3 driver(s) match only because they have no territories at all."
+   */
+  explanation: string;
+  /**
+   * Live (not soft-deleted) territories in the whole organisation. Zero means nothing has been configured yet, which is the expected state during rollout and is very different from territories existing and not matching.
+   * @example 4
+   */
+  organisationAreaCount: number;
+  /**
+   * Echo of `packageId`, or null for the coordinate form.
+   * @format uuid
+   */
+  packageId: string | null;
+  /** The point coverage was evaluated at. Null when it could not be resolved. Echoed back because roughly half of these questions turn out to be a bad geocode rather than a bad territory, and seeing the coordinates is what makes that obvious immediately. */
+  point: CoveragePointDto | null;
+  /** Whether coverage could be evaluated at all. The two failure values are answers, not errors: a package with no geocode is exactly what AssignmentService skips as `no_geocode` and never assigns, and an empty driver list would otherwise be indistinguishable from a geocoded address that genuinely nobody covers. */
+  resolution: CoverageDiagnosticDtoResolutionEnum;
+  /** The package’s tracking number, since a support question usually starts from one. */
+  trackingNumber: string | null;
+  /**
+   * The warehouse whose drivers were considered. Resolved from the package, or from `warehouseId`, or from the organisation when it has exactly one warehouse.
+   * @format uuid
+   */
+  warehouseId: string | null;
+}
+
+/** Whether coverage could be evaluated at all. The two failure values are answers, not errors: a package with no geocode is exactly what AssignmentService skips as `no_geocode` and never assigns, and an empty driver list would otherwise be indistinguishable from a geocoded address that genuinely nobody covers. */
+export type CoverageDiagnosticDtoResolutionEnum =
+  | "evaluated"
+  | "package_not_geocoded"
+  | "package_has_no_warehouse";
+
+export interface CoverageDriverDto {
+  /**
+   * drivers.id.
+   * @format uuid
+   */
+  driverId: string;
+  /** `explicit`: a territory this driver is staffed on contains the point. `floater`: this driver has no territories at all and so covers everywhere, which is what keeps an unconfigured organisation behaving exactly as it did before territories existed. */
+  matchedBy: CoverageDriverDtoMatchedByEnum;
+}
+
+/** `explicit`: a territory this driver is staffed on contains the point. `floater`: this driver has no territories at all and so covers everywhere, which is what keeps an unconfigured organisation behaving exactly as it did before territories existed. */
+export type CoverageDriverDtoMatchedByEnum = "explicit" | "floater";
+
+export interface CoverageFallbackPackageDto {
+  /**
+   * When the package was placed on that shift.
+   * @format date-time
+   */
+  assignedAt: string;
+  /**
+   * The driver who got it despite not covering the point.
+   * @format uuid
+   */
+  driverId: string | null;
+  /** Which of the two fallback outcomes this was. */
+  outcome: CoverageFallbackPackageDtoOutcomeEnum;
+  /** @format uuid */
+  packageId: string;
+  /** @format uuid */
+  shiftId: string | null;
+  trackingNumber: string | null;
+}
+
+/** Which of the two fallback outcomes this was. */
+export type CoverageFallbackPackageDtoOutcomeEnum =
+  | "fallback_no_covering_capacity"
+  | "fallback_no_covering_driver";
+
+export interface CoverageOutcomeCountsDto {
+  /** A territory the driver is staffed on contains the point. */
+  covered: number;
+  /** SERVICE_AREA_MATCHING was off when the package was placed, so no coverage question was asked. Excluded from `decisions` and from the rate below. */
+  disabled: number;
+  /** Somebody covers the point, but no covering driver had room and none was idle. An understaffed territory, or a busy day. */
+  fallbackNoCoveringCapacity: number;
+  /** Nobody covers the point at all. Usually a territory that was never drawn, or one drawn and left unstaffed. */
+  fallbackNoCoveringDriver: number;
+  /** The driver matched only because they have no territories at all. Expect this to be most of the traffic while the map is being drawn, which is exactly why it is not folded into `covered`. */
+  floater: number;
+}
+
+export interface CoveragePointDto {
+  /**
+   * Latitude, WGS84.
+   * @example 1.29027
+   */
+  lat: number;
+  /**
+   * Longitude, WGS84. Always in lon/lat order, as PostGIS is.
+   * @example 103.851959
+   */
+  lon: number;
+}
+
+export interface CoverageSummaryDto {
+  byOutcome: CoverageOutcomeCountsDto;
+  /**
+   * THE NUMBER. The fraction of `decisions` that reached a driver who covers the delivery point, counting both `covered` and `floater`. 1 means coverage placed everything; the shortfall is the fallback rate. Null when `decisions` is zero, because a rate over no samples is not zero, it is unknown.
+   * @example 0.94
+   */
+  coveredRate: number | null;
+  /** `totalAssigned` minus the `disabled` ones: the packages a coverage question was actually asked about. The denominator of `coveredRate`. */
+  decisions: number;
+  /**
+   * One sentence a dispatcher can act on, derived entirely from the fields above.
+   * @example "94% of 312 coverage decision(s) reached a covering driver over the last 7 day(s), across 6 live territory (or territories)."
+   */
+  explanation: string;
+  /** The most recent packages in the window that went to a driver who does not cover them, newest first, capped at 50. This is the "which packages, and why" answer; pass any of these ids to GET /api/v1/dispatch/coverage for the full explanation of one. */
+  fallbacks: CoverageFallbackPackageDto[];
+  /** Live (not soft-deleted) territories in this organisation. Zero means nothing has been drawn, so every driver covers everywhere and a 100% floater rate is the correct answer rather than a good one. */
+  liveServiceAreaCount: number;
+  /** Whether service area matching is switched on for the process answering this request. False means new packages are being recorded as `disabled` and the rate below describes history, not what is happening now. Process-wide, not per organisation. */
+  serviceAreaMatching: boolean;
+  /**
+   * The start of that window, so the counts can be quoted.
+   * @format date-time
+   */
+  since: string;
+  /** Packages placed by automatic assignment in the window. Excludes anything a dispatcher pinned by hand and anything placed before outcomes were recorded, neither of which took a coverage decision. */
+  totalAssigned: number;
+  /**
+   * How many days back the counts cover.
+   * @example 7
+   */
+  windowDays: number;
 }
 
 export interface CreateAccountSessionDto {
@@ -606,6 +825,37 @@ export interface DeclineInvitationResultDto {
  */
 export type DeclineInvitationResultDtoOkEnum = true;
 
+export interface DecodeErrorDto {
+  /** Validation errors only: the actual value. */
+  actual?: string;
+  category: DecodeErrorDtoCategoryEnum;
+  /**
+   * Numeric-string error code, e.g. `100` (invalid length), `200` (invalid check digit), `300` (WMI not found).
+   * @example "300"
+   */
+  code: string;
+  details?: string;
+  /** Validation errors only: the expected value. */
+  expected?: string;
+  message: string;
+  /** VIN positions this error covers. */
+  positions?: number[];
+  /** Lookup errors only: the key that was searched for. */
+  searchKey?: string;
+  /** Lookup errors only: what kind of lookup ran. */
+  searchType?: string;
+  severity: DecodeErrorDtoSeverityEnum;
+}
+
+export type DecodeErrorDtoCategoryEnum =
+  | "validation"
+  | "structure"
+  | "lookup"
+  | "pattern"
+  | "database";
+
+export type DecodeErrorDtoSeverityEnum = "warning" | "error" | "fatal";
+
 export interface DriverMetadataDto {
   country_of_issue?: string;
   driver_license?: string;
@@ -616,6 +866,18 @@ export interface DriverMetadataDto {
   license_type?: string;
   /** UUID of the warehouse the driver belongs to */
   warehouse_id?: string;
+}
+
+export interface EngineInfoDto {
+  cylinders?: string;
+  /** Displacement in liters. */
+  displacement?: string;
+  fuel?: string;
+  /** Engine model code. */
+  model?: string;
+  /** Engine power in HP. */
+  power?: string;
+  type?: string;
 }
 
 export interface EphemeralKeyDto {
@@ -925,6 +1187,19 @@ export interface LatestOptimisationRunDto {
   status: string;
 }
 
+export interface ModelYearResultDto {
+  /** Confidence in the year, from 0 to 1. */
+  confidence: number;
+  source: ModelYearResultDtoSourceEnum;
+  /** @example 2023 */
+  year: number;
+}
+
+export type ModelYearResultDtoSourceEnum =
+  | "position"
+  | "override"
+  | "calculated";
+
 export interface OrgIssuingStatusDto {
   /**
    * As on the status endpoint. Null when the org has no account.
@@ -1038,6 +1313,16 @@ export interface PendingInvitationDto {
    * @example "Driver"
    */
   role: string;
+}
+
+export interface PlantInfoDto {
+  /** Manufacturing city. */
+  city?: string;
+  /** Plant code, from VIN position 11. */
+  code: string;
+  /** Manufacturing country. */
+  country: string;
+  manufacturer?: string;
 }
 
 export interface QuoteBookingDto {
@@ -1466,4 +1751,56 @@ export interface VanityUrlStatusDto {
    * @example true
    */
   hasVanityUrlEntitlement: boolean;
+}
+
+export interface VehicleInfoDto {
+  /** @example "SUV" */
+  bodyStyle?: string;
+  doors?: string;
+  /** @example "AWD" */
+  driveType?: string;
+  engineType?: string;
+  fuelType?: string;
+  /** Gross Vehicle Weight Rating. */
+  gvwr?: string;
+  /** @example "Hyundai" */
+  make: string;
+  manufacturer?: string;
+  /** @example "Kona" */
+  model: string;
+  series?: string;
+  transmission?: string;
+  trim?: string;
+  /** @example 2023 */
+  year: number;
+}
+
+export interface VinComponentsDto {
+  checkDigit?: CheckDigitResultDto;
+  engine?: EngineInfoDto;
+  modelYear?: ModelYearResultDto;
+  plant?: PlantInfoDto;
+  vehicle?: VehicleInfoDto;
+  wmi?: WmiResultDto;
+}
+
+export interface VinDecodeResultDto {
+  components: VinComponentsDto;
+  errors: DecodeErrorDto[];
+  /** False when the VIN failed structural validation (length, check digit) or its WMI is unknown — see `errors` for why. `components` may still carry partial data in that case. */
+  valid: boolean;
+  /** The VIN that was decoded, as submitted. */
+  vin: string;
+}
+
+export interface WmiResultDto {
+  /** 3-character World Manufacturer Identifier. */
+  code: string;
+  /** Manufacturing country. */
+  country: string;
+  make: string;
+  manufacturer: string;
+  /** Geographic region. */
+  region: string;
+  vehicleType: string;
 }

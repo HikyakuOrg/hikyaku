@@ -3,6 +3,7 @@ import { hasOrgPermission } from "@/lib/supabase/server"
 import { SERVICE_AREAS_EDIT } from "@/lib/permissions"
 
 import { AddServiceAreaButton } from "./add-service-area-button"
+import { CoverageDebugger } from "./coverage-debugger"
 import { ServiceAreasExplorer } from "./service-areas-explorer"
 
 export default async function ServiceAreasPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -72,6 +73,8 @@ export default async function ServiceAreasPage({ params }: { params: Promise<{ s
                     canEdit={canEdit}
                 />
             )}
+
+            <CoverageDebugger slug={slug} />
         </div>
     )
 }
