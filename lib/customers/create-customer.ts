@@ -14,6 +14,7 @@ export function customerToFormValues(customer: Customer): CustomerFormValues {
         customerEmail: customer.customer_email ?? "",
         customerCountry: customer.customer_country ?? "",
         customerAddress: customer.customer_address ?? "",
+        customerUnit: customer.customer_unit ?? "",
         customerSuburb: customer.customer_suburb ?? "",
         customerState: customer.customer_state ?? "",
         customerPostcode: customer.customer_postcode ?? "",
@@ -43,9 +44,7 @@ export async function prepareCustomerFromForm(
         customer_email: values.customerEmail,
         customer_country: values.customerCountry,
         customer_address: values.customerAddress,
-        // The form does not capture a unit yet (HIK-46); "" is the DTO's
-        // "unset" until then.
-        customer_unit: "",
+        customer_unit: values.customerUnit,
         customer_suburb: values.customerSuburb,
         customer_state: values.customerState,
         customer_postcode: values.customerPostcode,
