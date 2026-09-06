@@ -348,6 +348,7 @@ export default function PackageDetails() {
                         recipient={{
                             name: toCustomer.customer_name,
                             address: toCustomer.customer_address,
+                            unit: toCustomer.customer_unit || undefined,
                             contact: toCustomer.customer_phone
                         }}
                         sender={{

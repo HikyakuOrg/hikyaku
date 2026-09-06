@@ -1,4 +1,5 @@
 import { XIcon } from "lucide-react";
+import { formatAddressLines } from "@/lib/customers/format-address";
 
 
 interface CustomerCardProps {
@@ -18,7 +19,9 @@ export function CustomerCard({ customer, onRemove }: CustomerCardProps) {
                 <div>
                     <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base leading-tight">{customer?.customer_name}</h3>
                     <p className="text-sm text-slate-500 dark:text-slate-400">{customer?.customer_phone}</p>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">{customer?.customer_address}, {customer?.customer_suburb}, {customer?.customer_postcode}</p>
+                    {customer && (
+                        <p className="text-sm text-slate-500 dark:text-slate-400">{formatAddressLines(customer).join(", ")}</p>
+                    )}
                     <p className="text-sm text-slate-500 dark:text-slate-400">{customer?.customer_country}</p>
                 </div>
             </div>

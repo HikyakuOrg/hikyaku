@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { PackageOptimisation } from "@/app/models/package-optimisation"
+import { formatAddressLines } from "@/lib/customers/format-address"
 import { PackageStatus, PackageStatusText } from "@/app/models/package-status"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -151,12 +152,10 @@ function SortableJobStep({
                                         {pkg.to_customer?.customer_name ?? "Recipient information missing"}
                                     </div>
                                     <div className="text-xs text-muted-foreground leading-tight space-y-0.5">
-                                        <div>{pkg.to_customer?.customer_address}</div>
-                                        <div>
-                                            {pkg.to_customer?.customer_suburb},{" "}
-                                            {pkg.to_customer?.customer_state}{" "}
-                                            {pkg.to_customer?.customer_postcode}
-                                        </div>
+                                        {pkg.to_customer &&
+                                            formatAddressLines(pkg.to_customer).map((line, i) => (
+                                                <div key={i}>{line}</div>
+                                            ))}
                                         <div>
                                             <span className="font-bold">Deliver by:</span>{" "}
                                             {pkg.package_delivery_window?.scheduled_arrival
@@ -296,12 +295,10 @@ function StaticStepRow({
                                         {pkg?.to_customer?.customer_name ?? "Recipient information missing"}
                                     </div>
                                     <div className="text-xs text-muted-foreground leading-tight space-y-0.5">
-                                        <div>{pkg?.to_customer?.customer_address}</div>
-                                        <div>
-                                            {pkg?.to_customer?.customer_suburb},{" "}
-                                            {pkg?.to_customer?.customer_state}{" "}
-                                            {pkg?.to_customer?.customer_postcode}
-                                        </div>
+                                        {pkg?.to_customer &&
+                                            formatAddressLines(pkg.to_customer).map((line, i) => (
+                                                <div key={i}>{line}</div>
+                                            ))}
                                         <span className="font-bold">Deliver by:</span>{" "}
                                         {pkg?.package_delivery_window?.scheduled_arrival
                                             ? format(

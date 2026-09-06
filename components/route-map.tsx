@@ -17,6 +17,7 @@ export interface RouteStep {
     warehouse_address?: string
     customer_name?: string
     customer_address?: string
+    customer_unit?: string
     stop_number?: number
     status?: string
 }
@@ -147,6 +148,9 @@ export function RouteMap({
                 popupContent = `
                         <div class="px-2 py-1.5 space-y-0.5">
                             <div class="font-bold text-sm text-amber-600">${routeStep.customer_name || "Recipient"}</div>
+                            ${routeStep.customer_unit
+                                ? `<div class="text-xs font-medium text-muted-foreground w-48 leading-tight">${routeStep.customer_unit}</div>`
+                                : ""}
                             <div class="text-xs text-muted-foreground w-48 leading-tight line-clamp-2">${routeStep.customer_address || ""}</div>
                         </div>
                     `

@@ -152,7 +152,11 @@ export function TrackingView({ details }: { details: TrackingDetails }) {
                         {details.recipient.address && (
                             <p className="flex items-start gap-2 text-sm text-muted-foreground">
                                 <MapPin className="mt-0.5 size-4 shrink-0" />
-                                <span>{details.recipient.address}</span>
+                                <span>
+                                    {details.recipient.unit
+                                        ? `${details.recipient.unit}, ${details.recipient.address}`
+                                        : details.recipient.address}
+                                </span>
                             </p>
                         )}
                     </section>

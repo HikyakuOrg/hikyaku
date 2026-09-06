@@ -18,6 +18,7 @@ interface PackageDetailsTabsProps {
     recipient: {
         name: string
         address: string
+        unit?: string
         contact: string
     }
     sender: {
@@ -71,7 +72,10 @@ export function PackageDetailsTabs({ recipient, sender, deliveryStatus, schedule
             attributes: [
                 { label: "Name", value: recipient.name },
                 { label: "Contact", value: formatPhoneNumberIntl(recipient.contact) },
-                { label: "Address", value: recipient.address },
+                {
+                    label: "Address",
+                    value: recipient.unit ? `${recipient.unit}, ${recipient.address}` : recipient.address,
+                },
             ],
         },
         {

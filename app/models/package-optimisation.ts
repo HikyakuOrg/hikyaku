@@ -33,6 +33,7 @@ export interface PackageOptimisation {
                 id: string;
                 customer_name: string;
                 customer_address: string;
+                customer_unit: string;
                 customer_suburb: string;
                 customer_state: string;
                 customer_postcode: string;

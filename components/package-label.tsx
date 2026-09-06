@@ -71,11 +71,24 @@ export function PackageLabel({ packageId, trackingNumber, receiver, canvasRef, l
 
         ctx.font = '24px sans-serif';
         ctx.fillText(receiver.customer_phone, 40, 270);
-        ctx.fillText(receiver.customer_address, 40, 310);
-        ctx.fillText(`${receiver.customer_suburb.toUpperCase()} ${receiver.customer_postcode}`, 40, 350);
-        ctx.fillText(receiver.customer_state?.toUpperCase() || '', 40, 390);
 
-        ctx.beginPath(); ctx.moveTo(20, 430); ctx.lineTo(canvas.width - 20, 430); ctx.stroke();
+        // Fixed line height below the phone; the unit (when present) pushes
+        // every line after it down by one, so a label with no unit renders at
+        // exactly the same offsets as before this line existed.
+        const lineHeight = 40;
+        let y = 270 + lineHeight;
+        if (receiver.customer_unit?.trim()) {
+            ctx.fillText(receiver.customer_unit, 40, y);
+            y += lineHeight;
+        }
+        ctx.fillText(receiver.customer_address, 40, y);
+        y += lineHeight;
+        ctx.fillText(`${receiver.customer_suburb.toUpperCase()} ${receiver.customer_postcode}`, 40, y);
+        y += lineHeight;
+        ctx.fillText(receiver.customer_state?.toUpperCase() || '', 40, y);
+        y += lineHeight;
+
+        ctx.beginPath(); ctx.moveTo(20, y); ctx.lineTo(canvas.width - 20, y); ctx.stroke();
 
         const qrCanvasElement = qrRef.current?.querySelector('canvas');
         if (qrCanvasElement) {

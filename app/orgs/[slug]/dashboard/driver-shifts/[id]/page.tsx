@@ -36,6 +36,7 @@ export default async function DriverShiftsDetails({ params }: { params: Promise<
             warehouse_address: warehouseInfo?.warehouse_address,
             customer_name: pkg?.to_customer?.customer_name,
             customer_address: pkg?.to_customer?.customer_address,
+            customer_unit: pkg?.to_customer?.customer_unit,
             stop_number: pkg ? ++stopNumber : undefined,
             status: pkg?.current_status ?? undefined,
         })

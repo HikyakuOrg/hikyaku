@@ -10,6 +10,7 @@ import { getErrorMessage } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import { Loader2, Printer, CheckCircle2, Truck, Clock, MapPin, Info } from "lucide-react";
 import { PackageLabel, downloadLabelAsPNG } from "@/components/package-label";
+import { formatAddressLines } from "@/lib/customers/format-address";
 
 /**
  * Why a package was not put on a shift, in the dispatcher's language.
@@ -276,8 +277,10 @@ export function OverviewStep({ onPrev, formData }: {
                         <div className="space-y-1">
                             <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wider">Sender</h4>
                             <p className="text-sm font-semibold">{formData.customerInfo?.sender?.customer_name}</p>
-                            <p className="text-sm text-muted-foreground">{formData.customerInfo?.sender?.customer_address}</p>
-                            <p className="text-sm text-muted-foreground">{formData.customerInfo?.sender?.customer_suburb}, {formData.customerInfo?.sender?.customer_postcode}</p>
+                            {formData.customerInfo?.sender &&
+                                formatAddressLines(formData.customerInfo.sender).map((line, i) => (
+                                    <p key={i} className="text-sm text-muted-foreground">{line}</p>
+                                ))}
                         </div>
                     </div>
 
@@ -292,8 +295,10 @@ export function OverviewStep({ onPrev, formData }: {
                         <div className="space-y-1">
                             <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wider">Receiver</h4>
                             <p className="text-sm font-semibold">{formData.customerInfo?.receiver?.customer_name}</p>
-                            <p className="text-sm text-muted-foreground">{formData.customerInfo?.receiver?.customer_address}</p>
-                            <p className="text-sm text-muted-foreground">{formData.customerInfo?.receiver?.customer_suburb}, {formData.customerInfo?.receiver?.customer_postcode}</p>
+                            {formData.customerInfo?.receiver &&
+                                formatAddressLines(formData.customerInfo.receiver).map((line, i) => (
+                                    <p key={i} className="text-sm text-muted-foreground">{line}</p>
+                                ))}
                         </div>
                     </div>
                 </div>

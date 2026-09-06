@@ -485,6 +485,7 @@ export async function getRouteSteps(routeId: string) {
                         id,
                         customer_name,
                         customer_address,
+                        customer_unit,
                         customer_suburb,
                         customer_state,
                         customer_postcode
