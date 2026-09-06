@@ -43,6 +43,9 @@ export async function prepareCustomerFromForm(
         customer_email: values.customerEmail,
         customer_country: values.customerCountry,
         customer_address: values.customerAddress,
+        // The form does not capture a unit yet (HIK-46); "" is the DTO's
+        // "unset" until then.
+        customer_unit: "",
         customer_suburb: values.customerSuburb,
         customer_state: values.customerState,
         customer_postcode: values.customerPostcode,

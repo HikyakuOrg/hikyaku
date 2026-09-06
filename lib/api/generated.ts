@@ -53,6 +53,8 @@ export interface AddressDto {
   state: string;
   street: string;
   suburb: string;
+  /** Subpremise line — unit, suite or business name for a building delivery. Carried into the customer record at fulfillment; never part of distance pricing or geocoding. */
+  unit?: string;
 }
 
 export interface AdhocOptimisationDto {
@@ -739,6 +741,8 @@ export interface CustomerAddressDto {
   state: string;
   street: string;
   suburb: string;
+  /** Subpremise line — unit, suite or business name for a building delivery. Last-metre instruction only: never part of the geocoded street line. Whitespace-only values are stored as unset. */
+  unit?: string;
 }
 
 export interface CustomerDto {
@@ -762,6 +766,8 @@ export interface CustomerDto {
   customer_state: string;
   /** Empty string when unset. */
   customer_suburb: string;
+  /** Subpremise line — unit, suite or business name for a building delivery. Separate from the geocoded street line, and never fed back into geocoding or routing. Empty string when unset. */
+  customer_unit: string;
   /** Pelias geocode confidence (0–1). Only set for addresses entered through the geocoded manual-entry form. */
   geocode_confidence: number | null;
   /** @format uuid */

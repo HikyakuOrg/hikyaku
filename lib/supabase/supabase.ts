@@ -56,6 +56,7 @@ export type Database = {
           customer_postcode: string | null
           customer_state: string | null
           customer_suburb: string | null
+          customer_unit: string | null
           geocode_confidence: number | null
           id: string
           organisation_id: string
@@ -75,6 +76,7 @@ export type Database = {
           customer_postcode?: string | null
           customer_state?: string | null
           customer_suburb?: string | null
+          customer_unit?: string | null
           geocode_confidence?: number | null
           id?: string
           organisation_id: string
@@ -94,6 +96,7 @@ export type Database = {
           customer_postcode?: string | null
           customer_state?: string | null
           customer_suburb?: string | null
+          customer_unit?: string | null
           geocode_confidence?: number | null
           id?: string
           organisation_id?: string
