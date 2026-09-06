@@ -18,6 +18,8 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Badge } from "@/components/ui/badge"
+import { COVERAGE_OUTCOMES, describeCoverageOutcome } from "@/lib/coverage/outcome"
 
 export type PackageListItem = {
     id: string
@@ -27,16 +29,25 @@ export type PackageListItem = {
     status: string
     driverId: string
     driverName: string
+    /** Omitted entirely by callers that do not track coverage (e.g. a customer's own package list). */
+    coverageOutcome?: string | null
 }
 
 type PackageListTableProps = {
-    loadPage: (pageSize: number, page: number, statuses: string[]) => Promise<{
+    loadPage: (
+        pageSize: number,
+        page: number,
+        statuses: string[],
+        coverageOutcomes: string[],
+    ) => Promise<{
         data: PackageListItem[]
         totalCount: number
     }>
     addPackageHref?: string
     addPackageLabel?: string
     pageSize?: number
+    /** Adds the Coverage column and its filter. Off by default: only the main packages list tracks it today. */
+    showCoverageFilter?: boolean
 }
 
 export function PackageListTable({
@@ -44,12 +55,14 @@ export function PackageListTable({
     addPackageHref,
     addPackageLabel = "Add Package",
     pageSize = 20,
+    showCoverageFilter = false,
 }: PackageListTableProps) {
     const [packages, setPackages] = useState<PackageListItem[]>([])
     const [page, setPage] = useState(1)
     const [totalPages, setTotalPages] = useState(1)
     const [loading, setLoading] = useState(true)
     const [statusFilter, setStatusFilter] = useState<string[]>([])
+    const [coverageFilter, setCoverageFilter] = useState<string[]>([])
 
     const router = useRouter()
     const slug = useOrgSlug()
@@ -64,7 +77,7 @@ export function PackageListTable({
             setLoading(true)
 
             try {
-                const result = await loadPageRef.current(pageSize, page, statusFilter)
+                const result = await loadPageRef.current(pageSize, page, statusFilter, coverageFilter)
 
                 if (!active) {
                     return
@@ -93,7 +106,7 @@ export function PackageListTable({
         return () => {
             active = false
         }
-    }, [page, pageSize, statusFilter])
+    }, [page, pageSize, statusFilter, coverageFilter])
 
     const columns: ColumnDef<PackageListItem>[] = [
         { accessorKey: "trackingNumber", header: "Tracking Number" },
@@ -107,16 +120,18 @@ export function PackageListTable({
                     <span>Status</span>
 
                     <DropdownMenu>
-                        <DropdownMenuTrigger>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                aria-label="Filter packages by status"
-                                className={`h-6 w-6 ${statusFilter.length ? "text-primary" : "text-muted-foreground"}`}
-                            >
-                                <Filter className="h-4 w-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
+                        <DropdownMenuTrigger
+                            render={
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label="Filter packages by status"
+                                    className={`h-6 w-6 ${statusFilter.length ? "text-primary" : "text-muted-foreground"}`}
+                                >
+                                    <Filter className="h-4 w-4" />
+                                </Button>
+                            }
+                        />
 
                         <DropdownMenuContent align="start" className="w-44">
                             <DropdownMenuGroup>
@@ -173,6 +188,69 @@ export function PackageListTable({
                 )
             },
         },
+        ...(showCoverageFilter ? [{
+            id: "coverage",
+            header: () => (
+                <div className="flex items-center gap-2">
+                    <span>Coverage</span>
+
+                    <DropdownMenu>
+                        <DropdownMenuTrigger
+                            render={
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label="Filter packages by coverage outcome"
+                                    className={`h-6 w-6 ${coverageFilter.length ? "text-primary" : "text-muted-foreground"}`}
+                                >
+                                    <Filter className="h-4 w-4" />
+                                </Button>
+                            }
+                        />
+
+                        <DropdownMenuContent align="start" className="w-56">
+                            <DropdownMenuGroup>
+                                <DropdownMenuLabel>Filter Coverage</DropdownMenuLabel>
+                            </DropdownMenuGroup>
+                            <DropdownMenuSeparator />
+
+                            {COVERAGE_OUTCOMES.map((outcome) => (
+                                <DropdownMenuCheckboxItem
+                                    key={outcome}
+                                    checked={coverageFilter.includes(outcome)}
+                                    onCheckedChange={(checked) => {
+                                        const updated = checked
+                                            ? [...coverageFilter, outcome]
+                                            : coverageFilter.filter((item) => item !== outcome)
+
+                                        setCoverageFilter(updated)
+                                        setPage(1)
+                                    }}
+                                >
+                                    {describeCoverageOutcome(outcome).label}
+                                </DropdownMenuCheckboxItem>
+                            ))}
+
+                            <DropdownMenuSeparator />
+
+                            <DropdownMenuCheckboxItem
+                                checked={false}
+                                onClick={() => {
+                                    setCoverageFilter([])
+                                    setPage(1)
+                                }}
+                            >
+                                Clear
+                            </DropdownMenuCheckboxItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+            ),
+            cell: ({ row }: { row: { original: PackageListItem } }) => {
+                const { label, badgeVariant } = describeCoverageOutcome(row.original.coverageOutcome)
+                return <Badge variant={badgeVariant}>{label}</Badge>
+            },
+        } satisfies ColumnDef<PackageListItem>] : []),
     ]
 
     return (

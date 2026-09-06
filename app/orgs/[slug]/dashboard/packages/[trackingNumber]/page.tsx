@@ -14,6 +14,7 @@ import { PackageStatus } from "@/app/models/package-status"
 import { PackageStatusTimeline } from "@/app/models/package-status-timeline"
 import { ListDriverDto } from "@/lib/api"
 import { Tables } from "@/lib/supabase/supabase"
+import { CoverageOutcomeNote } from "./coverage-outcome-note"
 import { PackageDetailsTabs } from "./package-details-tabs"
 import { PackageImages } from "./package-images"
 import PackageTimeline from "./package-timeline"
@@ -28,6 +29,9 @@ export default function PackageDetails() {
     const [packageId, setPackageId] = useState<string | null>(null)
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const [driver, setDriver] = useState<ListDriverDto | null>(null)
+    // undefined: no package_assignment row exists yet (not assigned). null: a
+    // row exists but automatic assignment did not write an outcome onto it.
+    const [coverageOutcome, setCoverageOutcome] = useState<string | null | undefined>(undefined)
     const [fromCustomer, setFromCustomer] = useState<Customer | null>(null)
     const [toCustomer, setToCustomer] = useState<Customer | null>(null)
     const [packageStatusTimeline, setPackageStatusTimeline] = useState<PackageStatusTimeline[]>([])
@@ -118,6 +122,8 @@ export default function PackageDetails() {
             }
 
             if (assignmentResult.status === 'fulfilled') {
+                if (!cancelled) setCoverageOutcome(assignmentResult.value.coverage_outcome ?? null)
+
                 const driverId = assignmentResult.value.driver_id
                 if (driverId) {
                     const drivers = await getDriversByIds([driverId])
@@ -238,6 +244,9 @@ export default function PackageDetails() {
                             </div>
                             <div className="border rounded-xl p-6 bg-card">
                                 <PackageTimeline packageStatusTimeline={packageStatusTimeline} />
+                                {coverageOutcome !== undefined && (
+                                    <CoverageOutcomeNote outcome={coverageOutcome} />
+                                )}
                                 {packageFailure && (
                                     <div className="mt-6 p-4 bg-destructive/10 text-destructive rounded-lg flex items-start gap-3">
                                         <AlertCircle className="h-5 w-5 mt-0.5 shrink-0" />

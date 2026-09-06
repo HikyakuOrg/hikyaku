@@ -66,7 +66,8 @@ export async function getPackages(
     pageSize: number,
     page: number,
     statuses?: string[],
-    supabaseClient?: SupabaseClient<Database>
+    supabaseClient?: SupabaseClient<Database>,
+    coverageOutcomes?: string[],
 ) {
     const client = supabaseClient ?? supabase;
     const { data, error } = await client.rpc(
@@ -75,6 +76,7 @@ export async function getPackages(
             p_limit: pageSize,
             p_offset: (page - 1) * pageSize,
             p_statuses: statuses?.length ? statuses : STATUS_OPTIONS,
+            p_coverage_outcomes: coverageOutcomes?.length ? coverageOutcomes : undefined,
         }
     )
 
@@ -85,12 +87,17 @@ export async function getPackages(
     return data
 }
 
-export async function getPackagesCount(statuses?: string[], supabaseClient?: SupabaseClient<Database>) {
+export async function getPackagesCount(
+    statuses?: string[],
+    supabaseClient?: SupabaseClient<Database>,
+    coverageOutcomes?: string[],
+) {
     const client = supabaseClient ?? supabase;
     const { data, error } = await client.rpc(
         "get_packages_count",
         {
             p_statuses: statuses?.length ? statuses : STATUS_OPTIONS,
+            p_coverage_outcomes: coverageOutcomes?.length ? coverageOutcomes : undefined,
         }
     )
 

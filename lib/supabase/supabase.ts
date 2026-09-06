@@ -443,18 +443,21 @@ export type Database = {
       }
       package_assignment: {
         Row: {
+          coverage_outcome: string | null
           created_at: string
           driver_id: string
           package_id: string
           vehicle_id: string
         }
         Insert: {
+          coverage_outcome?: string | null
           created_at?: string
           driver_id: string
           package_id: string
           vehicle_id: string
         }
         Update: {
+          coverage_outcome?: string | null
           created_at?: string
           driver_id?: string
           package_id?: string
@@ -1595,10 +1598,19 @@ export type Database = {
           unassigned: number
         }[]
       }
-      get_packages_count: { Args: { p_statuses: string[] }; Returns: number }
+      get_packages_count: {
+        Args: { p_coverage_outcomes?: string[]; p_statuses: string[] }
+        Returns: number
+      }
       get_packages_with_latest_status: {
-        Args: { p_limit?: number; p_offset?: number; p_statuses?: string[] }
+        Args: {
+          p_coverage_outcomes?: string[]
+          p_limit?: number
+          p_offset?: number
+          p_statuses?: string[]
+        }
         Returns: {
+          coverage_outcome: string | null
           created_at: string
           driver_id: string
           driver_name: string

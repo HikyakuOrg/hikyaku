@@ -464,6 +464,7 @@ export async function getRouteSteps(routeId: string) {
             *,
             package_assignment(
                 package_id,
+                coverage_outcome,
                 driver:drivers(
                     id,
                     warehouse_id
