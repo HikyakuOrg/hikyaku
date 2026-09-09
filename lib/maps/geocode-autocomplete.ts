@@ -15,6 +15,9 @@ interface PhotonProperties {
     postcode?: string
     osm_id?: number
     osm_type?: string
+    osm_key?: string
+    osm_value?: string
+    extent?: number[]
 }
 
 export interface AddressSuggestion {
@@ -29,6 +32,10 @@ export interface AddressSuggestion {
     // OSM provenance (Photon) — stored for routing-quality and stable re-lookup.
     gid?: string
     confidence?: number
+    // OSM tag and footprint bbox, used by isLikelyBuilding() to detect a building match.
+    osmKey?: string
+    osmValue?: string
+    extent?: number[]
     raw: unknown
 }
 
@@ -46,6 +53,38 @@ export function parsePhotonFeatureCollection(
         const postcode = p.postcode ?? ""
         const label = [street, suburb, state, country].filter(Boolean).join(", ")
         const gid = p.osm_type && p.osm_id != null ? `${p.osm_type}${p.osm_id}` : undefined
-        return { label, street, suburb, state, country, postcode, lat, lon, gid, raw: feature }
+        return {
+            label,
+            street,
+            suburb,
+            state,
+            country,
+            postcode,
+            lat,
+            lon,
+            gid,
+            osmKey: p.osm_key,
+            osmValue: p.osm_value,
+            extent: p.extent,
+            raw: feature,
+        }
     })
+}
+
+/**
+ * Whether a suggestion is likely a building (an apartment block, office tower,
+ * or house) rather than a street or locality match, used to escalate the
+ * unit/business-name prompt, never to gate it. Tuned for recall over
+ * precision: OSM building tagging is inconsistent, so a false positive here
+ * only costs the user one dismissal.
+ */
+export function isLikelyBuilding(suggestion: AddressSuggestion): boolean {
+    const { osmKey, osmValue, extent } = suggestion
+    if (osmKey === "building") return true
+    if (osmKey === "place" && (osmValue === "house" || osmValue === "apartments" || osmValue === "residential")) {
+        return true
+    }
+    const feature = suggestion.raw as { properties?: PhotonProperties } | undefined
+    if (extent && extent.length > 0 && feature?.properties?.housenumber) return true
+    return false
 }

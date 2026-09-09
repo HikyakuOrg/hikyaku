@@ -1,7 +1,19 @@
 // Converts EWKT (SRID=4326;POLYGON...) to GeoJSON Polygon feature
 import type { Feature, FeatureCollection, Geometry, MultiPolygon, Polygon, Position } from "geojson"
 
-// Converts GeoJSON Polygon feature to EWKT
+/**
+ * Converts a GeoJSON Polygon feature to the EWKT `service_areas.geometry`
+ * accepts.
+ *
+ * The column is `geometry(MultiPolygon,4326)`, so this emits a MULTIPOLYGON
+ * with exactly one member rather than a bare POLYGON. PostGIS enforces the
+ * column's type during the assignment cast, before any trigger runs, so a
+ * POLYGON is rejected outright with "Geometry type (Polygon) does not match
+ * column type (MultiPolygon)". Wrapping happens here because the drawing tool
+ * produces one polygon per area and there is no multi-part drawing UI, so every
+ * write from this app is single-member. Rings within that member (an outer ring
+ * plus any holes) are untouched, only nested one level deeper.
+ */
 export function polygonFeatureToEwkt(feature: Feature<Polygon>) {
     const rings = feature.geometry.coordinates.map(ring => {
         const normalizedRing = [...ring]
@@ -12,35 +24,59 @@ export function polygonFeatureToEwkt(feature: Feature<Polygon>) {
         }
         return `(${normalizedRing.map(([lng, lat]) => `${lng} ${lat}`).join(", ")})`
     })
-    return `SRID=4326;POLYGON(${rings.join(", ")})`
+    return `SRID=4326;MULTIPOLYGON((${rings.join(", ")}))`
 }
 
-export function getEditableServiceAreaPolygonFeature(geometry: unknown): Feature<Polygon, { mode: "polygon" }> | null {
+/** The single-polygon feature the drawing tool round-trips through. */
+export type EditableServiceAreaPolygon = Feature<Polygon, { mode: "polygon" }>
+
+/**
+ * Outcome of preparing a stored service area for the single-polygon editor.
+ *
+ * `service_areas.geometry` is a MultiPolygon, so a stored area may legitimately
+ * hold several disjoint parts: a suburb plus the island off it, or a zone cut in
+ * two by a river. The editor here draws exactly one polygon, so a multi-part
+ * area is refused rather than reduced. Reducing it to the largest part (what
+ * this used to do) meant that opening such an area and saving it wrote that one
+ * part over all of them, with nothing on screen to say the others had gone.
+ */
+export type EditableServiceAreaGeometry =
+    | { status: "editable"; feature: EditableServiceAreaPolygon }
+    | { status: "multiple-parts"; partCount: number }
+    | { status: "unsupported" }
+
+export function getEditableServiceAreaPolygonFeature(geometry: unknown): EditableServiceAreaGeometry {
     const normalizedGeometry = normalizeServiceAreaGeometry(geometry)
 
     if (!normalizedGeometry) {
-        return null
+        return { status: "unsupported" }
     }
 
     if (normalizedGeometry.type === "Polygon") {
-        return {
-            type: "Feature",
-            geometry: normalizedGeometry,
-            properties: {
-                mode: "polygon",
-            },
-        }
+        return { status: "editable", feature: toEditablePolygonFeature(normalizedGeometry.coordinates) }
     }
 
-    const largestPolygon = normalizedGeometry.coordinates.reduce((largest, polygon) => {
-        return getPolygonRingArea(polygon[0]) > getPolygonRingArea(largest[0]) ? polygon : largest
-    })
+    // Only the member count matters. Rings inside one member are its outer
+    // boundary and its holes, not separate parts, so a polygon with holes is
+    // still editable. A single-member MultiPolygon is what every write from this
+    // app produces, and it unwraps back to the polygon that was drawn.
+    if (normalizedGeometry.coordinates.length === 1) {
+        return { status: "editable", feature: toEditablePolygonFeature(normalizedGeometry.coordinates[0]) }
+    }
 
+    if (normalizedGeometry.coordinates.length === 0) {
+        return { status: "unsupported" }
+    }
+
+    return { status: "multiple-parts", partCount: normalizedGeometry.coordinates.length }
+}
+
+function toEditablePolygonFeature(coordinates: Position[][]): EditableServiceAreaPolygon {
     return {
         type: "Feature",
         geometry: {
             type: "Polygon",
-            coordinates: largestPolygon,
+            coordinates,
         },
         properties: {
             mode: "polygon",
@@ -129,27 +165,6 @@ export function getServiceAreaFeatureCollectionBounds(featureCollection: Service
     ]
 }
 
-export function isPointWithinServiceAreas(
-    serviceAreas: Array<{ geometry: unknown }>,
-    point: [number, number],
-) {
-    return serviceAreas.some((serviceArea) => {
-        const geometry = normalizeServiceAreaGeometry(serviceArea.geometry)
-
-        if (!geometry) {
-            return false
-        }
-
-        if (geometry.type === "Polygon") {
-            return isPointWithinPolygonGeometry(geometry.coordinates, point)
-        }
-
-        return geometry.coordinates.some((polygonCoordinates) => {
-            return isPointWithinPolygonGeometry(polygonCoordinates, point)
-        })
-    })
-}
-
 function normalizeServiceAreaGeometry(geometry: unknown): ServiceAreaGeometry | null {
     if (typeof geometry === "string") {
         return parseGeometryText(geometry)
@@ -184,81 +199,6 @@ function normalizeServiceAreaGeometry(geometry: unknown): ServiceAreaGeometry | 
     }
 
     return null
-}
-
-function isPointWithinPolygonGeometry(
-    polygonCoordinates: Position[][],
-    point: [number, number],
-) {
-    const [outerRing, ...holes] = polygonCoordinates
-
-    if (!outerRing || !isPointInRing(outerRing, point)) {
-        return false
-    }
-
-    return !holes.some((hole) => isPointInRing(hole, point))
-}
-
-function isPointInRing(ring: Position[], point: [number, number]) {
-    if (ring.length < 3) {
-        return false
-    }
-
-    for (let index = 0; index < ring.length - 1; index += 1) {
-        if (isPointOnSegment(ring[index], ring[index + 1], point)) {
-            return true
-        }
-    }
-
-    const [pointLng, pointLat] = point
-    let isInside = false
-
-    for (
-        let currentIndex = 0, previousIndex = ring.length - 1;
-        currentIndex < ring.length;
-        previousIndex = currentIndex, currentIndex += 1
-    ) {
-        const [currentLng, currentLat] = ring[currentIndex]
-        const [previousLng, previousLat] = ring[previousIndex]
-
-        const intersects = ((currentLat > pointLat) !== (previousLat > pointLat))
-            && (pointLng < ((previousLng - currentLng) * (pointLat - currentLat)) / (previousLat - currentLat) + currentLng)
-
-        if (intersects) {
-            isInside = !isInside
-        }
-    }
-
-    return isInside
-}
-
-function isPointOnSegment(start: Position, end: Position, point: [number, number]) {
-    const epsilon = 1e-9
-    const [startLng, startLat] = start
-    const [endLng, endLat] = end
-    const [pointLng, pointLat] = point
-
-    const crossProduct = (pointLat - startLat) * (endLng - startLng)
-        - (pointLng - startLng) * (endLat - startLat)
-
-    if (Math.abs(crossProduct) > epsilon) {
-        return false
-    }
-
-    const dotProduct = (pointLng - startLng) * (endLng - startLng)
-        + (pointLat - startLat) * (endLat - startLat)
-
-    if (dotProduct < -epsilon) {
-        return false
-    }
-
-    const squaredLength = (endLng - startLng) ** 2 + (endLat - startLat) ** 2
-
-    if (dotProduct - squaredLength > epsilon) {
-        return false
-    }
-
-    return true
 }
 
 function parseGeometryText(value: string): ServiceAreaGeometry | null {
@@ -359,18 +299,6 @@ function parsePosition(value: string): Position | null {
     }
 
     return [lng, lat]
-}
-
-function getPolygonRingArea(ring: Position[]) {
-    let area = 0
-
-    for (let index = 0; index < ring.length - 1; index += 1) {
-        const [currentLng, currentLat] = ring[index]
-        const [nextLng, nextLat] = ring[index + 1]
-        area += currentLng * nextLat - nextLng * currentLat
-    }
-
-    return Math.abs(area / 2)
 }
 
 function extractWrappedContent(value: string): string | null {

@@ -1,13 +1,6 @@
 import type { CustomerFormValues } from "@/components/customers/customer-schema"
-import { isPointWithinServiceAreas } from "@/lib/maps/service-area-geometry"
-import { createClient } from "@/lib/supabase/client"
+import { getCoverageForPoint } from "@/lib/actions/coverage"
 import { createCustomerAction, updateCustomerAction } from "@/lib/actions/customers"
-
-type ServiceAreaRecord = {
-    id: string
-    name: string
-    geometry: unknown
-}
 
 export type PreparedCustomerCreation = {
     customer: Customer
@@ -21,6 +14,7 @@ export function customerToFormValues(customer: Customer): CustomerFormValues {
         customerEmail: customer.customer_email ?? "",
         customerCountry: customer.customer_country ?? "",
         customerAddress: customer.customer_address ?? "",
+        customerUnit: customer.customer_unit ?? "",
         customerSuburb: customer.customer_suburb ?? "",
         customerState: customer.customer_state ?? "",
         customerPostcode: customer.customer_postcode ?? "",
@@ -50,6 +44,7 @@ export async function prepareCustomerFromForm(
         customer_email: values.customerEmail,
         customer_country: values.customerCountry,
         customer_address: values.customerAddress,
+        customer_unit: values.customerUnit,
         customer_suburb: values.customerSuburb,
         customer_state: values.customerState,
         customer_postcode: values.customerPostcode,
@@ -63,13 +58,28 @@ export async function prepareCustomerFromForm(
         shopify_customer_id: null,
     }
 
-    const serviceAreas = await getServiceAreas()
-
     return {
         customer,
-        isWithinServiceArea: serviceAreas.length === 0
-            || isPointWithinServiceAreas(serviceAreas, [values.customerLon, values.customerLat]),
+        isWithinServiceArea: await isPointCovered(values.customerLon, values.customerLat),
     }
+}
+
+/**
+ * Whether a point is covered by at least one live territory, via the same
+ * PostGIS containment the assignment engine and the areas page's coverage
+ * debugger use (see `getCoverageForPoint`). Fails open: an organisation with no
+ * territories drawn yet, or a coverage lookup that errored, both report
+ * "covered" so this warning stays silent until there is something real to warn
+ * about, exactly as it did when it read `service_areas` directly.
+ */
+async function isPointCovered(lon: number, lat: number): Promise<boolean> {
+    const result = await getCoverageForPoint(lon, lat)
+
+    if (result.status !== "ok") {
+        return true
+    }
+
+    return result.diagnostic.organisationAreaCount === 0 || result.diagnostic.anyAreaCovers
 }
 
 
@@ -84,17 +94,4 @@ export async function updatePreparedCustomer(
 ) {
     const values = customerToFormValues(prepared.customer)
     return updateCustomerAction(customerId, values)
-}
-
-async function getServiceAreas(): Promise<ServiceAreaRecord[]> {
-    const supabase = createClient()
-    const { data, error } = await supabase
-        .from("service_areas")
-        .select("id, name, geometry")
-
-    if (error) {
-        throw error
-    }
-
-    return data ?? []
 }

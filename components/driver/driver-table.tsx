@@ -2,21 +2,27 @@ import { ColumnDef, RowSelectionState } from "@tanstack/react-table"
 import { ListDriverDto } from "@/lib/api"
 import { DataTable } from "@/components/data-table"
 
-interface DriverTableProps {
-    data: ListDriverDto[]
+/**
+ * Generic over the row type so a caller carrying extra columns (a warehouse, a
+ * vehicle) can read its own fields in `additionalColumns` without casting
+ * `row.original`. Call sites passing plain `ListDriverDto[]` infer that and are
+ * unaffected.
+ */
+interface DriverTableProps<TDriver extends ListDriverDto> {
+    data: TDriver[]
     loading: boolean
     pageSize: number
     page: number
     totalPages: number
     onPageChange: (page: number) => void
-    actions: (row: ListDriverDto) => void
-    handleDelete?: (rows: ListDriverDto[]) => void
+    actions: (row: TDriver) => void
+    handleDelete?: (rows: TDriver[]) => void
     onRowSelectionChange?: React.Dispatch<React.SetStateAction<RowSelectionState>>
     rowSelection?: RowSelectionState,
-    additionalColumns?: ColumnDef<ListDriverDto>[]
+    additionalColumns?: ColumnDef<TDriver>[]
 }
 
-export function DriverTable({
+export function DriverTable<TDriver extends ListDriverDto = ListDriverDto>({
     data,
     loading,
     pageSize,
@@ -28,9 +34,9 @@ export function DriverTable({
     onRowSelectionChange,
     rowSelection,
     additionalColumns
-}: DriverTableProps) {
+}: DriverTableProps<TDriver>) {
 
-    const columns: ColumnDef<ListDriverDto>[] = [
+    const columns: ColumnDef<TDriver>[] = [
         {
             accessorKey: "display_name",
             header: "Name",

@@ -10,6 +10,10 @@ export interface TrackingRecipient {
     name: string | null
     email: string | null
     address: string | null
+    // Not yet returned by the get_tracking_details RPC (a DB-side change outside
+    // this repo). Declared now so the display side needs no further changes once
+    // the RPC catches up.
+    unit?: string | null
     lng: number | null
     lat: number | null
 }

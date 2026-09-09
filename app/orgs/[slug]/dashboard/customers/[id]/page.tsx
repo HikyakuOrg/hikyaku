@@ -28,19 +28,12 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getCustomerAction } from "@/lib/actions/customers"
+import { formatAddressLines } from "@/lib/customers/format-address"
 import { Calendar, Globe, Hash, Loader2, MoreVertical, Phone } from "lucide-react"
 import { CustomerPackagesTable } from "./customer-packages-table"
 
 type CustomerDetailPageProps = {
     params: Promise<{ id: string }>
-}
-
-function formatRegion(customer: Customer) {
-    const stateAndPostcode = [customer.customer_state, customer.customer_postcode]
-        .filter(Boolean)
-        .join(" ")
-
-    return [customer.customer_suburb, stateAndPostcode].filter(Boolean).join(", ")
 }
 
 function formatDateTime(input: string) {
@@ -99,7 +92,6 @@ export default function CustomerDetailPage({ params }: CustomerDetailPageProps) 
         )
     }
 
-    const region = formatRegion(customer)
     const phoneNumber = formatPhoneNumberIntl(customer.customer_phone) || customer.customer_phone
     return (
         <div className="space-y-6 p-6">
@@ -199,8 +191,9 @@ export default function CustomerDetailPage({ params }: CustomerDetailPageProps) 
                         <p className="text-sm font-medium uppercase">
                             Address
                         </p>
-                        <p className="mt-2 text-sm text-muted-foreground">{customer.customer_address}</p>
-                        <p className="mt-2 text-sm text-muted-foreground">{region}</p>
+                        {formatAddressLines(customer).map((line, i) => (
+                            <p key={i} className="mt-2 text-sm text-muted-foreground">{line}</p>
+                        ))}
                         <p className="mt-1 text-sm text-muted-foreground">{customer.customer_country}</p>
                     </div>
                 </div>

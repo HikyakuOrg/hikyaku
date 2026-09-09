@@ -2,6 +2,34 @@ import { expect, test } from "@playwright/test"
 import { d } from "./helpers/org-url"
 
 test.describe("Service Area Add Flow", () => {
+    /**
+     * Positive branch of the `service_areas.edit` gate.
+     *
+     * The negative branch is not reachable from this harness: every identity it
+     * can produce is an org creator, and handle_new_organisation() grants the
+     * creator every seeded permission in the org it just made. Reaching a member
+     * WITHOUT `service_areas.edit` needs a restricted invitation issued through
+     * hikyaku-api plus a second inbox to accept it, which no helper here does
+     * yet. What this test does guard is the dangerous regression in the other
+     * direction: hasOrgPermission() wrongly returning false and locking a
+     * legitimate admin out of their own service areas.
+     */
+    test("a member holding service_areas.edit gets a live add entry point", async ({ page }) => {
+        await page.goto(d('/service/areas'))
+
+        // Only the permitted variant renders as a link. Without the permission it
+        // is a disabled button carrying the reason in a tooltip, so matching the
+        // link role is itself the assertion that the gate opened.
+        const addLink = page.getByRole("link", { name: "Add Service Area" })
+        await expect(addLink).toBeVisible()
+
+        await addLink.click()
+        await expect(page).toHaveURL(d('/service/areas/add'))
+
+        await expect(page.getByTestId("service-area-permission-note")).toHaveCount(0)
+        await expect(page.getByTestId("service-area-name-input")).toBeEnabled()
+    })
+
     test("warns before replacing a drawn area with uploaded geojson", async ({ page }) => {
         const serviceAreaName = `Replacement Area ${Date.now()}`
         const response = await page.goto(d('/service/areas/add'))
@@ -60,6 +88,56 @@ test.describe("Service Area Add Flow", () => {
 
         await page.getByTestId("service-area-submit-button").click()
         await expect(page.getByTestId("service-area-last-submission")).toContainText(serviceAreaName)
+    })
+
+    /**
+     * `service_areas.name` is unique per organisation rather than globally, so a
+     * second area by the same name inside this org is a 23505 the dispatcher can
+     * fix without leaving the form. It has to land on the name field, not in a
+     * toast that disappears before it can be read.
+     *
+     * Submitting twice without touching the form in between is the cheapest way
+     * to provoke it: a successful save leaves the name and the polygon in place,
+     * so the second click sends the identical insert.
+     */
+    test("reports a duplicate service area name on the name field", async ({ page }) => {
+        const serviceAreaName = `Duplicate Area ${Date.now()}`
+        await page.goto(d('/service/areas/add'))
+
+        await page.waitForFunction(() => {
+            const canvas = document.querySelector('[data-testid="service-area-map-container"] canvas') as HTMLCanvasElement | null
+            return Boolean(canvas && canvas.width > 0 && canvas.height > 0)
+        })
+
+        await page.getByTestId("service-area-name-input").fill(serviceAreaName)
+
+        const mapContainer = page.getByTestId("service-area-map-container")
+        await mapContainer.click({ position: { x: 120, y: 120 } })
+        await mapContainer.click({ position: { x: 240, y: 120 } })
+        await mapContainer.click({ position: { x: 240, y: 240 } })
+        await mapContainer.dblclick({ position: { x: 120, y: 240 } })
+
+        const submitButton = page.getByTestId("service-area-submit-button")
+        await expect(submitButton).toBeEnabled()
+
+        // First save succeeds, which is also the assertion that a drawn polygon
+        // still reaches the database at all now that the column is a MultiPolygon.
+        await submitButton.click()
+        await expect(page.getByTestId("service-area-last-submission")).toContainText(serviceAreaName)
+
+        await expect(page.getByTestId("service-area-name-error")).toHaveCount(0)
+
+        await expect(submitButton).toBeEnabled()
+        await submitButton.click()
+
+        const nameError = page.getByTestId("service-area-name-error")
+        await expect(nameError).toBeVisible()
+        await expect(nameError).toContainText(serviceAreaName)
+        await expect(page.getByTestId("service-area-name-input")).toHaveAttribute("aria-invalid", "true")
+
+        // Editing the name clears the conflict so the dispatcher can retry.
+        await page.getByTestId("service-area-name-input").fill(`${serviceAreaName} B`)
+        await expect(page.getByTestId("service-area-name-error")).toHaveCount(0)
     })
 
     test("uploads a geojson overlay and captures a screenshot", async ({ page }, testInfo) => {

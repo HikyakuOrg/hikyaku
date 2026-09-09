@@ -17,6 +17,8 @@ Package manager is **pnpm**. There is **no `pnpm test`** script — automated co
 
 Run a single test: `pnpm exec playwright test tests/e2e/<file>.spec.ts --project=chrome` (add `-g "<title>"` to target one case).
 
+For code intelligence (go-to-definition, find references, hover types, rename) use `tsserver` from `node_modules/typescript/bin/tsserver` rather than grepping — it reflects this project's actual TypeScript config and types.
+
 ## Stack
 
 Next.js 16 (App Router, `cacheComponents: true`), React 19, TypeScript (strict), Tailwind v4, Supabase (SSR auth + Postgres), Stripe Connect, MapLibre GL + Valhalla for routing/maps. Import alias `@/*` maps to the repo root (`tsconfig.json`).

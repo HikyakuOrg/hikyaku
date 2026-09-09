@@ -8,6 +8,7 @@ import { getDriversByIds } from "@/lib/supabase/supabase-rpc";
 import type { RoutePreview } from "@/app/models/route-preview";
 import Link from "next/link";
 import { VehicleCard } from "@/app/orgs/[slug]/dashboard/fleet/vehicles/components/vehicle-card";
+import { isFallbackOutcome } from "@/lib/coverage/outcome";
 
 export default async function DriverShiftsDetails({ params }: { params: Promise<{ id: string; slug: string }> }) {
     const { id, slug } = await params;
@@ -35,6 +36,7 @@ export default async function DriverShiftsDetails({ params }: { params: Promise<
             warehouse_address: warehouseInfo?.warehouse_address,
             customer_name: pkg?.to_customer?.customer_name,
             customer_address: pkg?.to_customer?.customer_address,
+            customer_unit: pkg?.to_customer?.customer_unit,
             stop_number: pkg ? ++stopNumber : undefined,
             status: pkg?.current_status ?? undefined,
         })
@@ -44,6 +46,10 @@ export default async function DriverShiftsDetails({ params }: { params: Promise<
     // Only the depot start/end steps exist when there are no packages — skip the routing
     // call (its two identical points have nothing to route) and use a trivial preview.
     const hasStops = routeStepArray.some((s) => s.type === "job");
+    const jobSteps = routeSteps.filter((s) => s.package_assignment?.package);
+    const fallbackStopCount = jobSteps.filter(
+        (s) => isFallbackOutcome(s.package_assignment?.coverage_outcome)
+    ).length;
     const vehicleType = assignment?.vehicle?.vehicle_type.ors_vehicle_type ?? "driving-car"
     const emptyPreview: RoutePreview = { coordinates: [], wayPoints: [], legs: [], summary: { duration: 0, distance: 0 } }
     const route = hasStops ? await fetchRoutePreview(vehicleType, routeCoords, slug) : emptyPreview;
@@ -107,10 +113,22 @@ export default async function DriverShiftsDetails({ params }: { params: Promise<
                                 <span className="text-sm text-muted-foreground">Estimated Time</span>
                                 <span className="font-semibold">{(summary?.duration ? (summary.duration / 3600).toFixed(1) : 0)} hours</span>
                             </div>
-                            <div className="flex justify-between items-center py-2">
+                            <div className={`flex justify-between items-center py-2 ${jobSteps.length > 0 ? "border-b" : ""}`}>
                                 <span className="text-sm text-muted-foreground">Stops</span>
-                                <span className="font-semibold">{routeSteps.filter(s => s.package_assignment?.package).length}</span>
+                                <span className="font-semibold">{jobSteps.length}</span>
                             </div>
+                            {jobSteps.length > 0 && (
+                                <div className="flex justify-between items-center py-2">
+                                    <span className="text-sm text-muted-foreground">
+                                        Assigned by fallback
+                                    </span>
+                                    {/* Not styled as a warning: parent R13 treats a fallback as
+                                        expected behaviour on a partially-drawn map, not a failure. */}
+                                    <span className="font-semibold">
+                                        {fallbackStopCount} of {jobSteps.length}
+                                    </span>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>

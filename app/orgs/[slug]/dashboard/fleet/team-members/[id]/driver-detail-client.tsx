@@ -1,0 +1,254 @@
+"use client"
+
+import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
+import { getDriversByIds } from "@/lib/supabase/supabase-rpc"
+import { useDriverLocationUpdates } from "@/hooks/useDriverLocationUpdates"
+import DriverMap from "./driver-map"
+import { Spinner } from "@/components/ui/spinner"
+import { getDriverPackageAssignmentStatus, getDriverWarehouse } from "@/lib/supabase/db"
+import type { ListDriverDto } from "@/lib/api"
+import { Button } from "@/components/ui/button"
+import { Edit } from "lucide-react"
+import LocationHistoryCard from "./location-history-card"
+import { useDriverPresenceStatus } from "@/hooks/useDriverPresenceStatus"
+import { DriverShiftsCalendar } from "@/app/orgs/[slug]/dashboard/driver-shifts/driver-shifts-calendar"
+import { DriverServiceAreasCard } from "./driver-service-areas-card"
+
+
+type AssignmentWithPackage = Awaited<ReturnType<typeof getDriverPackageAssignmentStatus>>[number]
+interface DriverPackageRow {
+    assignmentId: string
+    assignedAt: string
+    package: AssignmentWithPackage["package"] | null
+}
+
+export function DriverDetailClient({
+    driverId,
+    slug,
+    canEdit,
+}: {
+    driverId: string
+    slug: string
+    canEdit: boolean
+}) {
+    const [driver, setDriver] = useState<ListDriverDto | null>(null)
+    const [warehouse, setWarehouse] = useState<{ id: string; name: string } | null>(null)
+    const [packages, setPackages] = useState<DriverPackageRow[]>([])
+    const router = useRouter()
+    const { location } = useDriverLocationUpdates(driverId ?? "")
+    const { isOnline, isLoading: isPresenceLoading } = useDriverPresenceStatus(driverId ?? "")
+
+    // `loadedDriverId` marks which driver the current `driver` belongs to, so the
+    // loading flag is derived instead of being reset synchronously inside the effect.
+    const [loadedDriverId, setLoadedDriverId] = useState<string | null>(null)
+    const loading = loadedDriverId !== driverId
+
+    useEffect(() => {
+        if (!driverId) return
+
+        let active = true
+
+        Promise.all([
+            getDriversByIds([driverId]),
+            getDriverWarehouse(driverId).catch((e) => {
+                console.error("Error fetching driver warehouse", e)
+                return null
+            }),
+        ])
+            .then(([arr, driverWarehouse]) => {
+                if (!active) return
+                if (arr && arr.length > 0) setDriver(arr[0])
+                setWarehouse(driverWarehouse)
+            })
+            .catch((e) => console.error("Error fetching driver", e))
+            .finally(() => {
+                if (!active) return
+                setLoadedDriverId(driverId)
+            })
+
+        return () => {
+            active = false
+        }
+    }, [driverId])
+
+    useEffect(() => {
+        if (!driverId) return
+
+
+        async function fetchPackages() {
+            try {
+                const data = await getDriverPackageAssignmentStatus(driverId)
+
+                const mapped: DriverPackageRow[] = (data ?? []).map((row) => ({
+                    assignmentId: row.package_id,
+                    assignedAt: row.created_at,
+                    package: row.package ?? null,
+                }))
+
+                setPackages(mapped)
+            } catch (e) {
+                console.error(e)
+            }
+        }
+
+        fetchPackages()
+    }, [driverId])
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-[300px]">
+                <Spinner className="h-8 w-8" />
+            </div>
+        )
+    }
+
+
+    return (
+        <div className="p-6 space-y-8">
+
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <h1 className="text-3xl font-semibold">
+                        {driver?.display_name ?? "Driver"}
+                    </h1>
+                </div>
+                <Button
+                    onClick={() => router.push(`/orgs/${slug}/dashboard/fleet/team-members/${driverId}/edit`)}
+                    variant="outline"
+                >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit Driver
+                </Button>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
+
+                <div className="border rounded-lg p-4">
+                    <p className="text-sm text-muted-foreground">Last Location Update</p>
+                    <p className="text-sm">
+                        {location
+                            ? new Date(location.updated_at).toLocaleString()
+                            : "—"}
+                    </p>
+                </div>
+
+                <div className="border rounded-lg p-4">
+                    <p className="text-sm text-muted-foreground">Online Status</p>
+                    <p className="text-2xl font-semibold">
+                        {isPresenceLoading ? "Checking" : isOnline ? "Online" : "Offline"}
+                    </p>
+                </div>
+            </div>
+
+            <div className="border rounded-lg p-6">
+                <h2 className="font-medium mb-4">Driver Profile</h2>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-6 text-sm">
+
+                    <div>
+                        <p className="text-muted-foreground">Phone</p>
+                        <p className="font-medium">{driver?.phone_number ?? "—"}</p>
+                    </div>
+
+                    <div>
+                        <p className="text-muted-foreground">Email</p>
+                        <p className="font-medium">{driver?.email ?? "—"}</p>
+                    </div>
+
+                    <div>
+                        <p className="text-muted-foreground">Warehouse</p>
+                        <p className="font-medium">
+                            {warehouse?.name ?? "—"}
+                        </p>
+                    </div>
+
+                    <div>
+                        <p className="text-muted-foreground">License</p>
+                        <p className="font-medium">{driver?.driver_license ?? "—"}</p>
+                    </div>
+
+                    <div>
+                        <p className="text-muted-foreground">License Expiry</p>
+                        <p className="font-medium">{driver?.license_expiry ?? "—"}</p>
+                    </div>
+
+                </div>
+            </div>
+
+            <div className="border rounded-lg p-6">
+                <DriverServiceAreasCard driverId={driverId} slug={slug} canEdit={canEdit} />
+            </div>
+
+            <div className="border rounded-lg p-4">
+                <h2 className="font-medium mb-3">Current Location</h2>
+                {location ? (
+                    <div className="w-full h-[500px] rounded-md overflow-hidden border">
+                        <DriverMap
+                            lat={location.location.coordinates[1]}
+                            lng={location.location.coordinates[0]}
+                        />
+                    </div>
+                ) : (
+                    <p className="text-sm text-muted-foreground">
+                        No live location available
+                    </p>
+                )}
+            </div>
+
+            <div className="border rounded-lg p-6 space-y-4">
+                <div>
+                    <h2 className="font-medium">Assigned Shifts</h2>
+                    <p className="text-sm text-muted-foreground">
+                        Weekly shift calendar for this driver. Select a shift to open its route details.
+                    </p>
+                </div>
+
+                <DriverShiftsCalendar
+                    driverId={driverId}
+                    emptyMessage="No shifts assigned to this driver for the selected week."
+                />
+            </div>
+
+            <div className="border rounded-lg p-6">
+                <h2 className="font-medium mb-4">
+                    Packages (Assigned / Delivered)
+                </h2>
+
+                {packages.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                        No packages found for this driver.
+                    </p>
+                ) : (
+                    <ul className="divide-y">
+                        {packages.map((p) => (
+                            <li
+                                key={p.assignmentId}
+                                className="flex items-center justify-between py-4"
+                            >
+                                <div>
+                                    <p className="font-medium">
+                                        {p.package?.id}
+                                    </p>
+
+                                    <p className="text-sm text-muted-foreground">
+                                        Status:{" "}
+                                        {p.package?.current_status}
+                                    </p>
+                                </div>
+
+                                <div className="text-sm text-muted-foreground">
+                                    Assigned:{" "}
+                                    {new Date(p.assignedAt).toLocaleString()}
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+
+            <LocationHistoryCard driverId={driverId} />
+
+        </div>
+    )
+}

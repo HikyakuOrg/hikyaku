@@ -9,10 +9,11 @@ export function PackagesTable() {
     return (
         <PackageListTable
             addPackageHref={`/orgs/${slug}/dashboard/packages/add`}
-            loadPage={async (pageSize, page, statuses) => {
+            showCoverageFilter
+            loadPage={async (pageSize, page, statuses, coverageOutcomes) => {
                 const [totalCount, data] = await Promise.all([
-                    getPackagesCount(statuses),
-                    getPackages(pageSize, page, statuses),
+                    getPackagesCount(statuses, undefined, coverageOutcomes),
+                    getPackages(pageSize, page, statuses, undefined, coverageOutcomes),
                 ])
 
                 return {
@@ -25,6 +26,7 @@ export function PackagesTable() {
                         status: item.latest_package_status_text ?? "Pending",
                         driverId: item.driver_id ?? "",
                         driverName: item.driver_name ?? "",
+                        coverageOutcome: item.coverage_outcome,
                     })),
                 }
             }}

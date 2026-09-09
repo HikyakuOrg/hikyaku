@@ -41,6 +41,7 @@ function toApiBody(values: CustomerFormValues) {
         email: values.customerEmail || undefined,
         address: {
             street: values.customerAddress,
+            unit: values.customerUnit || undefined,
             suburb: values.customerSuburb,
             state: values.customerState,
             postcode: values.customerPostcode,

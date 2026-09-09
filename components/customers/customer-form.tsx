@@ -16,6 +16,7 @@ const defaultValues: CustomerFormValues = {
     customerEmail: "",
     customerCountry: "",
     customerAddress: "",
+    customerUnit: "",
     customerSuburb: "",
     customerState: "",
     customerPostcode: "",
@@ -54,6 +55,7 @@ export function CustomerForm({
     }, [form, initialValues])
 
     const { errors } = form.formState
+    const customerUnit = form.watch("customerUnit")
     const hasMissingAddressDetails = Boolean(
         errors.customerSuburb ||
         errors.customerState ||
@@ -149,6 +151,8 @@ export function CustomerForm({
                                     form.setValue("customerPeliasGid", s.gid)
                                     form.setValue("customerPeliasRaw", s.raw)
                                 }}
+                                unitValue={customerUnit}
+                                onUnitChange={(v) => form.setValue("customerUnit", v)}
                                 placeholder="Enter customer address"
                                 aria-invalid={fieldState.invalid}
                             />

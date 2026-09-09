@@ -10,6 +10,7 @@ export const customerSchema = z.object({
     customerEmail: z.union([z.literal(""), z.email("Invalid email")]),
     customerCountry: z.string().min(1, "Customer country is required"),
     customerAddress: z.string().min(1, "Customer address is required"),
+    customerUnit: z.string(),
     customerSuburb: z.string().min(1, "Customer suburb is required"),
     customerState: z.string().min(1, "Customer state is required"),
     customerPostcode: z.string(),
