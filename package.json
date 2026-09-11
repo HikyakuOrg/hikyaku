@@ -12,7 +12,10 @@
     "test:e2e": "playwright test --project=chrome",
     "test:e2e:headed": "playwright test --project=chrome --headed",
     "test:e2e:ui": "playwright test --project=chrome --ui",
-    "test:e2e:auth": "playwright test --project=chrome-unauthed"
+    "test:e2e:auth": "playwright test --project=chrome-unauthed",
+    "agent:new": "node scripts/agent-worktree.mjs new",
+    "agent:list": "node scripts/agent-worktree.mjs list",
+    "agent:remove": "node scripts/agent-worktree.mjs remove"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",
