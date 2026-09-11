@@ -1,6 +1,6 @@
 "use client"
 
-import { getPackage, getPackageAssignment, getPackageByTrackingNumber, getPackageDeliveryWindow, getPackageDimension, getPackageTimeline, getWarehouse, getPackageFailure } from "@/lib/supabase/db"
+import { getPackage, getPackageAssignment, getPackageByTrackingNumber, getPackageDeliveryWindow, getPackageDimension, getPackageTimeline, getSkillsByPackage, getWarehouse, getPackageFailure, type Skill } from "@/lib/supabase/db"
 import { getCustomersByIdsAction } from "@/lib/actions/customers"
 import { getDriversByIds } from "@/lib/supabase/supabase-rpc"
 import { getOrganisationBranding } from "@/lib/actions/organisations"
@@ -45,6 +45,7 @@ export default function PackageDetails() {
     // undefined: no package_assignment row exists yet (not assigned). null: a
     // row exists but automatic assignment did not write an outcome onto it.
     const [coverageOutcome, setCoverageOutcome] = useState<string | null | undefined>(undefined)
+    const [requiredSkills, setRequiredSkills] = useState<Skill[]>([])
     const [fromCustomer, setFromCustomer] = useState<Customer | null>(null)
     const [toCustomer, setToCustomer] = useState<Customer | null>(null)
     const [packageStatusTimeline, setPackageStatusTimeline] = useState<PackageStatusTimeline[]>([])
@@ -109,14 +110,16 @@ export default function PackageDetails() {
                 getPackageDimension(id),
                 getPackageDeliveryWindow(id),
                 getPackageAssignment(id),
+                getSkillsByPackage(id),
             ])
-            const [packageResult, timelineResult, dimensionResult, deliveryWindowResult, assignmentResult] = settled
+            const [packageResult, timelineResult, dimensionResult, deliveryWindowResult, assignmentResult, skillsResult] = settled
             const fetchNames = [
                 "getPackage",
                 "getPackageTimeline",
                 "getPackageDimension",
                 "getPackageDeliveryWindow",
                 "getPackageAssignment",
+                "getSkillsByPackage",
             ]
             settled.forEach((result, index) => {
                 if (result.status === "rejected") {
@@ -149,6 +152,10 @@ export default function PackageDetails() {
 
             if (assignmentResult.status === "fulfilled") {
                 setCoverageOutcome(assignmentResult.value.coverage_outcome ?? null)
+            }
+
+            if (skillsResult.status === "fulfilled") {
+                setRequiredSkills(skillsResult.value)
             }
 
             if (timelineResult.status === "fulfilled" && timelineResult.value.length > 0) {
@@ -345,6 +352,7 @@ export default function PackageDetails() {
                             height: packageDimension.height_cm,
                             weight: packageDimension.weight_kg
                         }}
+                        requiredSkills={requiredSkills.map((skill) => skill.name)}
                         recipient={{
                             name: toCustomer.customer_name,
                             address: toCustomer.customer_address,
@@ -373,9 +381,8 @@ export default function PackageDetails() {
                             </div>
                             <div className="border rounded-xl p-6 bg-card">
                                 <PackageTimeline packageStatusTimeline={packageStatusTimeline} />
-                                {coverageOutcome !== undefined && (
-                                    <CoverageOutcomeNote outcome={coverageOutcome} />
-                                )}
+                                <CoverageOutcomeNote outcome={coverageOutcome} packageId={packageId} />
+
                                 {packageFailure && (
                                     <div className="mt-6 p-4 bg-destructive/10 text-destructive rounded-lg flex items-start gap-3">
                                         <AlertCircle className="h-5 w-5 mt-0.5 shrink-0" />
