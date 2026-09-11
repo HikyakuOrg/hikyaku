@@ -422,6 +422,8 @@ export interface CoverageDiagnosticDto {
   point: CoveragePointDto | null;
   /** Whether coverage could be evaluated at all. The two failure values are answers, not errors: a package with no geocode is exactly what AssignmentService skips as `no_geocode` and never assigns, and an empty driver list would otherwise be indistinguishable from a geocoded address that genuinely nobody covers. */
   resolution: CoverageDiagnosticDtoResolutionEnum;
+  /** Null for the coordinate form (there is no package to check requirements for), for a package with no skill requirement, and whenever `resolution` is not `evaluated`. Present and `satisfied: false` is the skills-specific unassigned reason this endpoint exists to surface, independent of the territory/driver coverage above. */
+  skills: CoverageSkillsDto | null;
   /** The package’s tracking number, since a support question usually starts from one. */
   trackingNumber: string | null;
   /**
@@ -499,6 +501,20 @@ export interface CoveragePointDto {
    * @example 103.851959
    */
   lon: number;
+}
+
+export interface CoverageSkillsDto {
+  /**
+   * Vehicles at this warehouse holding every required skill at once. Zero means no single vehicle can take this package regardless of territory, even if every individual skill exists somewhere in the fleet.
+   * @example 0
+   */
+  matchingVehicleCount: number;
+  /** The subset of requiredSkillIds that NO vehicle at this warehouse holds at all — the specific "no vehicle holds skill X" reason. A skill can be missing here even when `satisfied` below also fails for a different one, or when every required skill exists somewhere in the fleet but never all on the same vehicle. */
+  missingSkillIds: string[];
+  /** The package's required skills (package_skills.skill_id). */
+  requiredSkillIds: string[];
+  /** requiredSkillIds is empty, or matchingVehicleCount is greater than zero. False is the skills-specific unassigned reason this endpoint exists to surface. */
+  satisfied: boolean;
 }
 
 export interface CoverageSummaryDto {
@@ -631,6 +647,8 @@ export interface CreatePackageDto {
    * @format uuid
    */
   id?: string;
+  /** Required skills (skills.id) this delivery needs, from the caller's organisation catalog. An unknown, archived, or another organisation's id is rejected with 400. The optimiser only routes this package onto a vehicle holding every one of them (see vehicle_skills) — a hard constraint, mirroring VROOM. Omitted or empty means no skill requirement. */
+  skillIds?: string[];
   /**
    * customer.id of the recipient. Its customer_location is the routed stop; a recipient with no geocode cannot be assigned.
    * @format uuid
@@ -694,6 +712,15 @@ export interface CreateShiftDto {
    * @format uuid
    */
   warehouseId: string;
+}
+
+export interface CreateSkillDto {
+  /**
+   * Catalog label, e.g. "Fragile Handling" or "Requires Liftgate". Unique per organisation.
+   * @maxLength 120
+   * @example "Requires Liftgate"
+   */
+  name: string;
 }
 
 export interface CreateUserDto {
@@ -1260,6 +1287,8 @@ export interface PackageDto {
   id: string;
   /** @format uuid */
   organisationId: string;
+  /** Required skills (skills.id) this delivery needs. Empty means no skill requirement. */
+  skillIds: string[];
   /** Latest package_timeline status enum, e.g. PENDING, ASSIGNED. */
   status: string;
   /** @format uuid */
@@ -1621,6 +1650,21 @@ export type ShiftVersionDtoStatusEnum =
   | "dispatched"
   | "completed"
   | "cancelled";
+
+export interface SkillDto {
+  /**
+   * Set when the skill is retired. Archived skills cannot be newly assigned to a vehicle or required on a package, but existing assignments and historical routes keep referencing them.
+   * @format date-time
+   */
+  archivedAt?: string | null;
+  /** @format date-time */
+  createdAt: string;
+  /** @format uuid */
+  id: string;
+  name: string;
+  /** @format uuid */
+  organisationId: string;
+}
 
 export interface TrialStatusDto {
   /**

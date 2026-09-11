@@ -669,6 +669,49 @@ export type Database = {
           },
         ]
       }
+      package_skills: {
+        Row: {
+          created_at: string
+          organisation_id: string
+          package_id: string
+          skill_id: string
+        }
+        Insert: {
+          created_at?: string
+          organisation_id: string
+          package_id: string
+          skill_id: string
+        }
+        Update: {
+          created_at?: string
+          organisation_id?: string
+          package_id?: string
+          skill_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "package_skills_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "package_skills_package_org_fkey"
+            columns: ["package_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "packages"
+            referencedColumns: ["id", "organisation_id"]
+          },
+          {
+            foreignKeyName: "package_skills_skill_org_fkey"
+            columns: ["skill_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "skills"
+            referencedColumns: ["id", "organisation_id"]
+          },
+        ]
+      }
       package_status: {
         Row: {
           enums: string
@@ -891,6 +934,38 @@ export type Database = {
           },
         ]
       }
+      skills: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          id: string
+          name: string
+          organisation_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          organisation_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          organisation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skills_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_members: {
         Row: {
           created_at: string
@@ -1005,6 +1080,49 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vehicles"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_skills: {
+        Row: {
+          created_at: string
+          organisation_id: string
+          skill_id: string
+          vehicle_id: string
+        }
+        Insert: {
+          created_at?: string
+          organisation_id: string
+          skill_id: string
+          vehicle_id: string
+        }
+        Update: {
+          created_at?: string
+          organisation_id?: string
+          skill_id?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_skills_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_skills_skill_org_fkey"
+            columns: ["skill_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "skills"
+            referencedColumns: ["id", "organisation_id"]
+          },
+          {
+            foreignKeyName: "vehicle_skills_vehicle_org_fkey"
+            columns: ["vehicle_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id", "organisation_id"]
           },
         ]
       }
