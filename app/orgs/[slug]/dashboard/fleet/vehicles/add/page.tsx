@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { createVehicle } from '@/lib/supabase/db'
+import { createVehicle, getOrganisationIdBySlug, setVehicleSkills } from '@/lib/supabase/db'
 import { TablesInsert } from '@/lib/supabase/supabase'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/lib/utils'
@@ -17,13 +17,20 @@ export default function AddVehiclePage() {
     const handleSubmit = async (values: VehicleFormValues, newFiles: File[]) => {
         setIsSubmitting(true)
         try {
+            const { skillIds, ...vehicleFields } = values
+            const organisationId = await getOrganisationIdBySlug(slug)
+
             // 1. Create vehicle record
             const vehicle = await createVehicle({
-                ...values,
+                ...vehicleFields,
+                organisation_id: organisationId,
                 is_deleted: false
             } as TablesInsert<'vehicles'>)
 
-            // 2. Upload images if any
+            // 2. Save its skill assignments
+            await setVehicleSkills(vehicle.id, skillIds)
+
+            // 3. Upload images if any
             if (newFiles.length > 0) {
                 const supabase = createClient()
                 const promises = newFiles.map(async (file) => {
