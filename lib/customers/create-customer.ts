@@ -53,9 +53,12 @@ export async function prepareCustomerFromForm(
         pelias_gid: values.customerPeliasGid ?? null,
         pelias_raw: values.customerPeliasRaw ?? null,
         // Assigned by the backend after the row exists: Stripe on create when
-        // payments are enabled, Shopify only for orders imported from Shopify.
+        // payments are enabled; the external pair only for orders imported
+        // from a storefront connector (Shopify and friends), which is why a
+        // customer created here in the dashboard leaves both null.
         stripe_customer_id: null,
-        shopify_customer_id: null,
+        external_customer_id: null,
+        external_platform: null,
     }
 
     return {
