@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { getVehicleTypes, getWarehouses } from '@/lib/supabase/db'
+import { getOrganisationIdBySlug, getSkillsByVehicle, getVehicleTypes, getWarehouses } from '@/lib/supabase/db'
 import { toast } from 'sonner'
 import { Loader2, CheckCircle2, AlertCircle, X } from 'lucide-react'
 import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/dropzone'
@@ -19,6 +19,8 @@ import { createClient } from '@/lib/supabase/client'
 import { cn, getErrorMessage } from '@/lib/utils'
 import { Tables } from '@/lib/supabase/supabase'
 import { decodeVin } from '@/lib/actions/vin'
+import { useOrgSlug } from '@/lib/use-org'
+import { SkillsMultiSelect } from '@/components/skills/skills-multiselect'
 
 const vehicleSchema = z.object({
     vehicle_plate: z.string().min(1, 'Plate number is required'),
@@ -29,6 +31,7 @@ const vehicleSchema = z.object({
     vehicle_type: z.string().uuid('Please select a vehicle type'),
     vehicle_gross_limits: z.number().positive('Gross limits must be positive'),
     warehouse_id: z.string().uuid('Please select a warehouse'),
+    skillIds: z.array(z.string().uuid()),
 })
 
 export type VehicleFormValues = z.infer<typeof vehicleSchema>
@@ -44,12 +47,14 @@ interface VehicleFormProps {
 
 export function VehicleForm({ initialData, onSubmit, isSubmitting, submitLabel }: VehicleFormProps) {
     const router = useRouter()
+    const slug = useOrgSlug()
     const [isDecoding, setIsDecoding] = useState(false)
     const [isAutoPopulated, setIsAutoPopulated] = useState(!!initialData)
     const [vehicleTypes, setVehicleTypes] = useState<Tables<'vehicle_type'>[]>([])
     const [warehouses, setWarehouses] = useState<Tables<'warehouse'>[]>([])
     const [existingImages, setExistingImages] = useState<{ name: string, url: string }[]>([])
     const [isRemovingImage, setIsRemovingImage] = useState<string | null>(null)
+    const [organisationId, setOrganisationId] = useState<string | null>(null)
 
     const form = useForm<VehicleFormValues>({
         resolver: zodResolver(vehicleSchema),
@@ -62,6 +67,7 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, submitLabel }
             vehicle_type: initialData?.vehicle_type || undefined,
             vehicle_gross_limits: initialData?.vehicle_gross_limits || 0,
             warehouse_id: initialData?.warehouse_id || undefined,
+            skillIds: [],
         },
     })
 
@@ -77,6 +83,9 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, submitLabel }
     useEffect(() => {
         getVehicleTypes().then(setVehicleTypes)
         getWarehouses(1, 100).then(res => setWarehouses(res.data))
+        getOrganisationIdBySlug(slug).then(setOrganisationId).catch((error) => {
+            console.error('Failed to resolve the organisation for the skill picker:', error)
+        })
         if (initialData?.id) {
             const supabase = createClient()
             supabase.storage.from('vehicles').list(initialData.id).then(({ data }) => {
@@ -88,8 +97,11 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, submitLabel }
                     setExistingImages(images)
                 }
             })
+            getSkillsByVehicle(initialData.id).then((skills) => {
+                form.setValue('skillIds', skills.map((skill) => skill.id))
+            })
         }
-    }, [initialData])
+    }, [initialData, slug, form])
 
     const handleVinDecode = async (vin: string) => {
         if (vin.length !== 17) return
@@ -297,6 +309,26 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, submitLabel }
                                 ))}
                             </SelectContent>
                         </Select>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card className="border-none shadow-premium bg-card/50 backdrop-blur-sm">
+                <CardHeader>
+                    <CardTitle>Capabilities</CardTitle>
+                    <CardDescription>
+                        Skills this vehicle holds. A package can only route onto a vehicle holding every skill it requires.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-2">
+                        <Label>Skills</Label>
+                        <SkillsMultiSelect
+                            value={form.watch('skillIds')}
+                            onChange={(skillIds) => form.setValue('skillIds', skillIds, { shouldDirty: true })}
+                            organisationId={organisationId}
+                            testId="vehicle-skills-picker"
+                        />
                     </div>
                 </CardContent>
             </Card>

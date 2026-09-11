@@ -1260,3 +1260,186 @@ export async function createServiceArea(name: string, geometry: string, organisa
 
     return data
 }
+
+// ── Skills catalog (HIK-90) ──────────────────────────────────────────────────
+//
+// Org-defined capability labels ("Fragile Handling", "Requires Liftgate"),
+// assigned to vehicles and required by packages, enforced by VROOM as a hard
+// constraint. hikyaku-api exposes create/list/archive for headless
+// integrations (HIK-93), but the dashboard writes straight to Supabase here —
+// the same "this form already writes straight to Tables<>" precedent
+// vehicle-form.tsx follows — because RLS on `skills` already grants
+// authenticated org members with `vehicles.update` insert/update/delete, and
+// that is also the only way to expose renaming (hikyaku-api has no rename
+// endpoint).
+
+/** A skill in the organisation's catalog, shaped for pickers and chips. */
+export type Skill = {
+    id: string
+    name: string
+}
+
+/** Active (non-archived) skills, alphabetical — what a picker offers. */
+export async function getSkills(): Promise<Skill[]> {
+    const { data, error } = await supabase
+        .from("skills")
+        .select("id, name")
+        .is("archived_at", null)
+        .order("name", { ascending: true })
+    if (error) throw error
+    return data ?? []
+}
+
+/** Every skill, including archived, newest first — for the Manage Skills dialog. */
+export async function getSkillCatalog(): Promise<Tables<'skills'>[]> {
+    const { data, error } = await supabase
+        .from("skills")
+        .select("*")
+        .order("created_at", { ascending: false })
+    if (error) throw error
+    return data ?? []
+}
+
+/** Skills by id, for resolving a package's or vehicle's `skillIds` into names for display. */
+export async function getSkillsByIds(skillIds: string[]): Promise<Skill[]> {
+    if (skillIds.length === 0) return []
+    const { data, error } = await supabase
+        .from("skills")
+        .select("id, name")
+        .in("id", skillIds)
+    if (error) throw error
+    return data ?? []
+}
+
+export async function createSkill(organisationId: string, name: string) {
+    const { data, error } = await supabase
+        .from("skills")
+        .insert({ organisation_id: organisationId, name: name.trim() })
+        .select()
+        .single()
+    if (error) throw error
+    return data
+}
+
+export async function renameSkill(id: string, name: string) {
+    const { data, error } = await supabase
+        .from("skills")
+        .update({ name: name.trim() })
+        .eq("id", id)
+        .select()
+        .single()
+    if (error) throw error
+    return data
+}
+
+/**
+ * Retire a skill. Idempotent-in-effect (setting archived_at again just
+ * updates the same row), mirroring SkillsService.archive on the API side.
+ * Archived skills drop out of `getSkills()` but stay resolvable by id for
+ * historical vehicle_skills/package_skills rows.
+ */
+export async function archiveSkill(id: string) {
+    const { data, error } = await supabase
+        .from("skills")
+        .update({ archived_at: new Date().toISOString() })
+        .eq("id", id)
+        .select()
+        .single()
+    if (error) throw error
+    return data
+}
+
+/** The skills one vehicle holds, for the vehicle form's Capabilities card. */
+export async function getSkillsByVehicle(vehicleId: string): Promise<Skill[]> {
+    const { data: links, error: linksError } = await supabase
+        .from("vehicle_skills")
+        .select("skill_id")
+        .eq("vehicle_id", vehicleId)
+    if (linksError) throw linksError
+
+    const skillIds = (links ?? []).map((link) => link.skill_id)
+    if (skillIds.length === 0) return []
+
+    const { data: skills, error: skillsError } = await supabase
+        .from("skills")
+        .select("id, name")
+        .in("id", skillIds)
+    if (skillsError) throw skillsError
+
+    return (skills ?? []).sort((a, b) => a.name.localeCompare(b.name))
+}
+
+/**
+ * Replace a vehicle's whole skill set in one call, diffing against what it
+ * already holds. The vehicle form submits the full selection at once (a
+ * chips combobox bound to one form field), unlike the driver/service-area
+ * card's incremental attach-then-separately-detach flow, so a diff-and-write
+ * fits it better than exposing separate attach/detach functions here.
+ */
+export async function setVehicleSkills(vehicleId: string, skillIds: string[]) {
+    const { data: vehicle, error: vehicleError } = await supabase
+        .from("vehicles")
+        .select("organisation_id")
+        .eq("id", vehicleId)
+        .single()
+    if (vehicleError) throw vehicleError
+
+    const { data: existing, error: existingError } = await supabase
+        .from("vehicle_skills")
+        .select("skill_id")
+        .eq("vehicle_id", vehicleId)
+    if (existingError) throw existingError
+
+    const existingIds = new Set((existing ?? []).map((link) => link.skill_id))
+    const nextIds = new Set(skillIds)
+    const toAdd = skillIds.filter((id) => !existingIds.has(id))
+    const toRemove = [...existingIds].filter((id) => !nextIds.has(id))
+
+    if (toAdd.length > 0) {
+        const { error } = await supabase
+            .from("vehicle_skills")
+            .upsert(
+                toAdd.map((skillId) => ({
+                    vehicle_id: vehicleId,
+                    skill_id: skillId,
+                    organisation_id: vehicle.organisation_id,
+                })),
+                { onConflict: "vehicle_id,skill_id", ignoreDuplicates: true }
+            )
+        if (error) throw error
+    }
+
+    if (toRemove.length > 0) {
+        const { error } = await supabase
+            .from("vehicle_skills")
+            .delete()
+            .eq("vehicle_id", vehicleId)
+            .in("skill_id", toRemove)
+        if (error) throw error
+    }
+}
+
+/**
+ * The skills one package requires, for the package detail page. `skillIds`
+ * are sent to hikyaku-api at creation time (CreatePackageDto), but the
+ * detail page reads packages through Supabase directly, so this reads the
+ * join table the same way `getSkillsByVehicle` reads its own.
+ */
+export async function getSkillsByPackage(packageId: string): Promise<Skill[]> {
+    const { data: links, error: linksError } = await supabase
+        .from("package_skills")
+        .select("skill_id")
+        .eq("package_id", packageId)
+    if (linksError) throw linksError
+
+    const skillIds = (links ?? []).map((link) => link.skill_id)
+    if (skillIds.length === 0) return []
+
+    const { data: skills, error: skillsError } = await supabase
+        .from("skills")
+        .select("id, name")
+        .in("id", skillIds)
+    if (skillsError) throw skillsError
+
+    return (skills ?? []).sort((a, b) => a.name.localeCompare(b.name))
+}
