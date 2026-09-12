@@ -40,7 +40,10 @@ export type CreateManualShiftResult =
            * fall back to the shifts list.
            */
           routeId: string | null
-          /** Packages the API declined to place, with the reason it gave. */
+          /**
+           * Packages the API declined to place, or placed despite breaking a
+           * deadline or a driving limit, with the reason it gave.
+           */
           warnings: string[]
       }
     | { success: false; error: string }
@@ -144,7 +147,15 @@ export async function createManualShift(params: ManualShiftParams): Promise<Crea
     const plan: ShiftPlanDto = await planned.json()
     const warnings = plan.packages
         .filter((p) => !p.added || p.warning)
-        .map((p) => p.warning ?? `Package ${p.packageId.slice(0, 8)} could not be added.`)
+        .map((p) => {
+            const label = `Package ${p.packageId.slice(0, 8)}`
+            if (!p.added) return p.warning ?? `${label} could not be added.`
+            // The API words a breach as a clause about the package ("over this
+            // driver's 250 km distance limit", "breaks a delivery deadline on this
+            // route"), and the pin went through regardless: a limit constrains
+            // automatic assignment, not the dispatcher. Say both halves.
+            return `${label} was added anyway: ${p.warning}.`
+        })
 
     return {
         success: true,

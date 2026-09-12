@@ -9,6 +9,8 @@ import {
 import { Tables } from "./supabase"
 import { VrpOptimizationStatus } from "@/app/models/vrp-optimization-status"
 import { createClient } from "./server"
+import { readDrivingLimitsForDrivers } from "./driving-limits"
+import type { DrivingLimitProfile } from "@/lib/driving-limits"
 import { PackageOptimisation, Location } from "@/app/models/package-optimisation"
 import { listCustomersAction, getCustomerAction } from "@/lib/actions/customers"
 import { TrackingDetails } from "@/app/models/tracking"
@@ -584,6 +586,140 @@ export async function getVehicleById(vehicleId: string) {
         return null
     }
     return data
+}
+
+/**
+ * A route's planned distance and where it came from. `distance_m` stays in
+ * metres: the shift page converts at the render and nowhere before it.
+ */
+export async function getRouteDistance(
+    routeId: string,
+): Promise<{ distance_m: number | null; distance_source: string | null } | null> {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+        .from("vrp_route")
+        .select("distance_m, distance_source")
+        .eq("id", routeId)
+        .maybeSingle()
+    if (error) {
+        console.error(error)
+        return null
+    }
+    return data
+}
+
+/** One driver's effective limits for the shift page. See readDrivingLimitsForDrivers. */
+export async function getDrivingLimitsForDriver(slug: string, driverId: string) {
+    const supabase = await createClient()
+    const result = await readDrivingLimitsForDrivers(supabase, slug, [driverId])
+    return result.status === "ok"
+        ? { status: "ok" as const, limits: result.limitsByDriver.get(driverId) ?? null }
+        : result
+}
+
+export type DrivingLimitProfileListResult =
+    | { status: "ok"; profiles: DrivingLimitProfile[] }
+    | { status: "error" }
+
+/**
+ * Every live driving limit profile in one organisation, by name, for the
+ * profiles page and the organisation default picker. Soft deletes are filtered
+ * here, never in RLS, so a retired profile only disappears because of the
+ * `is_deleted` predicate. The organisation is filtered here too: RLS lets a
+ * member of two organisations read both organisations' profiles.
+ */
+export async function listDrivingLimitProfiles(organisationId: string): Promise<DrivingLimitProfileListResult> {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+        .from("driving_limit_profile")
+        .select("id, name, max_working_seconds, max_driving_seconds, max_distance_m, max_stops")
+        .eq("organisation_id", organisationId)
+        .eq("is_deleted", false)
+        .order("name", { ascending: true })
+
+    if (error) {
+        console.error(error)
+        return { status: "error" }
+    }
+
+    return { status: "ok", profiles: data ?? [] }
+}
+
+export type DrivingLimitProfileDetailResult =
+    | { status: "ok"; profile: DrivingLimitProfile }
+    | { status: "not-found" }
+    | { status: "error" }
+
+/**
+ * One live profile of this organisation. Any other organisation's profile is
+ * "not-found", including one the caller could read as a member of both.
+ */
+export async function getDrivingLimitProfileDetail(
+    organisationId: string,
+    id: string,
+): Promise<DrivingLimitProfileDetailResult> {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+        .from("driving_limit_profile")
+        .select("id, name, max_working_seconds, max_driving_seconds, max_distance_m, max_stops")
+        .eq("id", id)
+        .eq("organisation_id", organisationId)
+        .eq("is_deleted", false)
+        .maybeSingle()
+
+    if (error) {
+        console.error(error)
+        return { status: "error" }
+    }
+
+    return data ? { status: "ok", profile: data } : { status: "not-found" }
+}
+
+export type OrganisationDrivingLimitSettingsResult =
+    | { status: "ok"; organisationId: string; defaultProfileId: string | null }
+    | { status: "error" }
+
+/** The organisation's default profile pointer. It can still name a retired profile, which callers treat as no default. */
+export async function getOrganisationDrivingLimitSettings(slug: string): Promise<OrganisationDrivingLimitSettingsResult> {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+        .from("organisations")
+        .select("id, default_driving_limit_profile_id")
+        .eq("slug", slug)
+        .maybeSingle()
+
+    if (error || !data) {
+        if (error) console.error(error)
+        return { status: "error" }
+    }
+
+    return { status: "ok", organisationId: data.id, defaultProfileId: data.default_driving_limit_profile_id }
+}
+
+/**
+ * How many drivers point at each profile, keyed by profile id. Needs
+ * `drivers.view`; without it the counts come back empty rather than failing the
+ * page, since they only inform the delete confirmation.
+ */
+export async function countDriversByDrivingLimitProfile(): Promise<Record<string, number>> {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+        .from("drivers")
+        .select("driving_limit_profile_id")
+        .not("driving_limit_profile_id", "is", null)
+
+    if (error) {
+        console.error(error)
+        return {}
+    }
+
+    const counts: Record<string, number> = {}
+    for (const row of data ?? []) {
+        if (row.driving_limit_profile_id) {
+            counts[row.driving_limit_profile_id] = (counts[row.driving_limit_profile_id] ?? 0) + 1
+        }
+    }
+    return counts
 }
 
 /**
