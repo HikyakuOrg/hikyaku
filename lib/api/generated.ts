@@ -1780,6 +1780,8 @@ export interface ShiftDto {
   /** @format uuid */
   driverId: string | null;
   drivingLimits: DrivingLimitsDto;
+  /** Whether DRIVING_LIMITS is on for this process. Lets a client tell "off" apart from "on, nothing configured" without a second call to the diagnostics summary endpoint. */
+  drivingLimitsEnabled: boolean;
   /**
    * vrp_optimization.id.
    * @format uuid
