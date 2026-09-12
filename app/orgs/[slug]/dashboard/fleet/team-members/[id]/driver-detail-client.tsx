@@ -14,6 +14,7 @@ import LocationHistoryCard from "./location-history-card"
 import { useDriverPresenceStatus } from "@/hooks/useDriverPresenceStatus"
 import { DriverShiftsCalendar } from "@/app/orgs/[slug]/dashboard/driver-shifts/driver-shifts-calendar"
 import { DriverServiceAreasCard } from "./driver-service-areas-card"
+import { DriverDrivingLimitsCard } from "./driver-driving-limits-card"
 
 
 type AssignmentWithPackage = Awaited<ReturnType<typeof getDriverPackageAssignmentStatus>>[number]
@@ -27,10 +28,14 @@ export function DriverDetailClient({
     driverId,
     slug,
     canEdit,
+    canEditDrivingLimits,
 }: {
     driverId: string
     slug: string
+    /** `service_areas.edit`, for the service areas card. */
     canEdit: boolean
+    /** `drivers.update`, for the driving limits card. */
+    canEditDrivingLimits: boolean
 }) {
     const [driver, setDriver] = useState<ListDriverDto | null>(null)
     const [warehouse, setWarehouse] = useState<{ id: string; name: string } | null>(null)
@@ -174,6 +179,10 @@ export function DriverDetailClient({
                     </div>
 
                 </div>
+            </div>
+
+            <div className="border rounded-lg p-6">
+                <DriverDrivingLimitsCard driverId={driverId} slug={slug} canEdit={canEditDrivingLimits} />
             </div>
 
             <div className="border rounded-lg p-6">
