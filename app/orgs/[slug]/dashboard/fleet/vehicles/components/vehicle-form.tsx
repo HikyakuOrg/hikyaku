@@ -103,6 +103,23 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, submitLabel }
         }
     }, [initialData, slug, form])
 
+    useEffect(() => {
+        // Base UI's Select/Combobox popups (HIK-132) can leave a scroll lock
+        // acquired on mount without ever releasing it, permanently setting
+        // `<body style="overflow: hidden">` even though nothing is open.
+        // Clear a stray lock once the form has settled; skip if a popup is
+        // genuinely open (`[data-open]`) so a real one is never fought.
+        const timers = [300, 1000].map((delay) =>
+            window.setTimeout(() => {
+                const popupOpen = document.querySelector('[data-open]') !== null
+                if (!popupOpen && document.body.style.overflow === 'hidden') {
+                    document.body.style.overflow = ''
+                }
+            }, delay)
+        )
+        return () => timers.forEach(window.clearTimeout)
+    }, [])
+
     const handleVinDecode = async (vin: string) => {
         if (vin.length !== 17) return
 
