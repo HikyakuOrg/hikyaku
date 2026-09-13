@@ -518,7 +518,6 @@ import { VrpOptimizationStatus } from "@/app/models/vrp-optimization-status";
 import { TrackingLocationBroadcast } from "@/app/models/tracking";
 import { ListDriverDto } from "../api";
 import { getDriversByIds } from "./supabase-rpc";
-import { readDrivingLimitsForDrivers } from "./driving-limits";
 import type { DrivingLimitProfile, DrivingLimitValues } from "@/lib/driving-limits";
 
 
@@ -1183,13 +1182,6 @@ export async function setOrganisationDrivingLimitDefault(organisationId: string,
     if (error) throw error
     return data
 }
-
-/** Effective limits for the drivers on a set of shifts. See readDrivingLimitsForDrivers. */
-export async function getDrivingLimitsForDrivers(slug: string, driverIds: string[]) {
-    return readDrivingLimitsForDrivers(supabase, slug, driverIds)
-}
-
-
 
 export async function searchWarehouse(search: string) {
     const { data, error } = await supabase.from("warehouse").select("*")
