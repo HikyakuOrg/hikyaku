@@ -45,31 +45,6 @@ export type DrivingLimitProfile = DrivingLimitValues & {
  */
 export const MAX_STOPS_CEILING = 45
 
-/**
- * Most specific wins, dimension by dimension: the driver's own profile, then
- * the organisation default, then no limit. A driver profile that sets only a
- * distance keeps the default's working time rather than dropping it.
- *
- * This mirrors `resolveLimits` in hikyaku-api's `src/dispatch/driving-limits.ts`,
- * which is the authority. It exists only because no shift read endpoint returns
- * the resolved figure yet (the shift mutations do); once one does, read
- * `ShiftDto.drivingLimits` and delete this. Pass null for a soft-deleted
- * profile, the same way the API's query skips one.
- */
-export function resolveDrivingLimits(
-    driverProfile: DrivingLimitValues | null,
-    organisationDefault: DrivingLimitValues | null,
-): DrivingLimits {
-    return {
-        maxWorkingSeconds:
-            driverProfile?.max_working_seconds ?? organisationDefault?.max_working_seconds ?? null,
-        maxDrivingSeconds:
-            driverProfile?.max_driving_seconds ?? organisationDefault?.max_driving_seconds ?? null,
-        maxDistanceM: driverProfile?.max_distance_m ?? organisationDefault?.max_distance_m ?? null,
-        maxStops: driverProfile?.max_stops ?? organisationDefault?.max_stops ?? null,
-    }
-}
-
 export function hasAnyDrivingLimit(limits: DrivingLimits): boolean {
     return (
         limits.maxWorkingSeconds != null ||

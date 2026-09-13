@@ -5,6 +5,48 @@ import { getAvailableDriverVehiclePairs, getUnassignedPackagesByWarehouse } from
 import type { DriverVehiclePair, UnassignedPackage } from "@/lib/supabase/db-server"
 import { buildApiContext, parseApiError } from "./api-client"
 
+export type FetchShiftResult = { success: true; shift: ShiftDto } | { success: false; error: string }
+
+/** One shift, with the API's resolved driving limits and whether it is enforcing them. */
+export async function fetchShift(shiftId: string): Promise<FetchShiftResult> {
+    const ctx = await buildApiContext()
+    if ("error" in ctx) return ctx
+
+    let res: Response
+    try {
+        res = await fetch(`${ctx.apiUrl}/api/v1/shifts/${shiftId}`, {
+            headers: ctx.headers,
+            cache: "no-store",
+        })
+    } catch {
+        return { success: false, error: "Failed to reach the API." }
+    }
+
+    if (!res.ok) return { success: false, error: await parseApiError(res) }
+    return { success: true, shift: await res.json() }
+}
+
+export type FetchShiftsInRangeResult = { success: true; shifts: ShiftDto[] } | { success: false; error: string }
+
+/** Every shift with a service day in [from, to] (inclusive, YYYY-MM-DD), for the calendar's driving-limit markers. */
+export async function fetchShiftsInRange(from: string, to: string): Promise<FetchShiftsInRangeResult> {
+    const ctx = await buildApiContext()
+    if ("error" in ctx) return ctx
+
+    let res: Response
+    try {
+        res = await fetch(`${ctx.apiUrl}/api/v1/shifts?from=${from}&to=${to}`, {
+            headers: ctx.headers,
+            cache: "no-store",
+        })
+    } catch {
+        return { success: false, error: "Failed to reach the API." }
+    }
+
+    if (!res.ok) return { success: false, error: await parseApiError(res) }
+    return { success: true, shifts: await res.json() }
+}
+
 export async function fetchAvailableDriverVehiclePairs(
     warehouseId: string,
     date: string

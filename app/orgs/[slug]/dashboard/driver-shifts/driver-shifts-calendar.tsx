@@ -12,7 +12,8 @@ import type { ToolbarProps } from 'react-big-calendar'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useOrgSlug } from '@/lib/use-org'
-import { getDrivingLimitsForDrivers, getShiftsByDates, getShiftStartEnd, type CalendarShift } from '@/lib/supabase/db'
+import { getShiftsByDates, getShiftStartEnd, type CalendarShift } from '@/lib/supabase/db'
+import { fetchShiftsInRange } from '@/lib/actions/shift'
 import {
     LIMIT_DIMENSION_LABELS,
     assessShift,
@@ -80,8 +81,10 @@ export function DriverShiftsCalendar({
     const [events, setEvents] = useState<CalendarShift[]>([])
     const [drivers, setDrivers] = useState<Record<string, ListDriverDto>>({})
     // Null until loaded, and after a failed read: no marker is better than
-    // marking every shift as comfortably within its limits.
-    const [limitsByDriver, setLimitsByDriver] = useState<Map<string, DrivingLimits> | null>(null)
+    // marking every shift as comfortably within its limits. Keyed by shift
+    // (vrp_optimization) id, since the API resolves limits per shift rather
+    // than per driver.
+    const [limitsByShift, setLimitsByShift] = useState<Map<string, DrivingLimits> | null>(null)
     // Bumped whenever an external actor (e.g. a completed optimisation run) signals
     // that shifts changed, forcing the fetch effect below to re-run.
     const [refreshTick, setRefreshTick] = useState(0)
@@ -126,8 +129,15 @@ export function DriverShiftsCalendar({
                 setDrivers({})
             }
 
-            const limitsResult = await getDrivingLimitsForDrivers(slug, Array.from(driverIds))
-            setLimitsByDriver(limitsResult.status === 'ok' ? limitsResult.limitsByDriver : null)
+            const shiftsResult = await fetchShiftsInRange(
+                format(startDate, 'yyyy-MM-dd'),
+                format(endDate, 'yyyy-MM-dd'),
+            )
+            setLimitsByShift(
+                shiftsResult.success
+                    ? new Map(shiftsResult.shifts.map((s) => [s.id, s.drivingLimits]))
+                    : null,
+            )
         }
         fetchEvents()
     }, [driverId, startDate, endDate, refreshTick, slug])
@@ -157,9 +167,9 @@ export function DriverShiftsCalendar({
 
     // Near or over a driving limit, so a dispatcher scanning the week sees it
     // without opening each shift. The plan's figures are compared to the
-    // driver's limits in seconds and metres; only the tooltip converts.
+    // shift's limits in seconds and metres; only the tooltip converts.
     const limitFlagFor = (event: CalendarShift) => {
-        const limits = event.driver_id ? limitsByDriver?.get(event.driver_id) : undefined
+        const limits = limitsByShift?.get(event.id)
         if (!limits) return null
 
         const flagged = flaggedDimensions(assessShift(shiftUsage({

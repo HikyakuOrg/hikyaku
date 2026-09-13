@@ -3,7 +3,7 @@ import { RouteMap, RouteStep } from "./route-map";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MapPin } from "lucide-react";
 import { RouteProgressionCard } from "./route-progression-card";
-import { getRouteSteps, getDriverCurrentLocation, getShiftMeta, getVehicleById, getWarehouse, getRouteDistance, getDrivingLimitsForDriver } from "@/lib/supabase/db-server";
+import { getRouteSteps, getDriverCurrentLocation, getShiftMeta, getVehicleById, getWarehouse, getRouteDistance } from "@/lib/supabase/db-server";
 import { getDriversByIds } from "@/lib/supabase/supabase-rpc";
 import type { RoutePreview } from "@/app/models/route-preview";
 import Link from "next/link";
@@ -11,7 +11,7 @@ import { VehicleCard } from "@/app/orgs/[slug]/dashboard/fleet/vehicles/componen
 import { isFallbackOutcome } from "@/lib/coverage/outcome";
 import { Badge } from "@/components/ui/badge";
 import { NO_DRIVING_LIMITS, assessShift, hasAnyDrivingLimit, shiftUsage } from "@/lib/driving-limits";
-import { fetchDrivingLimitsEnforced } from "@/lib/actions/driving-limits";
+import { fetchShift } from "@/lib/actions/shift";
 import { ShiftDrivingLimitsCard } from "./shift-driving-limits-card";
 
 export default async function DriverShiftsDetails({ params }: { params: Promise<{ id: string; slug: string }> }) {
@@ -24,8 +24,10 @@ export default async function DriverShiftsDetails({ params }: { params: Promise<
     const assignment = routeSteps.find(s => s.package_assignment?.package?.warehouse)?.package_assignment;
 
     // A shift created with no packages has no package_assignment, so its
-    // driver/vehicle/warehouse come from the shift row itself.
-    const meta = assignment ? null : await getShiftMeta(id);
+    // driver/vehicle/warehouse come from the shift row itself. Fetched
+    // unconditionally: it is also the only source of the shift id the API
+    // reads driving limits by.
+    const meta = await getShiftMeta(id);
     const warehouseInfo = assignment?.package?.warehouse
         ?? (meta?.warehouse_id ? await getWarehouse(meta.warehouse_id) : null);
 
@@ -70,13 +72,11 @@ export default async function DriverShiftsDetails({ params }: { params: Promise<
     // effective limits. A shift with no driver has no limits, as in the API.
     const startStep = routeSteps.find((s) => s.type === "start");
     const endStep = routeSteps.find((s) => s.type === "end");
-    const [routeDistance, limitsResult] = await Promise.all([
+    const [routeDistance, shiftResult] = await Promise.all([
         getRouteDistance(id),
-        driverId
-            ? getDrivingLimitsForDriver(slug, driverId)
-            : Promise.resolve({ status: "ok" as const, limits: NO_DRIVING_LIMITS }),
+        meta ? fetchShift(meta.optimisation_id) : Promise.resolve(null),
     ]);
-    const drivingLimits = limitsResult.status === "ok" ? limitsResult.limits ?? NO_DRIVING_LIMITS : null;
+    const drivingLimits = shiftResult?.success ? shiftResult.shift.drivingLimits : null;
     const limitAssessments = assessShift(
         shiftUsage({
             startArrival: startStep?.arrival ?? null,
@@ -89,7 +89,7 @@ export default async function DriverShiftsDetails({ params }: { params: Promise<
         drivingLimits ?? NO_DRIVING_LIMITS,
     );
     const hasDrivingLimits = drivingLimits !== null && hasAnyDrivingLimit(drivingLimits);
-    const drivingLimitsEnforced = hasDrivingLimits ? await fetchDrivingLimitsEnforced() : null;
+    const drivingLimitsEnforced = shiftResult?.success ? shiftResult.shift.drivingLimitsEnabled : null;
     const isOverDrivingLimit = limitAssessments.some((a) => a.status === "over");
 
     return (

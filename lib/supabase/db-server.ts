@@ -9,7 +9,6 @@ import {
 import { Tables } from "./supabase"
 import { VrpOptimizationStatus } from "@/app/models/vrp-optimization-status"
 import { createClient } from "./server"
-import { readDrivingLimitsForDrivers } from "./driving-limits"
 import type { DrivingLimitProfile } from "@/lib/driving-limits"
 import { PackageOptimisation, Location } from "@/app/models/package-optimisation"
 import { listCustomersAction, getCustomerAction } from "@/lib/actions/customers"
@@ -606,15 +605,6 @@ export async function getRouteDistance(
         return null
     }
     return data
-}
-
-/** One driver's effective limits for the shift page. See readDrivingLimitsForDrivers. */
-export async function getDrivingLimitsForDriver(slug: string, driverId: string) {
-    const supabase = await createClient()
-    const result = await readDrivingLimitsForDrivers(supabase, slug, [driverId])
-    return result.status === "ok"
-        ? { status: "ok" as const, limits: result.limitsByDriver.get(driverId) ?? null }
-        : result
 }
 
 export type DrivingLimitProfileListResult =
