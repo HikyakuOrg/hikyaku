@@ -60,13 +60,26 @@ export function getSlugFromHost(host: string | null | undefined): string | null 
 }
 
 /**
- * Cookie domain so the Supabase session is shared across every tenant
- * subdomain (and the apex). Host-only on plain localhost (a leading-dot
- * domain attribute is invalid there).
+ * Cookie domain for the Supabase session, given the host being served (the
+ * request Host on the server, location.host in the browser).
+ *
+ * Hosts under the public root (app, staging, tenant subdomains) get `.<root>` so
+ * the session is shared across all of them. Any other host, such as a preview's
+ * own *.vercel.app URL, gets a host-only cookie, as does plain localhost (a
+ * leading-dot domain attribute is invalid there).
+ *
+ * This deliberately ignores ROOT_DOMAIN: its VERCEL_URL override only exists on
+ * the server, so a preview served on a custom domain (staging.hikyaku.org) would
+ * have the middleware refresh the session with a Domain the browser silently
+ * rejects, and the rotated refresh token would never be stored.
  */
-export function cookieDomain(): string | undefined {
-  const rootHostname = stripPort(ROOT_DOMAIN)
+export function cookieDomain(host: string | null | undefined): string | undefined {
+  const rootHostname = stripPort(PUBLIC_ROOT_DOMAIN)
   if (rootHostname === 'localhost') return undefined
+  if (host) {
+    const hostname = stripPort(host)
+    if (hostname !== rootHostname && !hostname.endsWith(`.${rootHostname}`)) return undefined
+  }
   return `.${rootHostname}`
 }
 
