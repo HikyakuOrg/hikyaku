@@ -25,6 +25,7 @@ function buildNavItems(slug: string, cardIssuingActive: boolean, serviceRatesAct
   const fleetItems: { title: string; url: string }[] = [
     { title: "Vehicles", url: p('/dashboard/fleet/vehicles') },
     { title: "Team Members", url: p('/dashboard/fleet/team-members') },
+    { title: "Driving Limits", url: p('/dashboard/fleet/driving-limits') },
   ]
   if (cardIssuingActive) {
     fleetItems.push({ title: "Fuel Cards", url: p('/dashboard/fleet/fuel-cards') })

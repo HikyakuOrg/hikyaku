@@ -12,6 +12,7 @@ export const packageSchema = z.object({
     length: z.number().min(0.1),
     width: z.number().min(0.1),
     height: z.number().min(0.1),
+    skillIds: z.array(z.uuid()),
 })
 
 

@@ -1,4 +1,4 @@
-import { SERVICE_AREAS_EDIT } from "@/lib/permissions"
+import { DRIVERS_UPDATE, SERVICE_AREAS_EDIT } from "@/lib/permissions"
 import { hasOrgPermission } from "@/lib/supabase/server"
 
 import { DriverDetailClient } from "./driver-detail-client"
@@ -13,7 +13,17 @@ export default async function DriverDetailsPage({
     // passed down as a prop rather than checked from the client card itself:
     // hasOrgPermission() is documented to cost a round trip and wants calling
     // from a server component.
-    const canEdit = await hasOrgPermission(slug, SERVICE_AREAS_EDIT)
+    const [canEdit, canEditDrivingLimits] = await Promise.all([
+        hasOrgPermission(slug, SERVICE_AREAS_EDIT),
+        hasOrgPermission(slug, DRIVERS_UPDATE),
+    ])
 
-    return <DriverDetailClient driverId={id} slug={slug} canEdit={canEdit} />
+    return (
+        <DriverDetailClient
+            driverId={id}
+            slug={slug}
+            canEdit={canEdit}
+            canEditDrivingLimits={canEditDrivingLimits}
+        />
+    )
 }

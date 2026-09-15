@@ -518,6 +518,7 @@ import { VrpOptimizationStatus } from "@/app/models/vrp-optimization-status";
 import { TrackingLocationBroadcast } from "@/app/models/tracking";
 import { ListDriverDto } from "../api";
 import { getDriversByIds } from "./supabase-rpc";
+import type { DrivingLimitProfile, DrivingLimitValues } from "@/lib/driving-limits";
 
 
 const supabase = createLazyClient()
@@ -1037,7 +1038,150 @@ export async function getOrganisationIdBySlug(slug: string) {
     return data.id
 }
 
+// driving_limit_profile.is_deleted is a soft delete filtered in the query layer,
+// never in RLS, exactly like service_areas.is_deleted. Every read below excludes
+// retired profiles itself, and hikyaku-api's resolver skips them the same way, so
+// a driver still pointing at one is planned as if it were not there.
 
+const DRIVING_LIMIT_PROFILE_COLUMNS =
+    "id, name, max_working_seconds, max_driving_seconds, max_distance_m, max_stops"
+
+export type DrivingLimitProfileInput = DrivingLimitValues & { name: string }
+
+/**
+ * Every live profile in one organisation, by name.
+ *
+ * Filtered on the organisation explicitly rather than left to RLS: RLS lets a
+ * member of two organisations read both organisations' profiles, and offering
+ * the other one's in a picker only earns a foreign key refusal on save.
+ */
+export async function getDrivingLimitProfiles(organisationId: string): Promise<DrivingLimitProfile[]> {
+    const { data, error } = await supabase
+        .from("driving_limit_profile")
+        .select(DRIVING_LIMIT_PROFILE_COLUMNS)
+        .eq("organisation_id", organisationId)
+        .eq("is_deleted", false)
+        .order("name", { ascending: true })
+    if (error) throw error
+    return data ?? []
+}
+
+/**
+ * Save a new profile. The limit values arrive already in seconds and metres:
+ * the form is the one place hours and kilometres are converted, and nothing
+ * between it and the table converts again.
+ */
+export async function createDrivingLimitProfile(organisationId: string, input: DrivingLimitProfileInput) {
+    const { data, error } = await supabase
+        .from("driving_limit_profile")
+        .insert({ ...input, organisation_id: organisationId })
+        .select(DRIVING_LIMIT_PROFILE_COLUMNS)
+        .single()
+    if (error) throw error
+    return data
+}
+
+/**
+ * `.eq("is_deleted", false).select().single()` for the reason `updateServiceArea`
+ * gives: a retired row, or an update RLS refuses, matches zero rows instead of
+ * raising, and PGRST116 is what lets describeWriteError() say so.
+ */
+export async function updateDrivingLimitProfile(id: string, input: DrivingLimitProfileInput) {
+    const { data, error } = await supabase
+        .from("driving_limit_profile")
+        .update(input)
+        .eq("id", id)
+        .eq("is_deleted", false)
+        .select(DRIVING_LIMIT_PROFILE_COLUMNS)
+        .single()
+    if (error) throw error
+    return data
+}
+
+/**
+ * Retire a profile. A soft delete, so the drivers and the organisation default
+ * pointing at it are left alone rather than rewritten: the resolver already
+ * treats a retired profile as absent, so those drivers fall through to the
+ * organisation default (or to no limit) without a second write that could fail
+ * halfway.
+ */
+export async function deleteDrivingLimitProfile(id: string) {
+    const { data, error } = await supabase
+        .from("driving_limit_profile")
+        .update({ is_deleted: true })
+        .eq("id", id)
+        .eq("is_deleted", false)
+        .select("id")
+        .single()
+    if (error) throw error
+    return data
+}
+
+/**
+ * Which profile a team member's driver row in this organisation points at.
+ * `isDriver` is false when there is no such row, which is a team member the
+ * limits do not apply to rather than a driver with no profile.
+ *
+ * Scoped to the organisation on purpose. RLS lets a user read their own driver
+ * row whichever organisation it belongs to, so an admin who drives for another
+ * organisation would otherwise look like a driver here, and pointing that row at
+ * this organisation's profile is refused by the composite foreign key.
+ */
+export async function getDriverDrivingLimitProfileId(
+    driverId: string,
+    organisationId: string,
+): Promise<{ isDriver: boolean; profileId: string | null }> {
+    const { data, error } = await supabase
+        .from("drivers")
+        .select("driving_limit_profile_id")
+        .eq("id", driverId)
+        .eq("organisation_id", organisationId)
+        .maybeSingle()
+    if (error) throw error
+    return { isDriver: data !== null, profileId: data?.driving_limit_profile_id ?? null }
+}
+
+/**
+ * Point a driver at a profile, or at none. The composite foreign key pins the
+ * profile to the driver's own organisation, so a profile from another tenant is
+ * refused by the database whatever this is sent.
+ */
+export async function setDriverDrivingLimitProfile(driverId: string, organisationId: string, profileId: string | null) {
+    const { data, error } = await supabase
+        .from("drivers")
+        .update({ driving_limit_profile_id: profileId })
+        .eq("id", driverId)
+        .eq("organisation_id", organisationId)
+        .select("id, driving_limit_profile_id")
+        .single()
+    if (error) throw error
+    return data
+}
+
+/** The organisation's id and its default profile pointer, which may name a retired profile. */
+export async function getOrganisationDrivingLimitDefault(
+    slug: string,
+): Promise<{ organisationId: string; defaultProfileId: string | null }> {
+    const { data, error } = await supabase
+        .from("organisations")
+        .select("id, default_driving_limit_profile_id")
+        .eq("slug", slug)
+        .single()
+    if (error) throw error
+    return { organisationId: data.id, defaultProfileId: data.default_driving_limit_profile_id }
+}
+
+/** Set or clear the organisation default. Null means drivers without a profile have no limits. */
+export async function setOrganisationDrivingLimitDefault(organisationId: string, profileId: string | null) {
+    const { data, error } = await supabase
+        .from("organisations")
+        .update({ default_driving_limit_profile_id: profileId })
+        .eq("id", organisationId)
+        .select("id, default_driving_limit_profile_id")
+        .single()
+    if (error) throw error
+    return data
+}
 
 export async function searchWarehouse(search: string) {
     const { data, error } = await supabase.from("warehouse").select("*")
@@ -1158,6 +1302,15 @@ export interface CalendarShift {
     stop_count: number;
     /** Planned route duration in seconds, or null while the shift is empty. */
     duration_seconds: number | null;
+    /** `arrival` of the plan's start and end steps, seconds. Null while there is no plan. */
+    start_arrival: number | null;
+    end_arrival: number | null;
+    /** Cumulative travel time on the end step. Only a full solve writes it. */
+    end_travel_seconds: number | null;
+    /** Planned distance in metres. Null for a plan written before distance was recorded. */
+    distance_m: number | null;
+    /** 'estimated' or 'measured'. */
+    distance_source: string | null;
 }
 
 /** Shifts that are not cancelled, i.e. everything the calendar should draw. */
@@ -1190,13 +1343,22 @@ export async function getShiftsByDates(
             status,
             revision,
             vrp_solution:vrp_solution!vrp_solution_optimization_id_fkey (
-                vrp_route:vrp_route!vrp_route_solution_id_fkey ( id, duration )
+                vrp_route:vrp_route!vrp_route_solution_id_fkey (
+                    id,
+                    duration,
+                    distance_m,
+                    distance_source,
+                    vrp_route_step:vrp_route_step!vrp_route_step_route_id_fkey ( type, arrival, duration )
+                )
             ),
             packages:packages!packages_optimisation_id_fkey ( id )
         `)
         .gte('shift_date', startDate.slice(0, 10))
         .lte('shift_date', endDate.slice(0, 10))
         .in('status', CALENDAR_SHIFT_STATUSES)
+        // Only the depot steps carry what the driving limit marker needs (elapsed
+        // time and total travel), so the job steps stay in the database.
+        .in('vrp_solution.vrp_route.vrp_route_step.type', ['start', 'end'])
         .order('shift_date', { ascending: true })
 
     if (driverId) query = query.eq('driver_id', driverId)
@@ -1210,6 +1372,8 @@ export async function getShiftsByDates(
         if (!row.shift_date) return []
 
         const route = row.vrp_solution.flatMap((solution) => solution.vrp_route)[0] ?? null
+        const startStep = route?.vrp_route_step.find((step) => step.type === 'start') ?? null
+        const endStep = route?.vrp_route_step.find((step) => step.type === 'end') ?? null
 
         return [{
             id: row.id,
@@ -1221,6 +1385,11 @@ export async function getShiftsByDates(
             revision: row.revision,
             stop_count: row.packages.length,
             duration_seconds: route?.duration ?? null,
+            start_arrival: startStep?.arrival ?? null,
+            end_arrival: endStep?.arrival ?? null,
+            end_travel_seconds: endStep?.duration ?? null,
+            distance_m: route?.distance_m ?? null,
+            distance_source: route?.distance_source ?? null,
         }]
     })
 }
@@ -1259,4 +1428,187 @@ export async function createServiceArea(name: string, geometry: string, organisa
     }
 
     return data
+}
+
+// ── Skills catalog (HIK-90) ──────────────────────────────────────────────────
+//
+// Org-defined capability labels ("Fragile Handling", "Requires Liftgate"),
+// assigned to vehicles and required by packages, enforced by VROOM as a hard
+// constraint. hikyaku-api exposes create/list/archive for headless
+// integrations (HIK-93), but the dashboard writes straight to Supabase here —
+// the same "this form already writes straight to Tables<>" precedent
+// vehicle-form.tsx follows — because RLS on `skills` already grants
+// authenticated org members with `vehicles.update` insert/update/delete, and
+// that is also the only way to expose renaming (hikyaku-api has no rename
+// endpoint).
+
+/** A skill in the organisation's catalog, shaped for pickers and chips. */
+export type Skill = {
+    id: string
+    name: string
+}
+
+/** Active (non-archived) skills, alphabetical — what a picker offers. */
+export async function getSkills(): Promise<Skill[]> {
+    const { data, error } = await supabase
+        .from("skills")
+        .select("id, name")
+        .is("archived_at", null)
+        .order("name", { ascending: true })
+    if (error) throw error
+    return data ?? []
+}
+
+/** Every skill, including archived, newest first — for the Manage Skills dialog. */
+export async function getSkillCatalog(): Promise<Tables<'skills'>[]> {
+    const { data, error } = await supabase
+        .from("skills")
+        .select("*")
+        .order("created_at", { ascending: false })
+    if (error) throw error
+    return data ?? []
+}
+
+/** Skills by id, for resolving a package's or vehicle's `skillIds` into names for display. */
+export async function getSkillsByIds(skillIds: string[]): Promise<Skill[]> {
+    if (skillIds.length === 0) return []
+    const { data, error } = await supabase
+        .from("skills")
+        .select("id, name")
+        .in("id", skillIds)
+    if (error) throw error
+    return data ?? []
+}
+
+export async function createSkill(organisationId: string, name: string) {
+    const { data, error } = await supabase
+        .from("skills")
+        .insert({ organisation_id: organisationId, name: name.trim() })
+        .select()
+        .single()
+    if (error) throw error
+    return data
+}
+
+export async function renameSkill(id: string, name: string) {
+    const { data, error } = await supabase
+        .from("skills")
+        .update({ name: name.trim() })
+        .eq("id", id)
+        .select()
+        .single()
+    if (error) throw error
+    return data
+}
+
+/**
+ * Retire a skill. Idempotent-in-effect (setting archived_at again just
+ * updates the same row), mirroring SkillsService.archive on the API side.
+ * Archived skills drop out of `getSkills()` but stay resolvable by id for
+ * historical vehicle_skills/package_skills rows.
+ */
+export async function archiveSkill(id: string) {
+    const { data, error } = await supabase
+        .from("skills")
+        .update({ archived_at: new Date().toISOString() })
+        .eq("id", id)
+        .select()
+        .single()
+    if (error) throw error
+    return data
+}
+
+/** The skills one vehicle holds, for the vehicle form's Capabilities card. */
+export async function getSkillsByVehicle(vehicleId: string): Promise<Skill[]> {
+    const { data: links, error: linksError } = await supabase
+        .from("vehicle_skills")
+        .select("skill_id")
+        .eq("vehicle_id", vehicleId)
+    if (linksError) throw linksError
+
+    const skillIds = (links ?? []).map((link) => link.skill_id)
+    if (skillIds.length === 0) return []
+
+    const { data: skills, error: skillsError } = await supabase
+        .from("skills")
+        .select("id, name")
+        .in("id", skillIds)
+    if (skillsError) throw skillsError
+
+    return (skills ?? []).sort((a, b) => a.name.localeCompare(b.name))
+}
+
+/**
+ * Replace a vehicle's whole skill set in one call, diffing against what it
+ * already holds. The vehicle form submits the full selection at once (a
+ * chips combobox bound to one form field), unlike the driver/service-area
+ * card's incremental attach-then-separately-detach flow, so a diff-and-write
+ * fits it better than exposing separate attach/detach functions here.
+ */
+export async function setVehicleSkills(vehicleId: string, skillIds: string[]) {
+    const { data: vehicle, error: vehicleError } = await supabase
+        .from("vehicles")
+        .select("organisation_id")
+        .eq("id", vehicleId)
+        .single()
+    if (vehicleError) throw vehicleError
+
+    const { data: existing, error: existingError } = await supabase
+        .from("vehicle_skills")
+        .select("skill_id")
+        .eq("vehicle_id", vehicleId)
+    if (existingError) throw existingError
+
+    const existingIds = new Set((existing ?? []).map((link) => link.skill_id))
+    const nextIds = new Set(skillIds)
+    const toAdd = skillIds.filter((id) => !existingIds.has(id))
+    const toRemove = [...existingIds].filter((id) => !nextIds.has(id))
+
+    if (toAdd.length > 0) {
+        const { error } = await supabase
+            .from("vehicle_skills")
+            .upsert(
+                toAdd.map((skillId) => ({
+                    vehicle_id: vehicleId,
+                    skill_id: skillId,
+                    organisation_id: vehicle.organisation_id,
+                })),
+                { onConflict: "vehicle_id,skill_id", ignoreDuplicates: true }
+            )
+        if (error) throw error
+    }
+
+    if (toRemove.length > 0) {
+        const { error } = await supabase
+            .from("vehicle_skills")
+            .delete()
+            .eq("vehicle_id", vehicleId)
+            .in("skill_id", toRemove)
+        if (error) throw error
+    }
+}
+
+/**
+ * The skills one package requires, for the package detail page. `skillIds`
+ * are sent to hikyaku-api at creation time (CreatePackageDto), but the
+ * detail page reads packages through Supabase directly, so this reads the
+ * join table the same way `getSkillsByVehicle` reads its own.
+ */
+export async function getSkillsByPackage(packageId: string): Promise<Skill[]> {
+    const { data: links, error: linksError } = await supabase
+        .from("package_skills")
+        .select("skill_id")
+        .eq("package_id", packageId)
+    if (linksError) throw linksError
+
+    const skillIds = (links ?? []).map((link) => link.skill_id)
+    if (skillIds.length === 0) return []
+
+    const { data: skills, error: skillsError } = await supabase
+        .from("skills")
+        .select("id, name")
+        .in("id", skillIds)
+    if (skillsError) throw skillsError
+
+    return (skills ?? []).sort((a, b) => a.name.localeCompare(b.name))
 }

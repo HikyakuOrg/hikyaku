@@ -61,3 +61,25 @@ export async function getCoverageForPoint(
 
     return { status: "ok", diagnostic: (await res.json()) as CoverageDiagnosticDto }
 }
+
+/**
+ * Why one specific package can or cannot be covered, including the
+ * skills-specific reason HIK-94 added (`diagnostic.skills`). The endpoint's
+ * "package" request form: it resolves the delivery point and required skills
+ * from the package itself, so no lon/lat/warehouseId is needed here.
+ */
+export async function getCoverageForPackage(packageId: string): Promise<CoverageLookupResult> {
+    const ctx = await buildApiContext()
+    if ("error" in ctx) return { status: "error", error: ctx.error }
+
+    const query = new URLSearchParams({ packageId })
+
+    const res = await fetch(`${ctx.apiUrl}/api/v1/dispatch/coverage?${query.toString()}`, {
+        headers: ctx.headers,
+        cache: "no-store",
+    })
+
+    if (!res.ok) return { status: "error", error: await parseApiError(res) }
+
+    return { status: "ok", diagnostic: (await res.json()) as CoverageDiagnosticDto }
+}

@@ -1,9 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { FormData } from "./stepper-form";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useOrgSlug } from "@/lib/use-org";
 import { createPackage, type CreatePackageSuccess } from "@/lib/actions/packages";
+import { getSkillsByIds, type Skill } from "@/lib/supabase/db";
 import type { AssignmentOutcomeDto, AssignmentOutcomeDtoReasonEnum } from "@/lib/api";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/utils";
@@ -140,7 +141,20 @@ export function OverviewStep({ onPrev, formData }: {
     const slug = useOrgSlug();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState<CreatePackageSuccess | null>(null);
+    const [requiredSkills, setRequiredSkills] = useState<Skill[]>([]);
     const canvasRef = useRef<HTMLCanvasElement>(null);
+
+    const skillIds = formData.packageInfo?.skillIds ?? [];
+    useEffect(() => {
+        if (skillIds.length === 0) {
+            setRequiredSkills([]);
+            return;
+        }
+        getSkillsByIds(skillIds).then(setRequiredSkills).catch((error) => {
+            console.error("Failed to resolve required skill names:", error);
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- re-runs only when the selected ids actually change, not on every array identity change.
+    }, [skillIds.join(",")]);
 
     const handleSubmit = async () => {
         if (!formData.packageInfo || !formData.customerInfo || !formData.logisticsAssignment) {
@@ -171,6 +185,7 @@ export function OverviewStep({ onPrev, formData }: {
                     widthCm: packageInfo.width,
                     heightCm: packageInfo.height,
                 },
+                skillIds: packageInfo.skillIds.length > 0 ? packageInfo.skillIds : undefined,
             });
 
             if (!response.success) {
@@ -271,6 +286,12 @@ export function OverviewStep({ onPrev, formData }: {
 
                             {formData.logisticsAssignment?.scheduledArrival && (
                                 <p className="text-sm"><span className="text-muted-foreground">Deliver By:</span> {format(parseISO(formData.logisticsAssignment.scheduledArrival), "PPP p")}</p>
+                            )}
+                            {requiredSkills.length > 0 && (
+                                <p className="text-sm">
+                                    <span className="text-muted-foreground">Required Skills:</span>{" "}
+                                    {requiredSkills.map((skill) => skill.name).join(", ")}
+                                </p>
                             )}
                         </div>
 

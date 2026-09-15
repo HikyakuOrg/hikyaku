@@ -11,6 +11,7 @@ interface PackageDetailsTabsProps {
         weight: number
     }
     scheduledArrival: string
+    requiredSkills?: string[]
     driver?: {
         name: string
         contact: string
@@ -27,7 +28,7 @@ interface PackageDetailsTabsProps {
     }
 }
 
-export function PackageDetailsTabs({ recipient, sender, deliveryStatus, scheduledArrival, packageAttributes, driver }: PackageDetailsTabsProps) {
+export function PackageDetailsTabs({ recipient, sender, deliveryStatus, scheduledArrival, packageAttributes, requiredSkills, driver }: PackageDetailsTabsProps) {
 
     type Attribute = {
         label: string
@@ -58,6 +59,9 @@ export function PackageDetailsTabs({ recipient, sender, deliveryStatus, schedule
                 { label: "Scheduled Arrival", value: scheduledArrivalDateTime },
                 { label: "Package Size", value: `${packageAttributes.length.toFixed(2)} x ${packageAttributes.width.toFixed(2)} x ${packageAttributes.height.toFixed(2)} (${packageVolume.toFixed(2)} cm³)` },
                 { label: "Package Weight", value: `${packageAttributes.weight.toFixed(2)} kg` },
+                ...(requiredSkills && requiredSkills.length > 0
+                    ? [{ label: "Required Skills", value: requiredSkills.join(", ") }]
+                    : []),
             ],
         },
         ...(driver ? [{

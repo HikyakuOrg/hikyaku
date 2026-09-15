@@ -5,10 +5,45 @@ import { PostgrestError } from "@supabase/supabase-js"
  * when a screen starts gating on a new one, so callers get a checked union
  * instead of a free-form string that silently never matches.
  */
-export type OrgPermission = "service_areas.edit"
+export type OrgPermission = "service_areas.edit" | "drivers.update" | "organisation.edit"
 
 /** Drives the insert/update/delete RLS policies on `service_areas`. */
 export const SERVICE_AREAS_EDIT = "service_areas.edit" satisfies OrgPermission
+
+/**
+ * Drives the write RLS policies on `driving_limit_profile`, and the update
+ * policy on `drivers`, which is where each driver's profile is pointed at. One
+ * permission for both halves on purpose: authoring a profile and assigning a
+ * driver to it are the same dispatcher job.
+ */
+export const DRIVERS_UPDATE = "drivers.update" satisfies OrgPermission
+
+/**
+ * Drives the update RLS policy on `organisations`, which carries the default
+ * driving limit profile. The organisation's creator passes that policy too, and
+ * is granted every seeded permission when the organisation is made, so checking
+ * the permission alone covers both.
+ */
+export const ORGANISATION_EDIT = "organisation.edit" satisfies OrgPermission
+
+/**
+ * What each permission lets somebody change, and what a write matching zero
+ * rows may have run into, so the sentences below name the right thing.
+ */
+const PERMISSION_SUBJECTS: Record<OrgPermission, { change: string; missingRow: string }> = {
+    "service_areas.edit": {
+        change: "change service areas",
+        missingRow: "The service area may have been deleted",
+    },
+    "drivers.update": {
+        change: "change drivers or driving limits",
+        missingRow: "The driver or driving limit profile may have been deleted",
+    },
+    "organisation.edit": {
+        change: "change organisation settings",
+        missingRow: "The organisation may no longer be reachable",
+    },
+}
 
 /**
  * Postgres `insufficient_privilege`. PostgREST surfaces it for both a plain
@@ -25,10 +60,10 @@ const INSUFFICIENT_PRIVILEGE = "42501"
 const NO_ROWS_RETURNED = "PGRST116"
 
 /**
- * Postgres `unique_violation`. `service_areas.name` is unique per
- * organisation rather than globally, so this now means the caller's own org
- * already has an area by that name. The same name in another org is not a
- * conflict and saves fine.
+ * Postgres `unique_violation`. Names are unique per organisation rather than
+ * globally (`service_areas.name`, and `driving_limit_profile.name` among
+ * profiles that are not deleted), so this means the caller's own org already
+ * has one by that name. The same name in another org is not a conflict.
  */
 const UNIQUE_VIOLATION = "23505"
 
@@ -38,7 +73,7 @@ const UNIQUE_VIOLATION = "23505"
  * same permission.
  */
 export function permissionRequiredMessage(permission: OrgPermission): string {
-    return `You do not have permission to change service areas. Ask an organisation admin for the "${permission}" permission.`
+    return `You do not have permission to ${PERMISSION_SUBJECTS[permission].change}. Ask an organisation admin for the "${permission}" permission.`
 }
 
 function asPostgrestError(error: unknown): PostgrestError | null {
@@ -85,7 +120,7 @@ export function describeWriteError(
     // ambiguous: the row was either removed or is now out of reach. Say both
     // rather than assert the wrong one.
     if (asPostgrestError(error)?.code === NO_ROWS_RETURNED) {
-        return `Nothing was saved. The service area may have been deleted, or your "${permission}" permission may have been revoked. Reload the page and try again.`
+        return `Nothing was saved. ${PERMISSION_SUBJECTS[permission].missingRow}, or your "${permission}" permission may have been revoked. Reload the page and try again.`
     }
 
     if (error instanceof Error) return error.message

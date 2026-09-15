@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { getVehicle, updateVehicle } from '@/lib/supabase/db'
+import { getVehicle, setVehicleSkills, updateVehicle } from '@/lib/supabase/db'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/lib/utils'
 import { ChevronLeft, Loader2 } from 'lucide-react'
@@ -33,10 +33,15 @@ export default function EditVehiclePage() {
     const handleSubmit = async (values: VehicleFormValues, newFiles: File[]) => {
         setIsSubmitting(true)
         try {
-            // 1. Update vehicle record
-            await updateVehicle(id, values)
+            const { skillIds, ...vehicleFields } = values
 
-            // 2. Upload new images if any
+            // 1. Update vehicle record
+            await updateVehicle(id, vehicleFields)
+
+            // 2. Save its skill assignments
+            await setVehicleSkills(id, skillIds)
+
+            // 3. Upload new images if any
             if (newFiles.length > 0) {
                 const supabase = createClient()
                 const promises = newFiles.map(async (file) => {

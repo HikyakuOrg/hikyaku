@@ -422,6 +422,8 @@ export interface CoverageDiagnosticDto {
   point: CoveragePointDto | null;
   /** Whether coverage could be evaluated at all. The two failure values are answers, not errors: a package with no geocode is exactly what AssignmentService skips as `no_geocode` and never assigns, and an empty driver list would otherwise be indistinguishable from a geocoded address that genuinely nobody covers. */
   resolution: CoverageDiagnosticDtoResolutionEnum;
+  /** Null for the coordinate form (there is no package to check requirements for), for a package with no skill requirement, and whenever `resolution` is not `evaluated`. Present and `satisfied: false` is the skills-specific unassigned reason this endpoint exists to surface, independent of the territory/driver coverage above. */
+  skills: CoverageSkillsDto | null;
   /** The package’s tracking number, since a support question usually starts from one. */
   trackingNumber: string | null;
   /**
@@ -499,6 +501,20 @@ export interface CoveragePointDto {
    * @example 103.851959
    */
   lon: number;
+}
+
+export interface CoverageSkillsDto {
+  /**
+   * Vehicles at this warehouse holding every required skill at once. Zero means no single vehicle can take this package regardless of territory, even if every individual skill exists somewhere in the fleet.
+   * @example 0
+   */
+  matchingVehicleCount: number;
+  /** The subset of requiredSkillIds that NO vehicle at this warehouse holds at all — the specific "no vehicle holds skill X" reason. A skill can be missing here even when `satisfied` below also fails for a different one, or when every required skill exists somewhere in the fleet but never all on the same vehicle. */
+  missingSkillIds: string[];
+  /** The package's required skills (package_skills.skill_id). */
+  requiredSkillIds: string[];
+  /** requiredSkillIds is empty, or matchingVehicleCount is greater than zero. False is the skills-specific unassigned reason this endpoint exists to surface. */
+  satisfied: boolean;
 }
 
 export interface CoverageSummaryDto {
@@ -631,6 +647,8 @@ export interface CreatePackageDto {
    * @format uuid
    */
   id?: string;
+  /** Required skills (skills.id) this delivery needs, from the caller's organisation catalog. An unknown, archived, or another organisation's id is rejected with 400. The optimiser only routes this package onto a vehicle holding every one of them (see vehicle_skills) — a hard constraint, mirroring VROOM. Omitted or empty means no skill requirement. */
+  skillIds?: string[];
   /**
    * customer.id of the recipient. Its customer_location is the routed stop; a recipient with no geocode cannot be assigned.
    * @format uuid
@@ -768,6 +786,10 @@ export interface CustomerDto {
   customer_suburb: string;
   /** Subpremise line — unit, suite or business name for a building delivery. Separate from the geocoded street line, and never fed back into geocoding or routing. Empty string when unset. */
   customer_unit: string;
+  /** This customer’s id in the external platform’s system. Null unless external_platform is also set. */
+  external_customer_id: string | null;
+  /** Lowercase slug of the external storefront this customer was created from (e.g. "shopify"). Null unless external_customer_id is also set. */
+  external_platform: string | null;
   /** Pelias geocode confidence (0–1). Only set for addresses entered through the geocoded manual-entry form. */
   geocode_confidence: number | null;
   /** @format uuid */
@@ -778,8 +800,6 @@ export interface CustomerDto {
   pelias_gid: string | null;
   /** Raw Pelias feature kept for provenance. Opaque — do not read fields off it. */
   pelias_raw: Record<string, any> | null;
-  /** Set only for customers created from a Shopify order. */
-  shopify_customer_id: string | null;
   /**
    * Linked Stripe customer on the organisation’s connected account. Null until the organisation enables payments, and null if the best-effort Stripe sync failed.
    * @example "cus_QhX1a2B3c4D5e6"
@@ -872,6 +892,98 @@ export interface DriverMetadataDto {
   license_type?: string;
   /** UUID of the warehouse the driver belongs to */
   warehouse_id?: string;
+}
+
+export interface DrivingLimitBreachingShiftDto {
+  dimensions: DrivingLimitDimensionBreachDto[];
+  /** @format uuid */
+  driverId: string | null;
+  /** @format date */
+  shiftDate: string | null;
+  /**
+   * vrp_optimization.id.
+   * @format uuid
+   */
+  shiftId: string;
+}
+
+export interface DrivingLimitDimensionBreachDto {
+  /** What this shift actually measured on this dimension. */
+  actual: number;
+  /** packages.id for each of the affectedStopCount stops above. */
+  affectedPackageIds: string[];
+  /** Job stops on the part of the route past the point the cumulative figure first crosses the cap — the honest proxy for how much work would need re-placing were this cap enforced today. Not a claim about which stops an actual re-solve would drop. */
+  affectedStopCount: number;
+  /** `working`: elapsed departure-to-return time. `driving`: travel-only time, ESTIMATED as elapsed time minus total service time (see the top-level `drivingSecondsIsEstimated` note — this codebase does not persist VROOM’s own travel-time figure on the path most shifts take). `distance`: total route distance. `stops`: job stop count. */
+  dimension: DrivingLimitDimensionBreachDtoDimensionEnum;
+  /** The proposed cap it exceeded. */
+  limit: number;
+}
+
+/** `working`: elapsed departure-to-return time. `driving`: travel-only time, ESTIMATED as elapsed time minus total service time (see the top-level `drivingSecondsIsEstimated` note — this codebase does not persist VROOM’s own travel-time figure on the path most shifts take). `distance`: total route distance. `stops`: job stop count. */
+export type DrivingLimitDimensionBreachDtoDimensionEnum =
+  | "working"
+  | "driving"
+  | "distance"
+  | "stops";
+
+export interface DrivingLimitDistributionDto {
+  distanceM: DrivingLimitDistributionStatsDto;
+  /** ESTIMATED, not measured — see `drivingSecondsIsEstimated` on the parent response. */
+  drivingSeconds: DrivingLimitDistributionStatsDto;
+  stopCount: DrivingLimitDistributionStatsDto;
+  workingSeconds: DrivingLimitDistributionStatsDto;
+}
+
+export interface DrivingLimitDistributionStatsDto {
+  /** The median day. */
+  p50: number;
+  /** The 90th percentile — a sane starting cap sits above this, not above the median, or one day in ten already breaches it before the flag is even switched on. */
+  p90: number;
+  /** Realised shifts this dimension was computed over. */
+  count: number;
+  /** The worst day in the window. */
+  max: number;
+  /** The best day. */
+  min: number;
+}
+
+export interface DrivingLimitsDto {
+  maxDistanceM: number | null;
+  maxDrivingSeconds: number | null;
+  maxStops: number | null;
+  maxWorkingSeconds: number | null;
+}
+
+export interface DrivingLimitsSummaryDto {
+  /** Every realised shift breaching at least one proposed cap, most recent shift_date first. Empty when no cap was proposed at all, which is a different answer from "none breached" — see `proposedLimits`. */
+  breachingShifts: DrivingLimitBreachingShiftDto[];
+  /** Null when shiftCount is zero — nothing to summarise yet. */
+  distribution: DrivingLimitDistributionDto | null;
+  /** Whether DRIVING_LIMITS is switched on right now, so "we have not turned it on yet" is distinguishable from "we turned it on and nothing breached". Process-wide, not per organisation. */
+  drivingLimitsEnabled: boolean;
+  /** True for every response: `driving` breaches and the driving-hours distribution are computed as elapsed time minus total service time, not from a measured travel-time figure. `ShiftPlanWriter`, the write path every Tier 1 placement and every continuous replan uses, never persists VROOM’s own travel-time column, so that figure is null for effectively every shift under the "instant" assignment mode this codebase runs. The estimate is exact unless a delivery deadline made the vehicle wait, which reads as extra driving here. */
+  drivingSecondsIsEstimated: boolean;
+  /**
+   * One sentence a dispatcher can act on, derived entirely from the fields above.
+   * @example "30 realised shift(s) over the last 30 day(s); a 200,000 m distance cap would have breached 4 of them (11 packages on the affected portion of those routes). DRIVING_LIMITS is currently off."
+   */
+  explanation: string;
+  proposedLimits: ProposedDrivingLimitsDto;
+  /** Realised shifts (status dispatched or completed) considered in the window. Zero means the distribution and breach list below are both empty for lack of data, not because nothing would breach. */
+  shiftCount: number;
+  /**
+   * The start of that window, so the figures can be quoted.
+   * @format date-time
+   */
+  since: string;
+  /** breachingShifts.length, for a client that only needs the count. */
+  totalBreachingShifts: number;
+  /**
+   * How many days back the figures cover.
+   * @example 30
+   */
+  windowDays: number;
 }
 
 export interface EngineInfoDto {
@@ -1206,6 +1318,121 @@ export type ModelYearResultDtoSourceEnum =
   | "override"
   | "calculated";
 
+export interface OrderDeliveryAddressDto {
+  line1: string | null;
+  line2: string | null;
+  city: string | null;
+  company: string | null;
+  country: string | null;
+  country_code: string | null;
+  postcode: string | null;
+  province: string | null;
+  province_code: string | null;
+}
+
+export interface OrderDeliveryDto {
+  address: OrderDeliveryAddressDto | null;
+  email: string | null;
+  instructions: string | null;
+  /**
+   * @min -90
+   * @max 90
+   */
+  latitude: number | null;
+  /**
+   * @min -180
+   * @max 180
+   */
+  longitude: number | null;
+  phone: string | null;
+  recipient_name: string | null;
+  /** Whether this order needs physical delivery at all — false for a fully digital/no-shipping order. */
+  required: boolean;
+  shipping_method: string | null;
+}
+
+export interface OrderEventCustomerDto {
+  email: string | null;
+  first_name: string | null;
+  /** The customer's id in the source platform's system. */
+  id: string | null;
+  last_name: string | null;
+  phone: string | null;
+}
+
+export interface OrderEventDto {
+  customer: OrderEventCustomerDto;
+  delivery: OrderDeliveryDto;
+  event: OrderEventInfoDto;
+  order: OrderInfoDto;
+  source: OrderEventSourceDto;
+}
+
+export interface OrderEventInfoDto {
+  /** The source platform's API version string. */
+  api_version: string;
+  /** The connector-assigned id for this event. Shopify uses its webhook delivery id, which also doubles as the Idempotency-Key header value. */
+  id: string;
+  /** @format date-time */
+  occurred_at: string;
+  /**
+   * Event type, e.g. "order.paid". An open string, not a closed enum, so a connector can introduce a new event type without a hikyaku-api change.
+   * @example "order.paid"
+   */
+  type: string;
+}
+
+export interface OrderEventSourceDto {
+  /** The connector app's own version string. */
+  app_version: string;
+  /**
+   * Lowercase connector slug (e.g. "shopify"). An open, validated string — never a closed enum. hikyaku-api never learns a platform name as code; every future connector needs zero hikyaku-api changes to add one.
+   * @example "shopify"
+   */
+  platform: string;
+  /** The storefront's own domain, when the platform has one. */
+  shop_domain?: string | null;
+}
+
+export interface OrderInfoDto {
+  /** @format date-time */
+  created_at: string;
+  /** ISO 4217 currency code. */
+  currency: string;
+  financial_status: string | null;
+  fulfillment_status: string | null;
+  /** The order's id in the source platform's system. Shopify sends its GraphQL global id here. */
+  id: string;
+  /** The order's numeric/legacy id in the source platform, where one exists. */
+  legacy_id: number;
+  line_items: OrderLineItemDto[];
+  /** Human-facing order name/number, e.g. "#1001". */
+  name: string;
+  note: string | null;
+  /** @format date-time */
+  processed_at: string | null;
+  subtotal_price: string | null;
+  tags: string[];
+  /** Decimal string, matching `currency`. */
+  total_price: string;
+  /** Decimal string, matching `currency`. */
+  total_shipping: string;
+  total_tax: string | null;
+  total_weight_grams: number | null;
+}
+
+export interface OrderLineItemDto {
+  grams: number;
+  id: string;
+  /** Decimal string, matching the source currency. */
+  price: string;
+  quantity: number;
+  requires_shipping: boolean;
+  sku: string | null;
+  title: string;
+  variant_title: string | null;
+}
+
 export interface OrgIssuingStatusDto {
   /**
    * As on the status endpoint. Null when the org has no account.
@@ -1260,6 +1487,8 @@ export interface PackageDto {
   id: string;
   /** @format uuid */
   organisationId: string;
+  /** Required skills (skills.id) this delivery needs. Empty means no skill requirement. */
+  skillIds: string[];
   /** Latest package_timeline status enum, e.g. PENDING, ASSIGNED. */
   status: string;
   /** @format uuid */
@@ -1329,6 +1558,17 @@ export interface PlantInfoDto {
   /** Manufacturing country. */
   country: string;
   manufacturer?: string;
+}
+
+export interface ProposedDrivingLimitsDto {
+  /** Proposed cap on total route distance, metres. */
+  maxDistanceM: number | null;
+  /** Proposed cap on travel-only time, seconds. */
+  maxDrivingSeconds: number | null;
+  /** Proposed cap on job stop count. */
+  maxStops: number | null;
+  /** Proposed cap on elapsed departure-to-return time, seconds. */
+  maxWorkingSeconds: number | null;
 }
 
 export interface QuoteBookingDto {
@@ -1422,6 +1662,14 @@ export interface ReceiverDto {
   email: string;
   name: string;
   phoneNumber: string;
+}
+
+export interface RecordedOrderEventDto {
+  /**
+   * The integration_order_event row id.
+   * @format uuid
+   */
+  id: string;
 }
 
 export interface RouteLegDto {
@@ -1531,6 +1779,9 @@ export interface SetOffOverrideDto {
 export interface ShiftDto {
   /** @format uuid */
   driverId: string | null;
+  drivingLimits: DrivingLimitsDto;
+  /** Whether DRIVING_LIMITS is on for this process. Lets a client tell "off" apart from "on, nothing configured" without a second call to the diagnostics summary endpoint. */
+  drivingLimitsEnabled: boolean;
   /**
    * vrp_optimization.id.
    * @format uuid

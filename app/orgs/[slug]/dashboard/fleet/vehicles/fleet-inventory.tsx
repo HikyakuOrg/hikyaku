@@ -12,6 +12,7 @@ import { Tables } from '@/lib/supabase/supabase';
 import { RowSelectionState } from '@tanstack/react-table';
 import { toast } from 'sonner';
 import { getErrorMessage } from '@/lib/utils';
+import { ManageSkillsDialog } from './components/manage-skills-dialog';
 
 
 export function FleetInventory() {
@@ -74,6 +75,7 @@ export function FleetInventory() {
                     }}>
                     <Grid className="w-5 h-5" />
                 </Button>
+                <ManageSkillsDialog />
                 <Button onClick={() => router.push(`/orgs/${slug}/dashboard/fleet/vehicles/add`)}>
                     Add Vehicle
                 </Button>

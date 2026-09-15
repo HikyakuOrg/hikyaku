@@ -3,12 +3,16 @@ import { RouteMap, RouteStep } from "./route-map";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MapPin } from "lucide-react";
 import { RouteProgressionCard } from "./route-progression-card";
-import { getRouteSteps, getDriverCurrentLocation, getShiftMeta, getVehicleById, getWarehouse } from "@/lib/supabase/db-server";
+import { getRouteSteps, getDriverCurrentLocation, getShiftMeta, getVehicleById, getWarehouse, getRouteDistance } from "@/lib/supabase/db-server";
 import { getDriversByIds } from "@/lib/supabase/supabase-rpc";
 import type { RoutePreview } from "@/app/models/route-preview";
 import Link from "next/link";
 import { VehicleCard } from "@/app/orgs/[slug]/dashboard/fleet/vehicles/components/vehicle-card";
 import { isFallbackOutcome } from "@/lib/coverage/outcome";
+import { Badge } from "@/components/ui/badge";
+import { NO_DRIVING_LIMITS, assessShift, hasAnyDrivingLimit, shiftUsage } from "@/lib/driving-limits";
+import { fetchShift } from "@/lib/actions/shift";
+import { ShiftDrivingLimitsCard } from "./shift-driving-limits-card";
 
 export default async function DriverShiftsDetails({ params }: { params: Promise<{ id: string; slug: string }> }) {
     const { id, slug } = await params;
@@ -20,8 +24,10 @@ export default async function DriverShiftsDetails({ params }: { params: Promise<
     const assignment = routeSteps.find(s => s.package_assignment?.package?.warehouse)?.package_assignment;
 
     // A shift created with no packages has no package_assignment, so its
-    // driver/vehicle/warehouse come from the shift row itself.
-    const meta = assignment ? null : await getShiftMeta(id);
+    // driver/vehicle/warehouse come from the shift row itself. Fetched
+    // unconditionally: it is also the only source of the shift id the API
+    // reads driving limits by.
+    const meta = await getShiftMeta(id);
     const warehouseInfo = assignment?.package?.warehouse
         ?? (meta?.warehouse_id ? await getWarehouse(meta.warehouse_id) : null);
 
@@ -62,11 +68,40 @@ export default async function DriverShiftsDetails({ params }: { params: Promise<
     const driverProfile = driverId ? await getDriversByIds([driverId]) : [];
     const driverLocation = driverId ? await getDriverCurrentLocation(driverId) : null;
 
+    // The plan's own figures, in seconds and metres, against the driver's
+    // effective limits. A shift with no driver has no limits, as in the API.
+    const startStep = routeSteps.find((s) => s.type === "start");
+    const endStep = routeSteps.find((s) => s.type === "end");
+    const [routeDistance, shiftResult] = await Promise.all([
+        getRouteDistance(id),
+        meta ? fetchShift(meta.optimisation_id) : Promise.resolve(null),
+    ]);
+    const drivingLimits = shiftResult?.success ? shiftResult.shift.drivingLimits : null;
+    const limitAssessments = assessShift(
+        shiftUsage({
+            startArrival: startStep?.arrival ?? null,
+            endArrival: endStep?.arrival ?? null,
+            endTravelSeconds: endStep?.duration ?? null,
+            stops: routeSteps.filter((s) => s.type === "job").length,
+            distanceM: routeDistance?.distance_m ?? null,
+            distanceSource: routeDistance?.distance_source ?? null,
+        }),
+        drivingLimits ?? NO_DRIVING_LIMITS,
+    );
+    const hasDrivingLimits = drivingLimits !== null && hasAnyDrivingLimit(drivingLimits);
+    const drivingLimitsEnforced = shiftResult?.success ? shiftResult.shift.drivingLimitsEnabled : null;
+    const isOverDrivingLimit = limitAssessments.some((a) => a.status === "over");
+
     return (
         <div className="space-y-6 p-6">
             <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
                     <h1 className="text-3xl font-bold tracking-tight">Shift Details</h1>
+                    {isOverDrivingLimit && (
+                        <Badge variant="destructive" data-testid="shift-over-driving-limit">
+                            Over driving limit
+                        </Badge>
+                    )}
                 </div>
                 <p className="text-muted-foreground flex items-center gap-2">
                     <MapPin className="h-4 w-4" />
@@ -131,6 +166,13 @@ export default async function DriverShiftsDetails({ params }: { params: Promise<
                             )}
                         </CardContent>
                     </Card>
+                    <ShiftDrivingLimitsCard
+                        assessments={limitAssessments}
+                        limitsAvailable={drivingLimits !== null}
+                        hasLimits={hasDrivingLimits}
+                        enforced={drivingLimitsEnforced}
+                        driverHref={driverId ? `/orgs/${slug}/dashboard/fleet/team-members/${driverId}` : null}
+                    />
                 </div>
             </div>
         </div>

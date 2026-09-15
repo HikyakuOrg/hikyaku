@@ -5,6 +5,48 @@ import { getAvailableDriverVehiclePairs, getUnassignedPackagesByWarehouse } from
 import type { DriverVehiclePair, UnassignedPackage } from "@/lib/supabase/db-server"
 import { buildApiContext, parseApiError } from "./api-client"
 
+export type FetchShiftResult = { success: true; shift: ShiftDto } | { success: false; error: string }
+
+/** One shift, with the API's resolved driving limits and whether it is enforcing them. */
+export async function fetchShift(shiftId: string): Promise<FetchShiftResult> {
+    const ctx = await buildApiContext()
+    if ("error" in ctx) return ctx
+
+    let res: Response
+    try {
+        res = await fetch(`${ctx.apiUrl}/api/v1/shifts/${shiftId}`, {
+            headers: ctx.headers,
+            cache: "no-store",
+        })
+    } catch {
+        return { success: false, error: "Failed to reach the API." }
+    }
+
+    if (!res.ok) return { success: false, error: await parseApiError(res) }
+    return { success: true, shift: await res.json() }
+}
+
+export type FetchShiftsInRangeResult = { success: true; shifts: ShiftDto[] } | { success: false; error: string }
+
+/** Every shift with a service day in [from, to] (inclusive, YYYY-MM-DD), for the calendar's driving-limit markers. */
+export async function fetchShiftsInRange(from: string, to: string): Promise<FetchShiftsInRangeResult> {
+    const ctx = await buildApiContext()
+    if ("error" in ctx) return ctx
+
+    let res: Response
+    try {
+        res = await fetch(`${ctx.apiUrl}/api/v1/shifts?from=${from}&to=${to}`, {
+            headers: ctx.headers,
+            cache: "no-store",
+        })
+    } catch {
+        return { success: false, error: "Failed to reach the API." }
+    }
+
+    if (!res.ok) return { success: false, error: await parseApiError(res) }
+    return { success: true, shifts: await res.json() }
+}
+
 export async function fetchAvailableDriverVehiclePairs(
     warehouseId: string,
     date: string
@@ -40,7 +82,10 @@ export type CreateManualShiftResult =
            * fall back to the shifts list.
            */
           routeId: string | null
-          /** Packages the API declined to place, with the reason it gave. */
+          /**
+           * Packages the API declined to place, or placed despite breaking a
+           * deadline or a driving limit, with the reason it gave.
+           */
           warnings: string[]
       }
     | { success: false; error: string }
@@ -144,7 +189,15 @@ export async function createManualShift(params: ManualShiftParams): Promise<Crea
     const plan: ShiftPlanDto = await planned.json()
     const warnings = plan.packages
         .filter((p) => !p.added || p.warning)
-        .map((p) => p.warning ?? `Package ${p.packageId.slice(0, 8)} could not be added.`)
+        .map((p) => {
+            const label = `Package ${p.packageId.slice(0, 8)}`
+            if (!p.added) return p.warning ?? `${label} could not be added.`
+            // The API words a breach as a clause about the package ("over this
+            // driver's 250 km distance limit", "breaks a delivery deadline on this
+            // route"), and the pin went through regardless: a limit constrains
+            // automatic assignment, not the dispatcher. Say both halves.
+            return `${label} was added anyway: ${p.warning}.`
+        })
 
     return {
         success: true,

@@ -241,6 +241,7 @@ export type Database = {
           country_of_issue: string | null
           driver_license: string | null
           driver_under_probation: boolean | null
+          driving_limit_profile_id: string | null
           id: string
           license_expiry: string | null
           license_type: string | null
@@ -251,6 +252,7 @@ export type Database = {
           country_of_issue?: string | null
           driver_license?: string | null
           driver_under_probation?: boolean | null
+          driving_limit_profile_id?: string | null
           id: string
           license_expiry?: string | null
           license_type?: string | null
@@ -261,6 +263,7 @@ export type Database = {
           country_of_issue?: string | null
           driver_license?: string | null
           driver_under_probation?: boolean | null
+          driving_limit_profile_id?: string | null
           id?: string
           license_expiry?: string | null
           license_type?: string | null
@@ -268,6 +271,13 @@ export type Database = {
           warehouse_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "drivers_driving_limit_profile_org_fkey"
+            columns: ["driving_limit_profile_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "driving_limit_profile"
+            referencedColumns: ["id", "organisation_id"]
+          },
           {
             foreignKeyName: "drivers_license_type_fkey"
             columns: ["license_type"]
@@ -287,6 +297,53 @@ export type Database = {
             columns: ["warehouse_id"]
             isOneToOne: false
             referencedRelation: "warehouse"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      driving_limit_profile: {
+        Row: {
+          created_at: string
+          id: string
+          is_deleted: boolean
+          max_distance_m: number | null
+          max_driving_seconds: number | null
+          max_stops: number | null
+          max_working_seconds: number | null
+          name: string
+          organisation_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_deleted?: boolean
+          max_distance_m?: number | null
+          max_driving_seconds?: number | null
+          max_stops?: number | null
+          max_working_seconds?: number | null
+          name: string
+          organisation_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_deleted?: boolean
+          max_distance_m?: number | null
+          max_driving_seconds?: number | null
+          max_stops?: number | null
+          max_working_seconds?: number | null
+          name?: string
+          organisation_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driving_limit_profile_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
             referencedColumns: ["id"]
           },
         ]
@@ -409,6 +466,7 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string
+          default_driving_limit_profile_id: string | null
           id: string
           logo_url: string | null
           name: string | null
@@ -421,6 +479,7 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by?: string
+          default_driving_limit_profile_id?: string | null
           id?: string
           logo_url?: string | null
           name?: string | null
@@ -433,6 +492,7 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string
+          default_driving_limit_profile_id?: string | null
           id?: string
           logo_url?: string | null
           name?: string | null
@@ -442,7 +502,15 @@ export type Database = {
           trial_ends_at?: string | null
           vanity_slug?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "organisations_default_driving_limit_profile_fkey"
+            columns: ["default_driving_limit_profile_id", "id"]
+            isOneToOne: false
+            referencedRelation: "driving_limit_profile"
+            referencedColumns: ["id", "organisation_id"]
+          },
+        ]
       }
       package_assignment: {
         Row: {
@@ -669,6 +737,49 @@ export type Database = {
           },
         ]
       }
+      package_skills: {
+        Row: {
+          created_at: string
+          organisation_id: string
+          package_id: string
+          skill_id: string
+        }
+        Insert: {
+          created_at?: string
+          organisation_id: string
+          package_id: string
+          skill_id: string
+        }
+        Update: {
+          created_at?: string
+          organisation_id?: string
+          package_id?: string
+          skill_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "package_skills_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "package_skills_package_org_fkey"
+            columns: ["package_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "packages"
+            referencedColumns: ["id", "organisation_id"]
+          },
+          {
+            foreignKeyName: "package_skills_skill_org_fkey"
+            columns: ["skill_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "skills"
+            referencedColumns: ["id", "organisation_id"]
+          },
+        ]
+      }
       package_status: {
         Row: {
           enums: string
@@ -891,6 +1002,38 @@ export type Database = {
           },
         ]
       }
+      skills: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          id: string
+          name: string
+          organisation_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          organisation_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          organisation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skills_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_members: {
         Row: {
           created_at: string
@@ -1005,6 +1148,49 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vehicles"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_skills: {
+        Row: {
+          created_at: string
+          organisation_id: string
+          skill_id: string
+          vehicle_id: string
+        }
+        Insert: {
+          created_at?: string
+          organisation_id: string
+          skill_id: string
+          vehicle_id: string
+        }
+        Update: {
+          created_at?: string
+          organisation_id?: string
+          skill_id?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_skills_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_skills_skill_org_fkey"
+            columns: ["skill_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "skills"
+            referencedColumns: ["id", "organisation_id"]
+          },
+          {
+            foreignKeyName: "vehicle_skills_vehicle_org_fkey"
+            columns: ["vehicle_id", "organisation_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id", "organisation_id"]
           },
         ]
       }
@@ -1228,6 +1414,8 @@ export type Database = {
           amount: number[] | null
           cost: number | null
           delivery: number[] | null
+          distance_m: number | null
+          distance_source: string | null
           duration: number | null
           id: string
           pickup: number[] | null
@@ -1241,6 +1429,8 @@ export type Database = {
           amount?: number[] | null
           cost?: number | null
           delivery?: number[] | null
+          distance_m?: number | null
+          distance_source?: string | null
           duration?: number | null
           id?: string
           pickup?: number[] | null
@@ -1254,6 +1444,8 @@ export type Database = {
           amount?: number[] | null
           cost?: number | null
           delivery?: number[] | null
+          distance_m?: number | null
+          distance_source?: string | null
           duration?: number | null
           id?: string
           pickup?: number[] | null
@@ -1276,6 +1468,7 @@ export type Database = {
       vrp_route_step: {
         Row: {
           arrival: number | null
+          distance_m: number | null
           duration: number | null
           id: number
           load: number[] | null
@@ -1291,6 +1484,7 @@ export type Database = {
         }
         Insert: {
           arrival?: number | null
+          distance_m?: number | null
           duration?: number | null
           id?: number
           load?: number[] | null
@@ -1306,6 +1500,7 @@ export type Database = {
         }
         Update: {
           arrival?: number | null
+          distance_m?: number | null
           duration?: number | null
           id?: number
           load?: number[] | null
