@@ -58,10 +58,10 @@ export async function signUpAndConfirm(page: Page, options: SignupOptions = {}):
     await page.goto(confirmUrl)
 
     await page.goto("/auth/login")
-    await page.getByRole("button", { name: /email & password/i }).click()
     await page.locator("#email").fill(credentials.email)
     await page.locator("#password").fill(credentials.password)
-    await page.getByRole("button", { name: /^login$/i }).click()
+    // Exact match: "Sign in with Google" also renders when Google sign-in is enabled.
+    await page.getByRole("button", { name: "Sign in", exact: true }).click()
 
     // Fresh users already have a personal org (auto-created at signup, or
     // defensively by the login redirect) — land straight on its dashboard.

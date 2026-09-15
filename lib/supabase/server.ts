@@ -1,7 +1,7 @@
 "use server"
 
 import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { cookieDomain } from '@/lib/subdomain'
 import type { OrgPermission } from '@/lib/permissions'
 import { Database } from './supabase'
@@ -12,12 +12,13 @@ import { Database } from './supabase'
  */
 export async function createClient() {
   const cookieStore = await cookies()
+  const host = (await headers()).get('host')
 
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY!,
     {
-      cookieOptions: { domain: cookieDomain() },
+      cookieOptions: { domain: cookieDomain(host) },
       cookies: {
         getAll() {
           return cookieStore.getAll()
