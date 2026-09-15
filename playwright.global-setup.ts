@@ -45,7 +45,7 @@ async function globalSetup(_config: FullConfig) {
     await page.goto("/auth/login");
     await page.getByLabel("Email").fill(process.env.PLAYWRIGHT_EMAIL!);
     await page.getByLabel("Password").fill(process.env.PLAYWRIGHT_PASSWORD!);
-    await page.getByRole("button", { name: "Sign in" }).click();
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
 
     await expect
         .poll(async () => {
