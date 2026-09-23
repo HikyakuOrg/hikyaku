@@ -38,8 +38,21 @@ export default function EditVehiclePage() {
             // 1. Update vehicle record
             await updateVehicle(id, vehicleFields)
 
-            // 2. Save its skill assignments
-            await setVehicleSkills(id, skillIds)
+            // 2. Save its skill assignments. If that fails, put the fields
+            // back as they were so the edit lands whole or not at all.
+            try {
+                await setVehicleSkills(id, skillIds)
+            } catch (error) {
+                if (vehicle) {
+                    const previousFields = Object.fromEntries(
+                        Object.keys(vehicleFields).map((key) => [key, vehicle[key as keyof typeof vehicleFields]])
+                    ) as Partial<Tables<'vehicles'>>
+                    await updateVehicle(id, previousFields).catch((restoreError) =>
+                        console.error('Error restoring vehicle fields:', restoreError)
+                    )
+                }
+                throw error
+            }
 
             // 3. Upload new images if any
             if (newFiles.length > 0) {
