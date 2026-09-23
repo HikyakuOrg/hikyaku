@@ -27,6 +27,7 @@ import {
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { archiveSkill, getSkillCatalog, renameSkill } from '@/lib/supabase/db'
+import { useOrganisationId } from '@/components/organisation-provider'
 import { isUniqueViolationError } from '@/lib/permissions'
 import { getErrorMessage } from '@/lib/utils'
 import { Tables } from '@/lib/supabase/supabase'
@@ -183,6 +184,7 @@ function SkillRow({
  * only manages skills that already exist, per HIK-95.
  */
 export function ManageSkillsDialog() {
+    const organisationId = useOrganisationId()
     const [open, setOpen] = useState(false)
     const [skills, setSkills] = useState<Tables<'skills'>[]>([])
     const [isLoading, setIsLoading] = useState(false)
@@ -190,14 +192,14 @@ export function ManageSkillsDialog() {
     const loadSkills = useCallback(async () => {
         setIsLoading(true)
         try {
-            setSkills(await getSkillCatalog())
+            setSkills(await getSkillCatalog(organisationId))
         } catch (error) {
             console.error(error)
             toast.error('Failed to load the skill catalog.')
         } finally {
             setIsLoading(false)
         }
-    }, [])
+    }, [organisationId])
 
     useEffect(() => {
         if (open) void loadSkills()

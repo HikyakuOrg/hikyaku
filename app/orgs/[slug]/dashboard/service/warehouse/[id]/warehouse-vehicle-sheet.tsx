@@ -6,6 +6,7 @@ import { Tables } from "@/lib/supabase/supabase";
 import { RowSelectionState } from "@tanstack/react-table";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useOrganisationId } from "@/components/organisation-provider";
 
 interface WarehouseVehicleSheetProp {
     warehouseId: string
@@ -16,6 +17,7 @@ interface WarehouseVehicleSheetProp {
 
 
 export function WarehouseVehicleSheet({ warehouseId, onVehicleAdded, vehicleTypes }: WarehouseVehicleSheetProp) {
+    const organisationId = useOrganisationId()
 
     const [totalPages, setTotalPages] = useState(1)
     const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
@@ -33,7 +35,7 @@ export function WarehouseVehicleSheet({ warehouseId, onVehicleAdded, vehicleType
         let active = true
 
         const fetchVehicles = async () => {
-            const vehicles = await getVehiclesNotAssigned(currentPage, PAGE_SIZE)
+            const vehicles = await getVehiclesNotAssigned(organisationId, currentPage, PAGE_SIZE)
             if (!active) return
             setVehicles(vehicles.data)
             setTotalPages(Math.ceil(vehicles.total / PAGE_SIZE))
@@ -44,7 +46,7 @@ export function WarehouseVehicleSheet({ warehouseId, onVehicleAdded, vehicleType
         return () => {
             active = false
         }
-    }, [currentPage])
+    }, [organisationId, currentPage])
 
     return (
         <Sheet>

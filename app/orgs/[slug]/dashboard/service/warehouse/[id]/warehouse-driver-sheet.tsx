@@ -12,9 +12,9 @@ import {
 import { DriverTable } from "@/components/driver/driver-table"
 import { ListDriverDto } from "@/lib/api"
 import { useEffect, useState } from "react"
-import { getUnassignedDrivers } from "@/lib/supabase/supabase-rpc"
 import { RowSelectionState } from "@tanstack/react-table"
-import { updateDriversWarehouse } from "@/lib/supabase/db"
+import { getOrganisationDrivers, updateDriversWarehouse } from "@/lib/supabase/db"
+import { useOrganisationId } from "@/components/organisation-provider"
 import { toast } from "sonner"
 
 interface WarehouseDriverSheetProp {
@@ -23,7 +23,7 @@ interface WarehouseDriverSheetProp {
 }
 
 export function WarehouseDriverSheet({ warehouseId, onDriverAdded }: WarehouseDriverSheetProp) {
-
+    const organisationId = useOrganisationId()
     const [page, setPage] = useState(1)
     const [totalPages, setTotalPages] = useState(1)
     const [loading, setLoading] = useState(true)
@@ -37,18 +37,15 @@ export function WarehouseDriverSheet({ warehouseId, onDriverAdded }: WarehouseDr
         const fetchDrivers = async () => {
             setLoading(true)
 
-            const drivers = await getUnassignedDrivers(page, PAGE_SIZE)
-            setDrivers(drivers)
-
-            if (drivers.length > 0) {
-                setTotalPages(drivers[0].total_pages)
-            }
+            const result = await getOrganisationDrivers(organisationId, page, PAGE_SIZE, { unassignedOnly: true })
+            setDrivers(result.drivers)
+            setTotalPages(result.totalPages)
 
             setLoading(false)
         }
 
         fetchDrivers()
-    }, [page])
+    }, [organisationId, page])
 
 
     return (

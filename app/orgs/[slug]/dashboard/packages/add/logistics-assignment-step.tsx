@@ -13,6 +13,7 @@ import { Item, ItemContent, ItemTitle, ItemDescription } from "@/components/ui/i
 import { useEffect, useState } from "react";
 import { Tables } from "@/lib/supabase/supabase";
 import { getWarehouse, searchWarehouse } from "@/lib/supabase/db";
+import { useOrganisationId } from "@/components/organisation-provider";
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
@@ -32,6 +33,7 @@ export function LogisticsAssignmentStep({ onNext, onPrev, defaultValues }: {
     onPrev: () => void;
     defaultValues?: LogisticsAssignmentFormValues;
 }) {
+    const organisationId = useOrganisationId()
 
     const form = useForm({
         resolver: zodResolver(logisticsAssignmentSchema),
@@ -86,7 +88,7 @@ export function LogisticsAssignmentStep({ onNext, onPrev, defaultValues }: {
             }
 
             setIsLoading(true)
-            const data = await searchWarehouse(searchTerm)
+            const data = await searchWarehouse(organisationId, searchTerm)
             const typedData: Tables<'warehouse'>[] =
                 data?.map((item) => ({
                     ...item,
@@ -98,7 +100,7 @@ export function LogisticsAssignmentStep({ onNext, onPrev, defaultValues }: {
         }, 300)
 
         return () => clearTimeout(timeout)
-    }, [searchTerm])
+    }, [organisationId, searchTerm])
 
     return (
         <form

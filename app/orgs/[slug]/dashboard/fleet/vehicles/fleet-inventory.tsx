@@ -6,6 +6,7 @@ import { Grid, LayoutList } from 'lucide-react';
 import { FleetTable } from './fleet-table';
 import { useRouter } from "next/navigation"
 import { useOrgSlug } from "@/lib/use-org"
+import { useOrganisationId } from "@/components/organisation-provider"
 import { FleetGrid } from './fleet-grid';
 import { getVehiclesByType, getVehicleTypes, VehiclesWithTypes, deleteVehicle } from '@/lib/supabase/db';
 import { Tables } from '@/lib/supabase/supabase';
@@ -26,6 +27,7 @@ export function FleetInventory() {
     const [totalPages, setTotalPages] = useState(0)
     const router = useRouter()
     const slug = useOrgSlug()
+    const organisationId = useOrganisationId()
     const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
 
     // `loadedKey` marks which filter/page the current `vehicles` belong to, so the
@@ -37,7 +39,7 @@ export function FleetInventory() {
     useEffect(() => {
         let active = true
 
-        getVehiclesByType(vehicleTypeFilter, currentPage, itemsPerPage).then((data) => {
+        getVehiclesByType(organisationId, vehicleTypeFilter, currentPage, itemsPerPage).then((data) => {
             if (!active) return
             setTotalPages(Math.ceil(data.total / itemsPerPage))
             setVehicles(data.data)
@@ -47,7 +49,7 @@ export function FleetInventory() {
         return () => {
             active = false
         }
-    }, [vehicleTypeFilter, currentPage, requestKey])
+    }, [organisationId, vehicleTypeFilter, currentPage, requestKey])
 
     
     useEffect(() => {

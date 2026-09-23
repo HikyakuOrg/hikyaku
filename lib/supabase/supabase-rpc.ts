@@ -6,19 +6,6 @@ import { Database } from "./supabase"
 
 const supabase = createLazyClient();
 
-export async function getDrivers(page: number, pageSize: number, supabaseClient?: SupabaseClient<Database>) {
-    const client = supabaseClient ?? supabase;
-    const { data, error } = await client.rpc("get_drivers_paginated", {
-        p_page: page,
-        p_limit: pageSize,
-    });
-
-    if (error) throw error;
-    if (!data) throw new Error("No data returned from RPC");
-    return data;
-}
-
-
 export async function getDriversByIds(driverIds: string[], supabaseClient?: SupabaseClient<Database>) {
     const client = supabaseClient ?? supabase;
     const { data, error } = await client.rpc("get_drivers_by_ids", {
@@ -288,17 +275,6 @@ export async function getDriverLocationHistory(driverId: string, fromDateTime: s
 
     return data;
 }
-
-export async function getUnassignedDrivers(page: number, pageSize: number, supabaseClient?: SupabaseClient<Database>) {
-    const client = supabaseClient ?? supabase;
-    const { data, error } = await client.rpc("list_unassigned_drivers", {
-        p_limit: pageSize,
-        p_page: page,
-    });
-    if (error) throw error;
-    return data;
-}
-
 
 export async function getDriversByWarehouse(warehouseId: string, page: number, pageSize: number, supabaseClient?: SupabaseClient<Database>) {
     const client = supabaseClient ?? supabase;

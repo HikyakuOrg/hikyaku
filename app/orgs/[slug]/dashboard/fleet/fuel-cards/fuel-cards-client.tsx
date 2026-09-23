@@ -60,6 +60,7 @@ import {
 import type { IssueCardDtoIntervalEnum } from "@/lib/api"
 import { getTeamMembers, type ListTeamMemberDto } from "@/lib/supabase/team-rpc"
 import { getVehiclesByType } from "@/lib/supabase/db"
+import { useOrganisationId } from "@/components/organisation-provider"
 import { formatCurrency } from "@/lib/currency"
 import {
     getConnectStatus,
@@ -377,6 +378,7 @@ function IssueCardDialog({
 }
 
 export function FuelCardsClient() {
+    const organisationId = useOrganisationId()
     const [cards, setCards] = useState<IssuingCard[]>([])
     const [transactions, setTransactions] = useState<IssuingTransaction[]>([])
     const [drivers, setDrivers] = useState<ListTeamMemberDto[]>([])
@@ -403,7 +405,7 @@ export function FuelCardsClient() {
         const load = async () => {
             const [members, vehiclesResult, connectResult] = await Promise.all([
                 getTeamMembers(1, 200),
-                getVehiclesByType([], 1, 200),
+                getVehiclesByType(organisationId, [], 1, 200),
                 getConnectStatus(),
                 fetchCards(),
             ])
@@ -427,7 +429,7 @@ export function FuelCardsClient() {
         }
 
         load().finally(() => setLoading(false))
-    }, [fetchCards])
+    }, [fetchCards, organisationId])
 
     const showFunding = () => {
         startFundingTransition(async () => {

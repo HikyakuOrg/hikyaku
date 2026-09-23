@@ -12,6 +12,7 @@ import type { ToolbarProps } from 'react-big-calendar'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useOrgSlug } from '@/lib/use-org'
+import { useOrganisationId } from '@/components/organisation-provider'
 import { getShiftsByDates, getShiftStartEnd, type CalendarShift } from '@/lib/supabase/db'
 import { fetchShiftsInRange } from '@/lib/actions/shift'
 import {
@@ -76,6 +77,7 @@ export function DriverShiftsCalendar({
 }: DriverShiftsCalendarProps) {
     const router = useRouter()
     const slug = useOrgSlug()
+    const organisationId = useOrganisationId()
     const [startDate, setStartDate] = useState(startOfWeek(new Date(), { weekStartsOn: 0 }))
     const [endDate, setEndDate] = useState(endOfWeek(new Date(), { weekStartsOn: 0 }))
     const [events, setEvents] = useState<CalendarShift[]>([])
@@ -104,6 +106,7 @@ export function DriverShiftsCalendar({
             // One indexed query over vrp_optimization. Empty shifts are ordinary
             // rows here, so there is no second source to dedupe against.
             const shifts = await getShiftsByDates(
+                organisationId,
                 startDate.toISOString(),
                 endDate.toISOString(),
                 driverId,
@@ -140,7 +143,7 @@ export function DriverShiftsCalendar({
             )
         }
         fetchEvents()
-    }, [driverId, startDate, endDate, refreshTick, slug])
+    }, [driverId, startDate, endDate, refreshTick, slug, organisationId])
 
     // The Optimise-routes button lives in a separate client island and cannot
     // reach this component's state, so it broadcasts a window event on completion.
