@@ -345,19 +345,24 @@ export default function AddTeamMemberForm({ roles, permissions, vehicleTypes }: 
                             <div className="space-y-2">
                                 <Label htmlFor="licenseExpiry">License Expiry</Label>
                                 <Popover>
-                                    <PopoverTrigger className="w-full">
-                                        <Button
-                                            variant="outline"
-                                            className={cn(
-                                                "w-full h-10 rounded-md border bg-transparent px-3 py-2 text-sm justify-start text-left font-normal",
-                                                !expiryDate && "text-muted-foreground"
-                                            )}
-                                        >
-                                            <span>
-                                                {expiryDate ? format(expiryDate, "yyyy-MM-dd") : "Select a date"}
-                                            </span>
-                                        </Button>
-                                    </PopoverTrigger>
+                                    {/* Render prop lets the trigger adopt the Button itself,
+                                        avoiding an invalid nested <button><button> */}
+                                    <PopoverTrigger
+                                        render={
+                                            <Button
+                                                id="licenseExpiry"
+                                                variant="outline"
+                                                className={cn(
+                                                    "w-full h-10 rounded-md border bg-transparent px-3 py-2 text-sm justify-start text-left font-normal",
+                                                    !expiryDate && "text-muted-foreground"
+                                                )}
+                                            >
+                                                <span>
+                                                    {expiryDate ? format(expiryDate, "yyyy-MM-dd") : "Select a date"}
+                                                </span>
+                                            </Button>
+                                        }
+                                    />
                                     <PopoverContent className="w-auto p-0" align="start">
                                         <Calendar
                                             mode="single"
