@@ -24,7 +24,11 @@ export const customerSchema = z.object({
 
 export const logisticsAssignmentSchema = z.object({
     trackingNumber: z.string().optional(),
-    scheduledArrival: z.iso.datetime().optional(),
+    // Optional: an empty value means "no deadline", so "" maps to undefined
+    // instead of failing the datetime check and silently blocking the step.
+    scheduledArrival: z
+        .union([z.iso.datetime("Invalid delivery date and time"), z.literal("").transform(() => undefined)])
+        .optional(),
     deliveryNotes: z.string().optional(),
     warehouseId: z.uuid("Invalid Warehouse"),
 })

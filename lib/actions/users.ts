@@ -1,7 +1,7 @@
 "use server"
 
 import type { CreateUserDto, CreateUserResultDto } from "@/lib/api"
-import { getAccessToken, getApiUrl, parseApiError } from "./api-client"
+import { buildApiContext, parseApiError } from "./api-client"
 
 /** Body of `POST /api/v1/users`; `user_metadata` is required for the Driver role. */
 export type CreateUserPayload = CreateUserDto
@@ -19,24 +19,16 @@ export interface CreateUserError {
 export async function createUser(
     payload: CreateUserPayload
 ): Promise<CreateUserResult | CreateUserError> {
-    const auth = await getAccessToken()
-    if ("error" in auth) {
-        return { success: false, error: auth.error }
-    }
-
-    const apiUrl = getApiUrl()
-    if (!apiUrl) {
-        return { success: false, error: "API is not configured." }
-    }
+    // The new member joins the active organisation, which the API resolves
+    // from the X-Organisation-Slug header set by buildApiContext.
+    const ctx = await buildApiContext()
+    if ("error" in ctx) return ctx
 
     let res: Response
     try {
-        res = await fetch(`${apiUrl}/api/v1/users`, {
+        res = await fetch(`${ctx.apiUrl}/api/v1/users`, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${auth.accessToken}`,
-            },
+            headers: ctx.headers,
             body: JSON.stringify(payload),
         })
     } catch {
