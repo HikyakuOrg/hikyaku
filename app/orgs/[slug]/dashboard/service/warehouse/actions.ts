@@ -7,8 +7,9 @@ import {
 } from "@/lib/supabase/db-server"
 
 // Client-side "load more" for the warehouse list. Returns one page of card
-// data plus the running total so the client can decide when to stop. Org
-// scoping is enforced by RLS inside getWarehousesPaginated (no org param).
+// data plus the running total so the client can decide when to stop.
+// getWarehousesPaginated scopes to the organisation in the x-org-slug header,
+// which is the page this action is posted from.
 export async function fetchWarehousePage(
     page: number
 ): Promise<{ data: WarehouseCardData[]; total: number }> {

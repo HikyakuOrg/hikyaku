@@ -231,6 +231,7 @@ export async function getDriversByServiceArea(areaId: string): Promise<ServiceAr
  * name is not available here: the name is not a column on this table.
  */
 export async function getAttachableDriversForServiceArea(
+    organisationId: string,
     areaId: string,
     page: number,
     pageSize: number,
@@ -242,6 +243,7 @@ export async function getAttachableDriversForServiceArea(
     let query = supabase
         .from("drivers")
         .select("id", { count: "exact" })
+        .eq("organisation_id", organisationId)
         .order("id", { ascending: false })
         .range(from, to)
 
@@ -271,6 +273,65 @@ export async function getAttachableDriversForServiceArea(
         drivers: toServiceAreaDrivers(driverIds, profiles, warehouses),
         total,
         totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    }
+}
+
+/** One page of an organisation's drivers. */
+export type OrganisationDriverPage = {
+    drivers: ListDriverDto[]
+    total: number
+    totalPages: number
+}
+
+/**
+ * One page of the organisation's drivers, for the pickers that pair a driver
+ * with a vehicle or a warehouse. `unassignedOnly` keeps the drivers that have no
+ * warehouse yet.
+ *
+ * This pages `drivers` directly instead of calling `get_drivers_paginated` or
+ * `list_unassigned_drivers`, because neither RPC takes an organisation: they
+ * return every driver in every organisation the caller belongs to, so a member
+ * of two organisations was offered the other organisation's drivers. The order
+ * matches those RPCs (id descending), and the names come from
+ * `get_drivers_by_ids` afterwards, as they do for the service area picker.
+ */
+export async function getOrganisationDrivers(
+    organisationId: string,
+    page: number,
+    pageSize: number,
+    options: { unassignedOnly?: boolean } = {},
+): Promise<OrganisationDriverPage> {
+    const from = (page - 1) * pageSize
+    const to = from + pageSize - 1
+
+    let query = supabase
+        .from("drivers")
+        .select("id", { count: "exact" })
+        .eq("organisation_id", organisationId)
+        .order("id", { ascending: false })
+        .range(from, to)
+
+    if (options.unassignedOnly) {
+        query = query.is("warehouse_id", null)
+    }
+
+    const { data, error, count } = await query
+    if (error) throw error
+
+    const driverIds = (data ?? []).map((row) => row.id)
+    const total = count ?? 0
+    const totalPages = Math.max(1, Math.ceil(total / pageSize))
+
+    if (driverIds.length === 0) {
+        return { drivers: [], total, totalPages }
+    }
+
+    const profiles = await getDriversByIds(driverIds)
+
+    return {
+        drivers: toServiceAreaDrivers(driverIds, profiles, new Map()),
+        total,
+        totalPages,
     }
 }
 
@@ -400,6 +461,7 @@ export async function getServiceAreasByDriver(driverId: string): Promise<DriverS
  * typing rather than only on a prefix.
  */
 export async function searchAttachableServiceAreasForDriver(
+    organisationId: string,
     driverId: string,
     search: string,
 ): Promise<DriverServiceArea[]> {
@@ -413,6 +475,7 @@ export async function searchAttachableServiceAreasForDriver(
     let query = supabase
         .from("service_areas")
         .select("id, name")
+        .eq("organisation_id", organisationId)
         .eq("is_deleted", false)
         .order("name", { ascending: true })
         .limit(20)
@@ -664,7 +727,7 @@ export type VehiclesWithTypes = Omit<Vehicle, 'vehicle_type'> & {
     is_deleted?: boolean
 }
 
-export async function getVehiclesByType(selectedTypes: string[], page: number, pageSize: number) {
+export async function getVehiclesByType(organisationId: string, selectedTypes: string[], page: number, pageSize: number) {
     const from = (page - 1) * pageSize
     const to = from + pageSize - 1
 
@@ -692,6 +755,7 @@ export async function getVehiclesByType(selectedTypes: string[], page: number, p
       `,
             { count: 'exact' }
         )
+        .eq('organisation_id', organisationId)
         .eq('is_deleted', false)
 
     // Apply filter only if array has values
@@ -707,11 +771,16 @@ export async function getVehiclesByType(selectedTypes: string[], page: number, p
 }
 
 
-export async function getWarehouses(page: number, pageSize: number) {
+export async function getWarehouses(organisationId: string, page: number, pageSize: number) {
     const from = (page - 1) * pageSize
     const to = from + pageSize - 1
 
-    const { data, count } = await supabase.from("warehouse").select("*", { count: 'exact' }).range(from, to)
+    const { data, count } = await supabase
+        .from("warehouse")
+        .select("*", { count: 'exact' })
+        .eq("organisation_id", organisationId)
+        .order("warehouse_name", { ascending: true })
+        .range(from, to)
     return { data: data ?? [], total: count ?? 0 }
 }
 
@@ -795,7 +864,7 @@ export async function getVehiclesInWarehouse(warehouseId: string, page: number, 
     return { data: data ?? [], total: count ?? 0 }
 }
 
-export async function getVehiclesNotAssigned(page: number, pageSize: number) {
+export async function getVehiclesNotAssigned(organisationId: string, page: number, pageSize: number) {
     const from = (page - 1) * pageSize
     const to = from + pageSize - 1
 
@@ -818,6 +887,7 @@ export async function getVehiclesNotAssigned(page: number, pageSize: number) {
           vehicle_description
         )
       `, { count: "exact" }).is("warehouse_id", null)
+        .eq("organisation_id", organisationId)
         .eq("is_deleted", false)
         .range(from, to)
     if (error) throw error
@@ -874,10 +944,11 @@ export async function createVehicle(vehicle: TablesInsert<'vehicles'>) {
     return data
 }
 
-export async function getVehicles() {
+export async function getVehicles(organisationId: string) {
     const { data, error } = await supabase
         .from("vehicles")
         .select("id, vehicle_plate, vehicle_make, vehicle_model, vehicle_year")
+        .eq("organisation_id", organisationId)
         .eq("is_deleted", false)
     if (error) throw error
     return data
@@ -1183,8 +1254,9 @@ export async function setOrganisationDrivingLimitDefault(organisationId: string,
     return data
 }
 
-export async function searchWarehouse(search: string) {
+export async function searchWarehouse(organisationId: string, search: string) {
     const { data, error } = await supabase.from("warehouse").select("*")
+        .eq("organisation_id", organisationId)
         .or(`warehouse_name.ilike.%${search}%,warehouse_address.ilike.%${search}%`)
         .limit(20)
     if (error) throw error
@@ -1210,10 +1282,11 @@ export async function createWarehouse(warehouse: {
     return data
 }
 
-export async function searchServiceArea(search: string) {
+export async function searchServiceArea(organisationId: string, search: string) {
     const { data, error } = await supabase
         .from("service_areas")
         .select("id, name")
+        .eq("organisation_id", organisationId)
         .eq("is_deleted", false)
         .ilike("name", `%${search}%`)
         .order("name", { ascending: true })
@@ -1255,7 +1328,7 @@ export async function getWarehousePackages(warehouseId: string, page: number, pa
 }
 
 
-export async function getDeliveryRoutes(page: number, pageSize: number) {
+export async function getDeliveryRoutes(organisationId: string, page: number, pageSize: number) {
     const from = (page - 1) * pageSize
     const to = from + pageSize - 1
     const { data, error, count } = await supabase.from("vrp_route")
@@ -1264,9 +1337,10 @@ export async function getDeliveryRoutes(page: number, pageSize: number) {
             vrp_route_step!inner(route_id, type, solution_id, duration),
             vrp_solution!inner(
                 id, optimization_id,
-                vrp_optimization!inner(id, created_at)
+                vrp_optimization!inner(id, created_at, organisation_id)
             )
         `, { count: "exact" })
+        .eq("vrp_solution.vrp_optimization.organisation_id", organisationId)
         .range(from, to)
     if (error) throw error
     return { data: data ?? [], total: count ?? 0 }
@@ -1329,6 +1403,7 @@ const CALENDAR_SHIFT_STATUSES: VrpOptimizationStatus[] = [
  * separate lookup that has to be deduped against this one.
  */
 export async function getShiftsByDates(
+    organisationId: string,
     startDate: string,
     endDate: string,
     driverId?: string
@@ -1353,6 +1428,7 @@ export async function getShiftsByDates(
             ),
             packages:packages!packages_optimisation_id_fkey ( id )
         `)
+        .eq('organisation_id', organisationId)
         .gte('shift_date', startDate.slice(0, 10))
         .lte('shift_date', endDate.slice(0, 10))
         .in('status', CALENDAR_SHIFT_STATUSES)
@@ -1449,10 +1525,11 @@ export type Skill = {
 }
 
 /** Active (non-archived) skills, alphabetical — what a picker offers. */
-export async function getSkills(): Promise<Skill[]> {
+export async function getSkills(organisationId: string): Promise<Skill[]> {
     const { data, error } = await supabase
         .from("skills")
         .select("id, name")
+        .eq("organisation_id", organisationId)
         .is("archived_at", null)
         .order("name", { ascending: true })
     if (error) throw error
@@ -1460,10 +1537,11 @@ export async function getSkills(): Promise<Skill[]> {
 }
 
 /** Every skill, including archived, newest first — for the Manage Skills dialog. */
-export async function getSkillCatalog(): Promise<Tables<'skills'>[]> {
+export async function getSkillCatalog(organisationId: string): Promise<Tables<'skills'>[]> {
     const { data, error } = await supabase
         .from("skills")
         .select("*")
+        .eq("organisation_id", organisationId)
         .order("created_at", { ascending: false })
     if (error) throw error
     return data ?? []

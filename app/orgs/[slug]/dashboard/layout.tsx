@@ -13,6 +13,7 @@ import { listPendingInvitations } from "@/lib/actions/invitations"
 import { getTrialStatus, getShiftUsage } from "@/lib/actions/billing"
 import { PendingInvitationsDialog } from "@/components/pending-invitations-dialog"
 import { TrialEndedDialog } from "@/components/trial-ended-dialog"
+import { OrganisationProvider } from "@/components/organisation-provider"
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
 
@@ -105,7 +106,7 @@ async function AuthenticatedShell({ children, params }: DashboardLayoutProps) {
           // trial dialog offers no route to the invitation.
           trialEnded && trial && <TrialEndedDialog trial={trial} />
         )}
-        {children}
+        <OrganisationProvider organisationId={currentOrg.id}>{children}</OrganisationProvider>
       </SidebarInset>
     </>
   )

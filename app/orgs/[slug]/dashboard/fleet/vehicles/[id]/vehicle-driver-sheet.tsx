@@ -13,9 +13,9 @@ import {
 import { DriverTable } from "@/components/driver/driver-table"
 import { ListDriverDto } from "@/lib/api"
 import { useState } from "react"
-import { getDrivers } from "@/lib/supabase/supabase-rpc"
 import { RowSelectionState } from "@tanstack/react-table"
-import { assignVehicleToDriver } from "@/lib/supabase/db"
+import { assignVehicleToDriver, getOrganisationDrivers } from "@/lib/supabase/db"
+import { useOrganisationId } from "@/components/organisation-provider"
 import { toast } from "sonner"
 import { getErrorMessage } from "@/lib/utils"
 
@@ -25,6 +25,7 @@ interface VehicleDriverSheetProps {
 }
 
 export function VehicleDriverSheet({ vehicleId, onDriverAssigned }: VehicleDriverSheetProps) {
+    const organisationId = useOrganisationId()
     const [open, setOpen] = useState(false)
     const [page, setPage] = useState(1)
     const [totalPages, setTotalPages] = useState(1)
@@ -36,11 +37,9 @@ export function VehicleDriverSheet({ vehicleId, onDriverAssigned }: VehicleDrive
     const fetchDrivers = async (p: number) => {
         setLoading(true)
         try {
-            const data = await getDrivers(p, PAGE_SIZE)
-            setDrivers(data)
-            if (data.length > 0) {
-                setTotalPages(Math.max(1, Math.ceil((data[0].total ?? 0) / PAGE_SIZE)))
-            }
+            const result = await getOrganisationDrivers(organisationId, p, PAGE_SIZE)
+            setDrivers(result.drivers)
+            setTotalPages(result.totalPages)
         } finally {
             setLoading(false)
         }

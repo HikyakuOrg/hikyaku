@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { getOrganisationIdBySlug, getSkillsByVehicle, getVehicleTypes, getWarehouses } from '@/lib/supabase/db'
+import { getSkillsByVehicle, getVehicleTypes, getWarehouses } from '@/lib/supabase/db'
 import { toast } from 'sonner'
 import { Loader2, CheckCircle2, AlertCircle, X } from 'lucide-react'
 import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/dropzone'
@@ -19,7 +19,7 @@ import { createClient } from '@/lib/supabase/client'
 import { cn, getErrorMessage } from '@/lib/utils'
 import { Tables } from '@/lib/supabase/supabase'
 import { decodeVin } from '@/lib/actions/vin'
-import { useOrgSlug } from '@/lib/use-org'
+import { useOrganisationId } from '@/components/organisation-provider'
 import { SkillsMultiSelect } from '@/components/skills/skills-multiselect'
 
 const vehicleSchema = z.object({
@@ -47,14 +47,13 @@ interface VehicleFormProps {
 
 export function VehicleForm({ initialData, onSubmit, isSubmitting, submitLabel }: VehicleFormProps) {
     const router = useRouter()
-    const slug = useOrgSlug()
+    const organisationId = useOrganisationId()
     const [isDecoding, setIsDecoding] = useState(false)
     const [isAutoPopulated, setIsAutoPopulated] = useState(!!initialData)
     const [vehicleTypes, setVehicleTypes] = useState<Tables<'vehicle_type'>[]>([])
     const [warehouses, setWarehouses] = useState<Tables<'warehouse'>[]>([])
     const [existingImages, setExistingImages] = useState<{ name: string, url: string }[]>([])
     const [isRemovingImage, setIsRemovingImage] = useState<string | null>(null)
-    const [organisationId, setOrganisationId] = useState<string | null>(null)
 
     const form = useForm<VehicleFormValues>({
         resolver: zodResolver(vehicleSchema),
@@ -82,10 +81,7 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, submitLabel }
 
     useEffect(() => {
         getVehicleTypes().then(setVehicleTypes)
-        getWarehouses(1, 100).then(res => setWarehouses(res.data))
-        getOrganisationIdBySlug(slug).then(setOrganisationId).catch((error) => {
-            console.error('Failed to resolve the organisation for the skill picker:', error)
-        })
+        getWarehouses(organisationId, 1, 100).then(res => setWarehouses(res.data))
         if (initialData?.id) {
             const supabase = createClient()
             supabase.storage.from('vehicles').list(initialData.id).then(({ data }) => {
@@ -101,7 +97,7 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, submitLabel }
                 form.setValue('skillIds', skills.map((skill) => skill.id))
             })
         }
-    }, [initialData, slug, form])
+    }, [initialData, organisationId, form])
 
     useEffect(() => {
         // Base UI's Select/Combobox popups (HIK-132) can leave a scroll lock
@@ -343,7 +339,6 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, submitLabel }
                         <SkillsMultiSelect
                             value={form.watch('skillIds')}
                             onChange={(skillIds) => form.setValue('skillIds', skillIds, { shouldDirty: true })}
-                            organisationId={organisationId}
                             testId="vehicle-skills-picker"
                         />
                     </div>

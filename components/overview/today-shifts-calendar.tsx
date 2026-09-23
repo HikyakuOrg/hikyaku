@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useOrgSlug } from '@/lib/use-org'
+import { useOrganisationId } from '@/components/organisation-provider'
 import { getShiftsByDates, getShiftStartEnd, type CalendarShift } from '@/lib/supabase/db'
 
 function resolveLocale(): { tag: string; locale: Locale } {
@@ -65,6 +66,7 @@ function makeLocalizer(tag: string, locale: Locale) {
 
 export function TodayShiftsCalendar() {
     const slug = useOrgSlug()
+    const organisationId = useOrganisationId()
     // Pinned at mount so the fetch effect below has a stable dependency.
     const [today] = useState(() => new Date())
     const [events, setEvents] = useState<CalendarShift[]>([])
@@ -80,6 +82,7 @@ export function TodayShiftsCalendar() {
             setLoading(true)
             try {
                 setEvents(await getShiftsByDates(
+                    organisationId,
                     startOfDay(today).toISOString(),
                     endOfDay(today).toISOString(),
                 ))
@@ -91,7 +94,7 @@ export function TodayShiftsCalendar() {
             }
         }
         fetchEvents()
-    }, [today])
+    }, [organisationId, today])
 
     return (
         <Card className="col-span-1 lg:col-span-3">

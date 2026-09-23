@@ -13,6 +13,8 @@ import type { DrivingLimitProfile } from "@/lib/driving-limits"
 import { PackageOptimisation, Location } from "@/app/models/package-optimisation"
 import { listCustomersAction, getCustomerAction } from "@/lib/actions/customers"
 import { TrackingDetails } from "@/app/models/tracking"
+import { headers } from "next/headers"
+import { cache } from "react"
 
 type ServiceAreaViewportBounds = {
     minLat: number
@@ -21,12 +23,30 @@ type ServiceAreaViewportBounds = {
     maxLng: number
 }
 
-type ServiceAreaExtentRow = {
-    min_lat: number
-    min_lng: number
-    max_lat: number
-    max_lng: number
-}
+/**
+ * The id of the organisation this request is for, resolved from the slug that
+ * middleware forwards as `x-org-slug` (the `/orgs/<slug>/…` path segment).
+ *
+ * Every list, count and picker read below filters on it explicitly. RLS alone is
+ * not enough: it admits every organisation the caller belongs to, so a member of
+ * two organisations would otherwise see both organisations' rows in each one's
+ * dashboard. Memoised per request, since one page runs several of these reads.
+ */
+export const getActiveOrganisationId = cache(async (): Promise<string> => {
+    const slug = (await headers()).get("x-org-slug")
+    if (!slug) throw new Error("No active organisation.")
+
+    const supabase = await createClient()
+    const { data, error } = await supabase
+        .from("organisations")
+        .select("id")
+        .eq("slug", slug)
+        .maybeSingle()
+
+    if (error) throw error
+    if (!data) throw new Error("No active organisation.")
+    return data.id
+})
 
 export async function getWarehouse(warehouseId: string) {
     const supabase = await createClient()
@@ -71,9 +91,14 @@ export async function getWarehouseVehicleCount(warehouseId: string) {
 
 export async function getPackagesCount(status: PackageStatus[]) {
     const supabase = await createClient()
+    const organisationId = await getActiveOrganisationId()
+    // The view carries no organisation_id, so the organisation comes from the
+    // package's warehouse. packages.warehouse_id is nullable in the schema, but
+    // package creation always sets it.
     const { count, error } = await supabase
         .from('packages_with_latest_status')
-        .select('*', { count: 'exact', head: true })
+        .select('id, warehouse!inner(organisation_id)', { count: 'exact', head: true })
+        .eq('warehouse.organisation_id', organisationId)
         .in('current_status', status)
     if (error) {
         console.error(error)
@@ -84,21 +109,34 @@ export async function getPackagesCount(status: PackageStatus[]) {
 
 export async function getDriversCount() {
     const supabase = await createClient()
-    const { count, error } = await supabase.from("drivers").select("*", { count: 'exact', head: true })
+    const organisationId = await getActiveOrganisationId()
+    const { count, error } = await supabase
+        .from("drivers")
+        .select("*", { count: 'exact', head: true })
+        .eq("organisation_id", organisationId)
     if (error) throw error
     return count
 }
 
 export async function getFleetSize() {
     const supabase = await createClient()
-    const { count, error } = await supabase.from("vehicles").select("*", { count: 'exact', head: true })
+    const organisationId = await getActiveOrganisationId()
+    const { count, error } = await supabase
+        .from("vehicles")
+        .select("*", { count: 'exact', head: true })
+        .eq("organisation_id", organisationId)
+        .eq("is_deleted", false)
     if (error) throw error
     return count
 }
 
 export async function getWarehousesCount() {
     const supabase = await createClient()
-    const { count, error } = await supabase.from("warehouse").select("*", { count: 'exact', head: true })
+    const organisationId = await getActiveOrganisationId()
+    const { count, error } = await supabase
+        .from("warehouse")
+        .select("*", { count: 'exact', head: true })
+        .eq("organisation_id", organisationId)
     if (error) throw error
     return count
 }
@@ -116,9 +154,11 @@ export async function getWarehousesPaginated(page: number, pageSize: number) {
     const from = (page - 1) * pageSize
     const to = from + pageSize - 1
 
+    const organisationId = await getActiveOrganisationId()
     const { data, error, count } = await supabase
         .from('warehouse')
         .select('*', { count: 'exact' })
+        .eq('organisation_id', organisationId)
         .order('warehouse_name', { ascending: true })
         .order('id', { ascending: true })
         .range(from, to)
@@ -149,15 +189,16 @@ export type WarehousePin = {
     lat: number
 }
 
-// All warehouses the caller can see, as lightweight pins for the map.
+// The active organisation's warehouses, as lightweight pins for the map.
 // warehouse_location comes back as a GeoJSON Point ({ coordinates: [lng, lat] }),
 // matching how it's read elsewhere (warehouse detail page, package locations).
-// Org isolation is enforced by RLS.
 export async function getWarehouseLocations(): Promise<WarehousePin[]> {
     const supabase = await createClient()
+    const organisationId = await getActiveOrganisationId()
     const { data, error } = await supabase
         .from('warehouse')
         .select('id, warehouse_name, warehouse_address, warehouse_location')
+        .eq('organisation_id', organisationId)
         .order('warehouse_name', { ascending: true })
 
     if (error) {
@@ -205,20 +246,8 @@ export type ServiceAreaListResult =
     | { status: "ok"; areas: ServiceAreaListItem[] }
     | { status: "error" }
 
-export type ServiceAreaExtent = {
-    minLat: number
-    minLng: number
-    maxLat: number
-    maxLng: number
-}
-
-export type ServiceAreaExtentResult =
-    /** `extent` is null when the organisation genuinely has no areas. */
-    | { status: "ok"; extent: ServiceAreaExtent | null }
-    | { status: "error" }
-
 /**
- * Every service area the caller can see, for the list on the service areas page.
+ * Every service area in the active organisation, for the list on the service areas page.
  *
  * Deliberately unscoped by viewport: the map next to this list fetches only what
  * is on screen (a city's worth of polygons is too much to draw at once), but an
@@ -226,14 +255,14 @@ export type ServiceAreaExtentResult =
  * and it is never in view. There is no pagination either; the table pages
  * client-side. That is fine at the number of areas an organisation draws by
  * hand, and is a known limit rather than an oversight.
- *
- * Organisation isolation is enforced by RLS, as it is for every other read here.
  */
 export async function getServiceAreas(): Promise<ServiceAreaListResult> {
     const supabase = await createClient()
+    const organisationId = await getActiveOrganisationId()
     const { data, error } = await supabase
         .from("service_areas")
         .select("id, name, geometry, created_at")
+        .eq("organisation_id", organisationId)
         // Soft deletes on this table are filtered here rather than in RLS, so a
         // read without this predicate would keep showing retired territories.
         .eq("is_deleted", false)
@@ -351,49 +380,27 @@ export async function getOrganisationBySlug(slug: string): Promise<BookingOrgani
 }
 
 /**
- * The bounding box of every service area in the organisation, used to point the
- * map somewhere useful on first paint.
+ * The bounding box around a list of areas, used to point the map somewhere
+ * useful on first paint. Null when there is nothing to frame.
  *
- * Returns a status rather than a bare extent: a failed RPC and an organisation
- * with nothing drawn yet both used to come back as null, so a page could only
- * render one of them, and it picked the friendly onboarding panel. The error is
- * still logged here; the status is what lets the caller say so on screen.
- *
- * Note the RPC itself (get_service_area_extent) does not filter `is_deleted`,
- * so the box it returns can still cover a retired area. The only effect is a
- * slightly wider opening view, and the areas actually drawn come from
- * getServiceAreasInBounds(), which reads live rows.
+ * Built from the rows getServiceAreas() already read rather than from the
+ * get_service_area_extent RPC, which takes no organisation and so framed every
+ * organisation the caller belongs to. Reading the list also means the box only
+ * covers live areas, where the RPC included retired ones.
  */
-export async function getServiceAreaExtent(): Promise<ServiceAreaExtentResult> {
-    const supabase = await createClient()
-    const { data, error } = await supabase.rpc("get_service_area_extent")
+export function getServiceAreaListBounds(areas: ServiceAreaListItem[]): ServiceAreaBounds | null {
+    const boxes = areas.flatMap((area) => (area.bounds ? [area.bounds] : []))
+    if (boxes.length === 0) return null
 
-    if (error) {
-        console.error(error)
-        return { status: "error" }
-    }
-
-    // The function is `WHERE extent IS NOT NULL`, so an organisation with no
-    // areas returns no rows at all rather than a row of nulls.
-    const extent = (data as ServiceAreaExtentRow[] | null)?.[0]
-
-    if (!extent) {
-        return { status: "ok", extent: null }
-    }
-
-    return {
-        status: "ok",
-        extent: {
-            minLat: extent.min_lat,
-            minLng: extent.min_lng,
-            maxLat: extent.max_lat,
-            maxLng: extent.max_lng,
-        },
-    }
+    return [
+        [Math.min(...boxes.map(([min]) => min[0])), Math.min(...boxes.map(([min]) => min[1]))],
+        [Math.max(...boxes.map(([, max]) => max[0])), Math.max(...boxes.map(([, max]) => max[1]))],
+    ]
 }
 
 export async function getServiceAreasInBounds(bounds: ServiceAreaViewportBounds) {
     const supabase = await createClient()
+    const organisationId = await getActiveOrganisationId()
     const { data, error } = await supabase.rpc("get_service_areas_in_bounds", {
         p_min_lng: bounds.minLng,
         p_min_lat: bounds.minLat,
@@ -406,15 +413,22 @@ export async function getServiceAreasInBounds(bounds: ServiceAreaViewportBounds)
         return emptyServiceAreaFeatureCollection
     }
 
-    return createServiceAreaFeatureCollection(data ?? [])
+    // The RPC takes no organisation and returns every area RLS admits, but it
+    // does return each row's organisation_id, so the active one is kept here.
+    return createServiceAreaFeatureCollection(
+        (data ?? []).filter((area) => area.organisation_id === organisationId)
+    )
 }
 
 export async function getWarehouseSummaries() {
     const supabase = await createClient()
+    const organisationId = await getActiveOrganisationId()
 
     const { data: warehouses, error: wError } = await supabase
         .from('warehouse')
         .select('id, warehouse_name')
+        .eq('organisation_id', organisationId)
+        .order('warehouse_name', { ascending: true })
 
     if (wError) {
         console.error(wError)

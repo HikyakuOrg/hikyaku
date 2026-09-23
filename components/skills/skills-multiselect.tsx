@@ -14,6 +14,7 @@ import {
     useComboboxAnchor,
 } from "@/components/ui/combobox"
 import { createSkill, getSkills, type Skill } from "@/lib/supabase/db"
+import { useOrganisationId } from "@/components/organisation-provider"
 import { isUniqueViolationError } from "@/lib/permissions"
 import { getErrorMessage } from "@/lib/utils"
 
@@ -29,19 +30,17 @@ import { getErrorMessage } from "@/lib/utils"
 export function SkillsMultiSelect({
     value,
     onChange,
-    organisationId,
     disabled = false,
     placeholder = "Search or add a skill…",
     testId = "skills-picker",
 }: {
     value: string[]
     onChange: (skillIds: string[]) => void
-    /** Needed to create a new catalog skill inline. Omit (or pass null) to hide that option, e.g. before the organisation id has loaded. */
-    organisationId?: string | null
     disabled?: boolean
     placeholder?: string
     testId?: string
 }) {
+    const organisationId = useOrganisationId()
     const [catalog, setCatalog] = useState<Skill[]>([])
     const [query, setQuery] = useState("")
     const [isCreating, setIsCreating] = useState(false)
@@ -52,13 +51,13 @@ export function SkillsMultiSelect({
     const anchor = useComboboxAnchor()
 
     useEffect(() => {
-        getSkills()
+        getSkills(organisationId)
             .then((skills) => {
                 setCatalog(skills)
                 for (const skill of skills) knownRef.current.set(skill.id, skill)
             })
             .catch((error) => console.error("Failed to load the skill catalog:", error))
-    }, [])
+    }, [organisationId])
 
     const trimmedQuery = query.trim()
     const filtered = trimmedQuery
@@ -67,10 +66,10 @@ export function SkillsMultiSelect({
     const hasExactMatch = catalog.some(
         (skill) => skill.name.toLowerCase() === trimmedQuery.toLowerCase()
     )
-    const canCreate = !!organisationId && trimmedQuery.length > 0 && !hasExactMatch
+    const canCreate = trimmedQuery.length > 0 && !hasExactMatch
 
     async function handleCreate() {
-        if (!organisationId || !trimmedQuery) return
+        if (!trimmedQuery) return
 
         setIsCreating(true)
         try {
