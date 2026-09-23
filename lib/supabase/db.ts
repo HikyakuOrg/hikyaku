@@ -944,6 +944,19 @@ export async function createVehicle(vehicle: TablesInsert<'vehicles'>) {
     return data
 }
 
+/**
+ * Hard delete a vehicle the add form has only just inserted, when a follow-up
+ * write for it (its skills, its images) fails. Unlike deleteVehicle() this
+ * frees the plate, so the form can be resubmitted as is; its vehicle_skills
+ * rows go with it through the FK cascade. RLS silently skips the row for
+ * anyone without vehicles.delete, so the result says whether it really went.
+ */
+export async function discardVehicle(vehicleId: string) {
+    const { data, error } = await supabase.from("vehicles").delete().eq("id", vehicleId).select("id")
+    if (error) throw error
+    return (data ?? []).length > 0
+}
+
 export async function getVehicles(organisationId: string) {
     const { data, error } = await supabase
         .from("vehicles")

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page, type Response } from "@playwright/test";
 import { d } from "./helpers/org-url";
 
 /** A VIN the decoder resolves to a real make/model/year/type, used across specs in this file. */
@@ -136,5 +136,165 @@ test.describe("Fleet Vehicles Skills", () => {
         await expect(
             page.getByTestId("vehicle-skills-picker").getByText(skillName, { exact: true })
         ).toBeVisible({ timeout: 15000 });
+    });
+});
+
+test.describe("Fleet Vehicles saves are all or nothing", () => {
+    /** Fill every required field plus one freshly created skill; returns the plate. */
+    async function fillAddForm(page: Page) {
+        await page.goto(d('/fleet/vehicles/add'));
+        await page.getByLabel(/vin/i).pressSequentially(VALID_VIN);
+        await expect(page.locator("#make")).toHaveValue("Cadillac", { timeout: 30000 });
+
+        const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+        const plate = `RBK-${suffix}`;
+        await page.getByLabel(/registration plate/i).fill(plate);
+
+        await page.getByText("Select warehouse").click();
+        await expect(page.getByRole("option").first()).toBeVisible({ timeout: 10000 });
+        await page.getByRole("option").first().click();
+
+        const skillName = `E2E Skill ${suffix}`;
+        const skillsPicker = page.getByTestId("vehicle-skills-picker");
+        await skillsPicker.click();
+        await skillsPicker.locator("input").fill(skillName);
+        const createButton = page.getByTestId("vehicle-skills-picker-create");
+        await expect(createButton).toBeVisible({ timeout: 10000 });
+        await createButton.click();
+        await expect(skillsPicker.getByText(skillName)).toBeVisible({ timeout: 15000 });
+        await page.keyboard.press("Escape");
+
+        await page.locator("#gross").fill("1500");
+        return { plate, skillName };
+    }
+
+    /** Reject the next vehicle_skills write the way the composite org FK does. */
+    async function failNextSkillWrite(page: Page) {
+        let failed = false;
+        await page.route("**/rest/v1/vehicle_skills*", async (route) => {
+            if (failed || route.request().method() !== "POST") return route.fallback();
+            failed = true;
+            await route.fulfill({
+                status: 409,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    code: "23503",
+                    message: 'insert or update on table "vehicle_skills" violates foreign key constraint "vehicle_skills_skill_org_fkey"',
+                    details: null,
+                    hint: null,
+                }),
+            });
+        });
+    }
+
+    const isVehicleWrite = (method: string) => (res: Response) =>
+        res.url().includes("/rest/v1/vehicles") && res.request().method() === method;
+
+    test("discards the vehicle when its skills fail, so resubmitting adds exactly one", async ({ page }) => {
+        test.setTimeout(120000);
+        test.skip(!!process.env.CI, "Requires a seeded warehouse, so skipped in CI");
+
+        const { skillName } = await fillAddForm(page);
+        await failNextSkillWrite(page);
+
+        const saveButton = page.getByRole("button", { name: /save vehicle/i });
+        const [, discard] = await Promise.all([
+            page.waitForResponse(isVehicleWrite("POST")),
+            page.waitForResponse(isVehicleWrite("DELETE")),
+            saveButton.click(),
+        ]);
+        expect(await discard.json()).toHaveLength(1);
+        await expect(page.getByText("Couldn't save the vehicle's skills, so it was not added.")).toBeVisible();
+        await expect(page.getByText(/vehicle_skills_skill_org_fkey/)).toBeVisible();
+        await expect(page).toHaveURL(d('/fleet/vehicles/add'));
+
+        // Same form, same plate: a fresh insert must go through, which it could
+        // not if the first row were still holding the unique plate.
+        const [retryInsert] = await Promise.all([
+            page.waitForResponse(isVehicleWrite("POST")),
+            saveButton.click(),
+        ]);
+        expect(retryInsert.status()).toBe(201);
+        const createdVehicle = await retryInsert.json();
+        await expect(page).toHaveURL(d('/fleet/vehicles'), { timeout: 20000 });
+
+        await page.goto(d(`/fleet/vehicles/${createdVehicle.id}/edit`));
+        await expect(page.getByTestId("vehicle-skills-picker").getByText(skillName)).toBeVisible({ timeout: 15000 });
+    });
+
+    test("finishes the stranded vehicle on retry when it cannot be discarded", async ({ page }) => {
+        test.setTimeout(120000);
+        test.skip(!!process.env.CI, "Requires a seeded warehouse, so skipped in CI");
+
+        const { skillName } = await fillAddForm(page);
+        await failNextSkillWrite(page);
+        // A role with vehicles.add but not vehicles.delete: RLS deletes nothing.
+        await page.route("**/rest/v1/vehicles*", async (route) => {
+            if (route.request().method() !== "DELETE") return route.fallback();
+            await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
+        });
+
+        const saveButton = page.getByRole("button", { name: /save vehicle/i });
+        const [insert] = await Promise.all([
+            page.waitForResponse(isVehicleWrite("POST")),
+            saveButton.click(),
+        ]);
+        const strandedVehicle = await insert.json();
+        await expect(page.getByText(/saving again will finish it/i)).toBeVisible({ timeout: 15000 });
+
+        let insertedAgain = false;
+        page.on("request", (req) => {
+            if (req.url().includes("/rest/v1/vehicles") && req.method() === "POST") insertedAgain = true;
+        });
+        const [update] = await Promise.all([
+            page.waitForResponse(isVehicleWrite("PATCH")),
+            saveButton.click(),
+        ]);
+        expect(update.url()).toContain(strandedVehicle.id);
+        await expect(page).toHaveURL(d('/fleet/vehicles'), { timeout: 20000 });
+        expect(insertedAgain).toBe(false);
+
+        await page.goto(d(`/fleet/vehicles/${strandedVehicle.id}/edit`));
+        await expect(page.getByTestId("vehicle-skills-picker").getByText(skillName)).toBeVisible({ timeout: 15000 });
+    });
+    test("puts an edited vehicle's fields back when its skills fail", async ({ page }) => {
+        test.setTimeout(120000);
+        test.skip(!!process.env.CI, "Requires a seeded warehouse, so skipped in CI");
+
+        await fillAddForm(page);
+        const [insert] = await Promise.all([
+            page.waitForResponse(isVehicleWrite("POST")),
+            page.getByRole("button", { name: /save vehicle/i }).click(),
+        ]);
+        const vehicle = await insert.json();
+        await expect(page).toHaveURL(d('/fleet/vehicles'), { timeout: 20000 });
+
+        await page.goto(d(`/fleet/vehicles/${vehicle.id}/edit`));
+        await expect(page.locator("#gross")).toHaveValue("1500", { timeout: 15000 });
+        await page.locator("#gross").fill("2500");
+
+        // Add a second skill so the save has a skill insert to fail on.
+        const skillsPicker = page.getByTestId("vehicle-skills-picker");
+        await skillsPicker.click();
+        await skillsPicker.locator("input").fill(`E2E Extra ${Date.now()}`);
+        const createButton = page.getByTestId("vehicle-skills-picker-create");
+        await expect(createButton).toBeVisible({ timeout: 10000 });
+        await createButton.click();
+        await expect(createButton).toHaveCount(0, { timeout: 15000 });
+        await page.keyboard.press("Escape");
+        await failNextSkillWrite(page);
+
+        const patches: string[] = [];
+        page.on("request", (req) => {
+            if (req.url().includes("/rest/v1/vehicles") && req.method() === "PATCH") patches.push(req.postData() ?? "");
+        });
+        await page.getByRole("button", { name: /update vehicle/i }).click();
+        await expect(page.getByText(/vehicle_skills_skill_org_fkey/)).toBeVisible({ timeout: 15000 });
+        await expect.poll(() => patches.length).toBe(2);
+        expect(JSON.parse(patches[0]).vehicle_gross_limits).toBe(2500);
+        expect(JSON.parse(patches[1]).vehicle_gross_limits).toBe(1500);
+
+        await page.reload();
+        await expect(page.locator("#gross")).toHaveValue("1500", { timeout: 15000 });
     });
 });
