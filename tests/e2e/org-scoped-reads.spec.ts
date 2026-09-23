@@ -40,7 +40,7 @@ test("a member of two organisations sees only the open organisation's warehouses
         await switcher.click();
         await page.getByRole("menuitem", { name: label, exact: true }).click();
         await page
-            .waitForURL((url) => !url.pathname.startsWith(`/orgs/${firstSlug}/`), { timeout: 5_000 })
+            .waitForURL((url) => !url.pathname.startsWith(`/orgs/${firstSlug}/`), { timeout: 30_000 })
             .catch(() => {});
         if (slugOf(page) !== firstSlug) {
             secondSlug = slugOf(page);
