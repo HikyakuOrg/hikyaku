@@ -84,4 +84,57 @@ test.describe("Fleet Vehicles Skills", () => {
         await page.goto(d(`/fleet/vehicles/${createdVehicle.id}/edit`));
         await expect(page.getByTestId("vehicle-skills-picker").getByText(skillName)).toBeVisible({ timeout: 15000 });
     });
+
+    test("keeps an existing skill picked from the list when Escape closes the picker", async ({ page }) => {
+        test.setTimeout(120000);
+        test.skip(!!process.env.CI, "Requires a seeded warehouse, so skipped in CI");
+
+        await page.goto(d('/fleet/vehicles/add'));
+
+        await page.getByLabel(/vin/i).pressSequentially(VALID_VIN);
+        await expect(page.locator("#make")).toHaveValue("Cadillac", { timeout: 30000 });
+        await page.getByLabel(/registration plate/i).fill(`ESC-${Date.now()}`);
+
+        await page.getByText("Select warehouse").click();
+        await expect(page.getByRole("option").first()).toBeVisible({ timeout: 10000 });
+        await page.getByRole("option").first().click();
+
+        // Create the skill first so an option from this org's catalog is
+        // guaranteed, then drop its chip and pick it again from the list.
+        const skillName = `E2E Skill ${Date.now()}`;
+        const skillsPicker = page.getByTestId("vehicle-skills-picker");
+        const skillsInput = skillsPicker.locator("input");
+        await skillsPicker.click();
+        await skillsInput.fill(skillName);
+        const createButton = page.getByTestId("vehicle-skills-picker-create");
+        await expect(createButton).toBeVisible({ timeout: 10000 });
+        await createButton.click();
+        const chip = skillsPicker.locator('[data-slot="combobox-chip"]', { hasText: skillName });
+        await expect(chip).toBeVisible({ timeout: 15000 });
+        await chip.getByRole("button", { name: "Clear selection" }).click();
+        await expect(chip).toHaveCount(0);
+
+        await skillsInput.fill(skillName);
+        await page.getByRole("option", { name: skillName, exact: true }).click();
+
+        // The first Escape closes the list; the second lands on a closed picker,
+        // which is where Base UI used to clear every selected chip.
+        await page.keyboard.press("Escape");
+        await page.keyboard.press("Escape");
+        await expect(skillsPicker.getByText(skillName, { exact: true })).toBeVisible();
+
+        await page.locator("#gross").fill("1500");
+
+        const [vehicleInsertResponse] = await Promise.all([
+            page.waitForResponse((res) => res.url().includes("/rest/v1/vehicles") && res.request().method() === "POST"),
+            page.getByRole("button", { name: /save vehicle/i }).click(),
+        ]);
+        const createdVehicle = await vehicleInsertResponse.json();
+        await expect(page).toHaveURL(d('/fleet/vehicles'), { timeout: 20000 });
+
+        await page.goto(d(`/fleet/vehicles/${createdVehicle.id}/edit`));
+        await expect(
+            page.getByTestId("vehicle-skills-picker").getByText(skillName, { exact: true })
+        ).toBeVisible({ timeout: 15000 });
+    });
 });
