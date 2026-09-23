@@ -242,7 +242,9 @@ export function OptimiseRoutesButton() {
                                 }}
                             >
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Select warehouse" />
+                                    <SelectValue placeholder="Select warehouse">
+                                        {warehouses.find((w) => w.id === warehouseId)?.warehouse_name}
+                                    </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
                                     {warehouses.map((w) => (
