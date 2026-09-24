@@ -10,6 +10,7 @@ import { Tables } from "./supabase"
 import { VrpOptimizationStatus } from "@/app/models/vrp-optimization-status"
 import { createClient } from "./server"
 import type { DrivingLimitProfile } from "@/lib/driving-limits"
+import { toDispatchSettings, type DispatchSettings } from "@/lib/dispatch-settings"
 import { PackageOptimisation, Location } from "@/app/models/package-optimisation"
 import { listCustomersAction, getCustomerAction } from "@/lib/actions/customers"
 import { TrackingDetails } from "@/app/models/tracking"
@@ -698,6 +699,34 @@ export async function getOrganisationDrivingLimitSettings(slug: string): Promise
     }
 
     return { status: "ok", organisationId: data.id, defaultProfileId: data.default_driving_limit_profile_id }
+}
+
+export type OrganisationDispatchSettingsResult =
+    | { status: "ok"; organisationId: string; settings: DispatchSettings }
+    | { status: "error" }
+
+/**
+ * The organisation's dispatch settings, or the defaults when it has never saved
+ * any: there is no row until the first save. Any member can read them.
+ */
+export async function getOrganisationDispatchSettings(slug: string): Promise<OrganisationDispatchSettingsResult> {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+        .from("organisations")
+        .select("id, organisation_dispatch_settings(assignment_mode, load_spread_enabled, service_area_matching)")
+        .eq("slug", slug)
+        .maybeSingle()
+
+    if (error || !data) {
+        if (error) console.error(error)
+        return { status: "error" }
+    }
+
+    return {
+        status: "ok",
+        organisationId: data.id,
+        settings: toDispatchSettings(data.organisation_dispatch_settings),
+    }
 }
 
 /**

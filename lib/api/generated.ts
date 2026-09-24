@@ -358,7 +358,7 @@ export interface CoverageAssignmentDto {
    *
    * The two disagreeing is not a bug, it is the most useful thing on this response: it means the map changed after the package was placed. A package recorded as `covered` that now reads `not_covering` was routed correctly and then had its territory redrawn underneath it.
    *
-   * `floater` is kept distinct from `covered` because during rollout most matches are floater matches, and merging them would report the feature as working better than it is. `disabled` means SERVICE_AREA_MATCHING was off and no coverage question was asked. Null means no automatic assignment wrote this row: the package was pinned by a dispatcher, or it predates this column.
+   * `floater` is kept distinct from `covered` because during rollout most matches are floater matches, and merging them would report the feature as working better than it is. `disabled` means the organisation had service area matching switched off and no coverage question was asked. Null means no automatic assignment wrote this row: the package was pinned by a dispatcher, or it predates this column.
    */
   recordedOutcome?: CoverageAssignmentDtoRecordedOutcomeEnum | null;
   /**
@@ -385,7 +385,7 @@ export type CoverageAssignmentDtoMatchedByEnum =
  *
  * The two disagreeing is not a bug, it is the most useful thing on this response: it means the map changed after the package was placed. A package recorded as `covered` that now reads `not_covering` was routed correctly and then had its territory redrawn underneath it.
  *
- * `floater` is kept distinct from `covered` because during rollout most matches are floater matches, and merging them would report the feature as working better than it is. `disabled` means SERVICE_AREA_MATCHING was off and no coverage question was asked. Null means no automatic assignment wrote this row: the package was pinned by a dispatcher, or it predates this column.
+ * `floater` is kept distinct from `covered` because during rollout most matches are floater matches, and merging them would report the feature as working better than it is. `disabled` means the organisation had service area matching switched off and no coverage question was asked. Null means no automatic assignment wrote this row: the package was pinned by a dispatcher, or it predates this column.
  */
 export type CoverageAssignmentDtoRecordedOutcomeEnum =
   | "covered"
@@ -445,11 +445,11 @@ export interface CoverageDriverDto {
    * @format uuid
    */
   driverId: string;
-  /** `explicit`: a territory this driver is staffed on contains the point. `floater`: this driver has no territories at all and so covers everywhere, which is what keeps an unconfigured organisation behaving exactly as it did before territories existed. */
+  /** `explicit`: a territory this driver is staffed on contains the point. `floater`: this driver is staffed on no live territory (links to retired territories do not count) and so covers everywhere, which is what keeps an unconfigured organisation behaving exactly as it did before territories existed. */
   matchedBy: CoverageDriverDtoMatchedByEnum;
 }
 
-/** `explicit`: a territory this driver is staffed on contains the point. `floater`: this driver has no territories at all and so covers everywhere, which is what keeps an unconfigured organisation behaving exactly as it did before territories existed. */
+/** `explicit`: a territory this driver is staffed on contains the point. `floater`: this driver is staffed on no live territory (links to retired territories do not count) and so covers everywhere, which is what keeps an unconfigured organisation behaving exactly as it did before territories existed. */
 export type CoverageDriverDtoMatchedByEnum = "explicit" | "floater";
 
 export interface CoverageFallbackPackageDto {
@@ -480,7 +480,7 @@ export type CoverageFallbackPackageDtoOutcomeEnum =
 export interface CoverageOutcomeCountsDto {
   /** A territory the driver is staffed on contains the point. */
   covered: number;
-  /** SERVICE_AREA_MATCHING was off when the package was placed, so no coverage question was asked. Excluded from `decisions` and from the rate below. */
+  /** Service area matching was switched off for the organisation when the package was placed, so no coverage question was asked. Excluded from `decisions` and from the rate below. */
   disabled: number;
   /** Somebody covers the point, but no covering driver had room and none was idle. An understaffed territory, or a busy day. */
   fallbackNoCoveringCapacity: number;
@@ -535,7 +535,7 @@ export interface CoverageSummaryDto {
   fallbacks: CoverageFallbackPackageDto[];
   /** Live (not soft-deleted) territories in this organisation. Zero means nothing has been drawn, so every driver covers everywhere and a 100% floater rate is the correct answer rather than a good one. */
   liveServiceAreaCount: number;
-  /** Whether service area matching is switched on for the process answering this request. False means new packages are being recorded as `disabled` and the rate below describes history, not what is happening now. Process-wide, not per organisation. */
+  /** Whether service area matching is switched on for this organisation, as set in Settings > Dispatch (organisation_dispatch_settings). False means new packages are being recorded as `disabled` and the rate below describes history, not what is happening now. */
   serviceAreaMatching: boolean;
   /**
    * The start of that window, so the counts can be quoted.
