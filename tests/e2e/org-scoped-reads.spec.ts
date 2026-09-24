@@ -20,15 +20,34 @@ async function listedWarehouseIds(page: Page, slug: string): Promise<string[]> {
     return hrefs.flatMap((href) => href.match(UUID) ?? []);
 }
 
-test("a member of two organisations sees only the open organisation's warehouses", async ({ page }) => {
-    test.setTimeout(120_000);
+/** Tracking numbers on the first page of one organisation's Packages list. */
+async function listedTrackingNumbers(page: Page, slug: string): Promise<string[]> {
+    await page.goto(`/orgs/${slug}/dashboard/packages`);
+    await expect(page.getByRole("heading", { name: "Packages", exact: true })).toBeVisible();
+    const firstCells = page.locator("tbody tr td:first-child");
+    await expect(firstCells.first()).toBeVisible({ timeout: 15_000 });
+    return (await firstCells.allInnerTexts()).map((text) => text.trim()).filter(Boolean);
+}
 
+/** Emails on the first page of one organisation's Team Members list. */
+async function listedMemberEmails(page: Page, slug: string): Promise<string[]> {
+    await page.goto(`/orgs/${slug}/dashboard/fleet/team-members`);
+    const table = page.getByTestId("team-members-table");
+    const emailCells = table.getByRole("cell").filter({ hasText: /@/ });
+    await expect(emailCells.first()).toBeVisible({ timeout: 15_000 });
+    return (await emailCells.allInnerTexts()).map((text) => text.trim());
+}
+
+/**
+ * Slugs of the organisation /orgs lands on and of a second one found through
+ * the switcher. These specs only mean something for a user in two
+ * organisations, so they skip otherwise.
+ */
+async function twoOrganisations(page: Page): Promise<[string, string]> {
     await page.goto("/orgs");
     await expect(page).toHaveURL(/\/orgs\/[^/]+\/dashboard/, { timeout: 15_000 });
     const firstSlug = slugOf(page);
 
-    // Find a second organisation through the switcher. The spec only means
-    // something for a user in two organisations, so it skips otherwise.
     const switcher = page.locator('[data-sidebar="header"] [data-sidebar="menu-button"]');
     let secondSlug: string | null = null;
     await switcher.click();
@@ -48,9 +67,35 @@ test("a member of two organisations sees only the open organisation's warehouses
         }
     }
     test.skip(!secondSlug, "The test user belongs to only one organisation.");
+    return [firstSlug, secondSlug!];
+}
+
+test("a member of two organisations sees only the open organisation's warehouses", async ({ page }) => {
+    test.setTimeout(120_000);
+    const [firstSlug, secondSlug] = await twoOrganisations(page);
 
     const first = await listedWarehouseIds(page, firstSlug);
-    const second = await listedWarehouseIds(page, secondSlug!);
+    const second = await listedWarehouseIds(page, secondSlug);
 
     expect(first.filter((id) => second.includes(id))).toEqual([]);
+});
+
+test("a member of two organisations sees only the open organisation's packages", async ({ page }) => {
+    test.setTimeout(120_000);
+    const [firstSlug, secondSlug] = await twoOrganisations(page);
+
+    const first = await listedTrackingNumbers(page, firstSlug);
+    const second = await listedTrackingNumbers(page, secondSlug);
+
+    expect(first.filter((trackingNumber) => second.includes(trackingNumber))).toEqual([]);
+});
+
+test("a member of two organisations is listed once in each organisation's team", async ({ page }) => {
+    test.setTimeout(120_000);
+    const [firstSlug, secondSlug] = await twoOrganisations(page);
+
+    for (const slug of [firstSlug, secondSlug]) {
+        const emails = await listedMemberEmails(page, slug);
+        expect(emails.filter((email, i) => emails.indexOf(email) !== i)).toEqual([]);
+    }
 });
