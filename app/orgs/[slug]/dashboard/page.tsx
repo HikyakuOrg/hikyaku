@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import {
   getDriversCount,
   getFleetSize,
+  getActiveOrganisationId,
   getPackagesCount,
   getWarehousesCount,
   getWarehouseSummaries
@@ -18,6 +19,7 @@ import { createClient } from "@/lib/supabase/server";
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const supabase = await createClient();
+  const organisationId = await getActiveOrganisationId();
 
   const [
     pendingPackagesCount,
@@ -34,7 +36,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
     getFleetSize(),
     getWarehousesCount(),
     getWarehouseSummaries(),
-    getPackages(20, 1, undefined, supabase)
+    getPackages(organisationId, 20, 1, undefined, supabase)
   ]);
 
   const recentPackages = (recentPackagesData ?? []).map(pkg => ({

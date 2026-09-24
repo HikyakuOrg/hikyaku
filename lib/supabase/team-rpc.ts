@@ -24,8 +24,9 @@ export interface CreateTeamMemberDto {
     permissions: string[];
 }
 
-export async function getTeamMembers(page: number, pageSize: number, search?: string) {
+export async function getTeamMembers(organisationId: string, page: number, pageSize: number, search?: string) {
     const { data, error } = await supabase.rpc("get_team_members_paginated", {
+        p_organisation_id: organisationId,
         p_page: page,
         p_limit: pageSize,
         p_search: search || undefined,
