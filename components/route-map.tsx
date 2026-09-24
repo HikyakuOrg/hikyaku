@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import maplibregl, { FilterSpecification } from "maplibre-gl"
+import * as maplibregl from "@/lib/maplibre"
+import { FilterSpecification } from "@/lib/maplibre"
 import "maplibre-gl/dist/maplibre-gl.css"
 import type { RoutePreview } from "@/app/models/route-preview"
 import { subscribeToDriverLocationUpdates, getDriverCurrentLocation } from "@/lib/supabase/db"

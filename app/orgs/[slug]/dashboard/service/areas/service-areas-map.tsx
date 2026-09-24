@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import maplibregl from "maplibre-gl"
+import * as maplibregl from "@/lib/maplibre"
 import "maplibre-gl/dist/maplibre-gl.css"
 
 import { emptyServiceAreaFeatureCollection, type ServiceAreaBounds } from "@/lib/maps/service-area-geometry"

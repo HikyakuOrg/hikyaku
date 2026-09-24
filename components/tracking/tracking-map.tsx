@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef } from "react"
-import maplibregl from "maplibre-gl"
+import * as maplibregl from "@/lib/maplibre"
 import "maplibre-gl/dist/maplibre-gl.css"
 import { calculateDistance } from "@/lib/maps/geo"
 import { subscribeToTrackingLocation } from "@/lib/supabase/db"
