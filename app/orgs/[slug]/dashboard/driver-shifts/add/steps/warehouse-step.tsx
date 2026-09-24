@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/combobox"
 import { Tables } from "@/lib/supabase/supabase"
 import { searchWarehouse } from "@/lib/supabase/db"
+import { useOrganisationId } from "@/components/organisation-provider"
 import { Location } from "@/app/models/package-optimisation"
 
 export interface WarehouseStepData {
@@ -26,6 +27,7 @@ export function WarehouseStep({
     defaultValues?: WarehouseStepData
     onNext: (data: WarehouseStepData) => void
 }) {
+    const organisationId = useOrganisationId()
     const [searchTerm, setSearchTerm] = useState("")
     const [results, setResults] = useState<Tables<"warehouse">[]>([])
     const [selectedWarehouse, setSelectedWarehouse] = useState<Tables<"warehouse"> | null>(null)
@@ -42,7 +44,7 @@ export function WarehouseStep({
             }
             setIsLoading(true)
             try {
-                const data = await searchWarehouse(searchTerm)
+                const data = await searchWarehouse(organisationId, searchTerm)
                 setResults(data ?? [])
             } catch {
                 // silently fail search
@@ -52,7 +54,7 @@ export function WarehouseStep({
         }, 300)
 
         return () => clearTimeout(timeout)
-    }, [searchTerm])
+    }, [organisationId, searchTerm])
 
     function handleSubmit() {
         if (!selectedWarehouse) {

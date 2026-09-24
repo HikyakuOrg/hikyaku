@@ -16,6 +16,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import { useOrganisationId } from "@/components/organisation-provider"
 import {
     Combobox,
     ComboboxChip,
@@ -58,6 +59,7 @@ export function DriverServiceAreasCard({
     slug: string
     canEdit: boolean
 }) {
+    const organisationId = useOrganisationId()
     const [areas, setAreas] = useState<DriverServiceArea[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [hasError, setHasError] = useState(false)
@@ -102,7 +104,7 @@ export function DriverServiceAreasCard({
         searchTimerRef.current = setTimeout(async () => {
             setIsSearching(true)
             try {
-                const results = await searchAttachableServiceAreasForDriver(driverId, text)
+                const results = await searchAttachableServiceAreasForDriver(organisationId, driverId, text)
                 for (const area of results) knownAreasRef.current.set(area.id, area)
                 setOptions(results)
             } catch (error) {

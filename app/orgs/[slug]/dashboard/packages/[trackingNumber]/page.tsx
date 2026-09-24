@@ -150,7 +150,8 @@ export default function PackageDetails() {
                 setPackageDeliveryWindow(deliveryWindowResult.value)
             }
 
-            if (assignmentResult.status === "fulfilled") {
+            // A null row leaves the outcome undefined: not assigned yet.
+            if (assignmentResult.status === "fulfilled" && assignmentResult.value) {
                 setCoverageOutcome(assignmentResult.value.coverage_outcome ?? null)
             }
 
@@ -227,7 +228,7 @@ export default function PackageDetails() {
                 }
             }
 
-            if (assignmentResult.status === "fulfilled" && assignmentResult.value.driver_id) {
+            if (assignmentResult.status === "fulfilled" && assignmentResult.value?.driver_id) {
                 try {
                     const drivers = await getDriversByIds([assignmentResult.value.driver_id])
                     if (!cancelled && drivers.length > 0) setDriver(drivers[0])

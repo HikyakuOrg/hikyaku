@@ -13,9 +13,10 @@ import { Item, ItemContent, ItemTitle, ItemDescription } from "@/components/ui/i
 import { useEffect, useState } from "react";
 import { Tables } from "@/lib/supabase/supabase";
 import { getWarehouse, searchWarehouse } from "@/lib/supabase/db";
+import { useOrganisationId } from "@/components/organisation-provider";
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import {
     Popover,
@@ -24,7 +25,6 @@ import {
 } from "@/components/ui/popover"
 import { format, parseISO } from "date-fns"
 import { ChevronDownIcon, XIcon } from "lucide-react"
-import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -33,11 +33,20 @@ export function LogisticsAssignmentStep({ onNext, onPrev, defaultValues }: {
     onPrev: () => void;
     defaultValues?: LogisticsAssignmentFormValues;
 }) {
+    const organisationId = useOrganisationId()
 
     const form = useForm({
         resolver: zodResolver(logisticsAssignmentSchema),
-        defaultValues: defaultValues ?? { warehouseId: "", trackingNumber: "", deliveryNotes: "", scheduledArrival: "" },
+        defaultValues: defaultValues ?? { warehouseId: "", trackingNumber: "", deliveryNotes: "", scheduledArrival: undefined },
     });
+
+    // The picked date and time are read in the browser's zone, then stored as a
+    // UTC instant; every screen that shows it formats it back in local time.
+    const [timeZoneLabel] = useState(() =>
+        new Intl.DateTimeFormat(undefined, { timeZoneName: "shortOffset" })
+            .formatToParts(new Date())
+            .find((part) => part.type === "timeZoneName")?.value ?? "local time"
+    )
 
     const [searchTerm, setSearchTerm] = useState("")
     const [results, setResults] = useState<Tables<'warehouse'>[]>([])
@@ -79,7 +88,7 @@ export function LogisticsAssignmentStep({ onNext, onPrev, defaultValues }: {
             }
 
             setIsLoading(true)
-            const data = await searchWarehouse(searchTerm)
+            const data = await searchWarehouse(organisationId, searchTerm)
             const typedData: Tables<'warehouse'>[] =
                 data?.map((item) => ({
                     ...item,
@@ -91,14 +100,17 @@ export function LogisticsAssignmentStep({ onNext, onPrev, defaultValues }: {
         }, 300)
 
         return () => clearTimeout(timeout)
-    }, [searchTerm])
+    }, [organisationId, searchTerm])
 
     return (
         <form
             id="logisticsAssignment"
             onSubmit={form.handleSubmit((data) => {
                 if (time && !date) {
-                    toast.error("Please select a date if you have entered a time.")
+                    form.setError("scheduledArrival", {
+                        type: "manual",
+                        message: "Select a date for this time, or clear the time.",
+                    })
                     return
                 }
                 onNext({
@@ -122,7 +134,7 @@ export function LogisticsAssignmentStep({ onNext, onPrev, defaultValues }: {
                         <Controller
                             name="scheduledArrival"
                             control={form.control}
-                            render={({ field }) => {
+                            render={({ field, fieldState }) => {
 
                                 const updateDateTime = (newDate?: Date, newTime?: string) => {
                                     if (!newDate) {
@@ -144,18 +156,35 @@ export function LogisticsAssignmentStep({ onNext, onPrev, defaultValues }: {
                                     field.onChange(combined.toISOString())
                                 }
 
+                                const clearDateTime = () => {
+                                    setDate(undefined)
+                                    setTime("")
+                                    field.onChange(undefined)
+                                    form.clearErrors("scheduledArrival")
+                                }
+
                                 return (
                                     <FieldGroup className="w-full grid grid-cols-2 gap-4">
-                                        <Field>
-                                            <FieldLabel>Date</FieldLabel>
+                                        <Field data-invalid={fieldState.invalid}>
+                                            <FieldLabel htmlFor="scheduledArrivalDate">Date</FieldLabel>
 
                                             <Popover open={open} onOpenChange={setOpen}>
-                                                <PopoverTrigger>
-                                                    <Button type="button" variant="outline" className="w-full justify-between font-normal">
-                                                        {date ? format(date, "PPP") : "Select date"}
-                                                        <ChevronDownIcon />
-                                                    </Button>
-                                                </PopoverTrigger>
+                                                {/* Render prop so the trigger is the Button itself,
+                                                    not a <button> wrapping another <button>. */}
+                                                <PopoverTrigger
+                                                    render={
+                                                        <Button
+                                                            id="scheduledArrivalDate"
+                                                            type="button"
+                                                            variant="outline"
+                                                            aria-invalid={fieldState.invalid}
+                                                            className="w-full justify-between font-normal"
+                                                        >
+                                                            {date ? format(date, "PPP") : "Select date"}
+                                                            <ChevronDownIcon />
+                                                        </Button>
+                                                    }
+                                                />
 
                                                 <PopoverContent className="w-auto overflow-hidden p-0" align="start">
                                                     <Calendar
@@ -173,12 +202,14 @@ export function LogisticsAssignmentStep({ onNext, onPrev, defaultValues }: {
                                             </Popover>
                                         </Field>
 
-                                        <Field>
-                                            <FieldLabel>Time</FieldLabel>
+                                        <Field data-invalid={fieldState.invalid}>
+                                            <FieldLabel htmlFor="scheduledArrivalTime">Time</FieldLabel>
                                             <Input
+                                                id="scheduledArrivalTime"
                                                 type="time"
                                                 step="1"
                                                 value={time}
+                                                aria-invalid={fieldState.invalid}
                                                 onChange={(e) => {
                                                     const t = e.target.value
                                                     setTime(t)
@@ -186,10 +217,22 @@ export function LogisticsAssignmentStep({ onNext, onPrev, defaultValues }: {
                                                 }}
                                             />
                                         </Field>
-                                        <h1 className="text-xs font-semibold text-muted-foreground mt-2 leading-2">
-                                            Date Time will be in UTC
-                                        </h1>
-
+                                        <div className="col-span-2 flex flex-col gap-2">
+                                            {fieldState.invalid && (
+                                                <FieldError errors={[fieldState.error]} />
+                                            )}
+                                            <div className="flex items-center justify-between gap-2">
+                                                <FieldDescription className="text-xs">
+                                                    Optional. Leave empty for no delivery deadline. Without a time, it defaults to 23:59:59.
+                                                    Times are in your local time zone ({timeZoneLabel}).
+                                                </FieldDescription>
+                                                {(date || time) && (
+                                                    <Button type="button" variant="ghost" size="sm" onClick={clearDateTime}>
+                                                        Clear
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </div>
                                     </FieldGroup>
                                 )
                             }}
@@ -207,9 +250,9 @@ export function LogisticsAssignmentStep({ onNext, onPrev, defaultValues }: {
                                         {...field}
                                         className="w-full"
                                     />
-                                    <h1 className="text-xs font-semibold text-muted-foreground mt-2 leading-2">
-                                        (Optional) Set Tracking Number. Will be generated automatically if not set.
-                                    </h1>
+                                    <FieldDescription className="text-xs">
+                                        Optional. Generated automatically if not set.
+                                    </FieldDescription>
                                 </Field>
                             )}
                         />

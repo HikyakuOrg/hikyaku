@@ -6,19 +6,6 @@ import { Database } from "./supabase"
 
 const supabase = createLazyClient();
 
-export async function getDrivers(page: number, pageSize: number, supabaseClient?: SupabaseClient<Database>) {
-    const client = supabaseClient ?? supabase;
-    const { data, error } = await client.rpc("get_drivers_paginated", {
-        p_page: page,
-        p_limit: pageSize,
-    });
-
-    if (error) throw error;
-    if (!data) throw new Error("No data returned from RPC");
-    return data;
-}
-
-
 export async function getDriversByIds(driverIds: string[], supabaseClient?: SupabaseClient<Database>) {
     const client = supabaseClient ?? supabase;
     const { data, error } = await client.rpc("get_drivers_by_ids", {
@@ -63,6 +50,7 @@ export async function updateDriver(
 }
 
 export async function getPackages(
+    organisationId: string,
     pageSize: number,
     page: number,
     statuses?: string[],
@@ -73,6 +61,7 @@ export async function getPackages(
     const { data, error } = await client.rpc(
         "get_packages_with_latest_status",
         {
+            p_organisation_id: organisationId,
             p_limit: pageSize,
             p_offset: (page - 1) * pageSize,
             p_statuses: statuses?.length ? statuses : STATUS_OPTIONS,
@@ -88,6 +77,7 @@ export async function getPackages(
 }
 
 export async function getPackagesCount(
+    organisationId: string,
     statuses?: string[],
     supabaseClient?: SupabaseClient<Database>,
     coverageOutcomes?: string[],
@@ -96,6 +86,7 @@ export async function getPackagesCount(
     const { data, error } = await client.rpc(
         "get_packages_count",
         {
+            p_organisation_id: organisationId,
             p_statuses: statuses?.length ? statuses : STATUS_OPTIONS,
             p_coverage_outcomes: coverageOutcomes?.length ? coverageOutcomes : undefined,
         }
@@ -288,17 +279,6 @@ export async function getDriverLocationHistory(driverId: string, fromDateTime: s
 
     return data;
 }
-
-export async function getUnassignedDrivers(page: number, pageSize: number, supabaseClient?: SupabaseClient<Database>) {
-    const client = supabaseClient ?? supabase;
-    const { data, error } = await client.rpc("list_unassigned_drivers", {
-        p_limit: pageSize,
-        p_page: page,
-    });
-    if (error) throw error;
-    return data;
-}
-
 
 export async function getDriversByWarehouse(warehouseId: string, page: number, pageSize: number, supabaseClient?: SupabaseClient<Database>) {
     const client = supabaseClient ?? supabase;

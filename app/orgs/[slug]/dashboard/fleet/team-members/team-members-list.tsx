@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { TeamMemberTable } from "@/components/team-member/team-member-table"
 import { ListTeamMemberDto, getTeamMembers } from "@/lib/supabase/team-rpc"
 import { useOrgSlug } from "@/lib/use-org"
+import { useOrganisationId } from "@/components/organisation-provider"
 import { InviteUserDialog } from "./invite-user-dialog"
 
 const PAGE_SIZE = 10
@@ -24,6 +25,7 @@ interface TeamMembersListProps {
 export function TeamMembersList({ canAdd, canEdit, canDelete, roles, permissions, orgId }: TeamMembersListProps) {
     const router = useRouter()
     const slug = useOrgSlug()
+    const organisationId = useOrganisationId()
 
     const [data, setData] = useState<ListTeamMemberDto[]>([])
     const [page, setPage] = useState(1)
@@ -47,7 +49,7 @@ export function TeamMembersList({ canAdd, canEdit, canDelete, roles, permissions
     const fetchPage = useCallback(async (p: number, q: string) => {
         setLoading(true)
         try {
-            const members = await getTeamMembers(p, PAGE_SIZE, q || undefined)
+            const members = await getTeamMembers(organisationId, p, PAGE_SIZE, q || undefined)
             setData(members)
             setTotalPages(members[0]?.total_pages ?? 1)
         } catch {
@@ -55,7 +57,7 @@ export function TeamMembersList({ canAdd, canEdit, canDelete, roles, permissions
         } finally {
             setLoading(false)
         }
-    }, [])
+    }, [organisationId])
 
     useEffect(() => {
         fetchPage(page, debouncedSearch)

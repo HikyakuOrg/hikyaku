@@ -1,4 +1,4 @@
-import { getServiceAreaExtent, getServiceAreas } from "@/lib/supabase/db-server"
+import { getServiceAreaListBounds, getServiceAreas } from "@/lib/supabase/db-server"
 import { hasOrgPermission } from "@/lib/supabase/server"
 import { SERVICE_AREAS_EDIT } from "@/lib/permissions"
 
@@ -11,8 +11,7 @@ export default async function ServiceAreasPage({ params }: { params: Promise<{ s
     // Viewing the map and the list stays open to every org member; only the
     // write entry points are gated. Resolved once here and handed down as a prop
     // so no control has to ask for itself.
-    const [extentResult, areasResult, canEdit] = await Promise.all([
-        getServiceAreaExtent(),
+    const [areasResult, canEdit] = await Promise.all([
         getServiceAreas(),
         hasOrgPermission(slug, SERVICE_AREAS_EDIT),
     ])
@@ -20,9 +19,8 @@ export default async function ServiceAreasPage({ params }: { params: Promise<{ s
     // A failed read and an organisation that has drawn nothing are different
     // things and get different panels. Showing the onboarding copy for a broken
     // backend told the dispatcher their areas were gone.
-    const hasFailedRead = extentResult.status === "error" || areasResult.status === "error"
+    const hasFailedRead = areasResult.status === "error"
     const areas = areasResult.status === "ok" ? areasResult.areas : []
-    const extent = extentResult.status === "ok" ? extentResult.extent : null
 
     return (
         <div className="space-y-6 p-6">
@@ -66,10 +64,7 @@ export default async function ServiceAreasPage({ params }: { params: Promise<{ s
                 <ServiceAreasExplorer
                     slug={slug}
                     initialAreas={areas}
-                    initialBounds={extent ? [
-                        [extent.minLng, extent.minLat],
-                        [extent.maxLng, extent.maxLat],
-                    ] : null}
+                    initialBounds={getServiceAreaListBounds(areas)}
                     canEdit={canEdit}
                 />
             )}

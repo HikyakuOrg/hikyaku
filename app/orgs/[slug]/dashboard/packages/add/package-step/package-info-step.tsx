@@ -8,11 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/dropzone'
 import { useSupabaseUpload } from '@/hooks/use-supabase-upload'
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { SkillsMultiSelect } from "@/components/skills/skills-multiselect";
-import { getOrganisationIdBySlug } from "@/lib/supabase/db";
-import { useOrgSlug } from "@/lib/use-org";
 
 
 export function PackageInfo({ onNext, defaultValues }: {
@@ -36,14 +34,6 @@ export function PackageInfo({ onNext, defaultValues }: {
         resolver: zodResolver(packageSchema),
         defaultValues: initialValues,
     });
-
-    const slug = useOrgSlug();
-    const [organisationId, setOrganisationId] = useState<string | null>(null);
-    useEffect(() => {
-        getOrganisationIdBySlug(slug).then(setOrganisationId).catch((error) => {
-            console.error("Failed to resolve the organisation for the skill picker:", error);
-        });
-    }, [slug]);
 
     // eslint-disable-next-line react-hooks/incompatible-library -- react-hook-form's form.watch() returns a value React Compiler cannot memoize; it skips this component.
     const watchedPackageId = form.watch("packageId");
@@ -179,7 +169,6 @@ export function PackageInfo({ onNext, defaultValues }: {
                             <SkillsMultiSelect
                                 value={field.value}
                                 onChange={field.onChange}
-                                organisationId={organisationId}
                                 placeholder="Search or add a required skill…"
                                 testId="package-skills-picker"
                             />

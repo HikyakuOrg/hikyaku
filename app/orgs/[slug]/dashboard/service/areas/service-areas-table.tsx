@@ -2,6 +2,7 @@
 
 import { useMemo } from "react"
 import type { ColumnDef, RowSelectionState } from "@tanstack/react-table"
+import { format, isValid, parseISO } from "date-fns"
 import { Trash2 } from "lucide-react"
 
 import { DataTable } from "@/components/data-table"
@@ -12,6 +13,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useHydrated } from "@/hooks/use-hydrated"
 import { SERVICE_AREAS_EDIT, permissionRequiredMessage } from "@/lib/permissions"
 import type { ServiceAreaListItem } from "@/lib/supabase/db-server"
 
@@ -39,18 +41,25 @@ type ServiceAreasTableProps = {
     onRequestDelete: (area: ServiceAreaListItem) => void
 }
 
-function formatCreatedAt(value: string) {
-    const created = new Date(value)
+/**
+ * The calendar day depends on the viewer's time zone, which the server cannot
+ * know, so the date is only written once hydrated. Formatting on the server too
+ * would let the two disagree near midnight and fail hydration, which also
+ * drops the row click handlers.
+ */
+function CreatedAt({ value }: { value: string }) {
+    const hydrated = useHydrated()
+    const created = parseISO(value)
 
-    if (Number.isNaN(created.getTime())) {
-        return "Unknown"
+    if (!isValid(created)) {
+        return <span className="text-muted-foreground">Unknown</span>
     }
 
-    return created.toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-    })
+    return (
+        <time dateTime={value} className="text-muted-foreground">
+            {hydrated ? format(created, "d MMM yyyy") : null}
+        </time>
+    )
 }
 
 function DeleteServiceAreaButton({
@@ -143,9 +152,7 @@ export function ServiceAreasTable({
         {
             accessorKey: "created_at",
             header: "Created",
-            cell: ({ row }) => (
-                <span className="text-muted-foreground">{formatCreatedAt(row.original.created_at)}</span>
-            ),
+            cell: ({ row }) => <CreatedAt value={row.original.created_at} />,
         },
         {
             id: "actions",

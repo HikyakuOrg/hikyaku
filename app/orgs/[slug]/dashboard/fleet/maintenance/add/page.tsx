@@ -22,7 +22,8 @@ import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/drop
 import { useSupabaseUpload } from '@/hooks/use-supabase-upload'
 import { createClient } from '@/lib/supabase/client'
 import { useOrgSlug } from '@/lib/use-org'
-import { getVehicles, getOrganisationIdBySlug, createMaintenanceRecord } from '@/lib/supabase/db'
+import { getVehicles, createMaintenanceRecord } from '@/lib/supabase/db'
+import { useOrganisationId } from '@/components/organisation-provider'
 
 const maintenanceSchema = z.object({
     vehicle_id: z.string().min(1, 'Please select a vehicle'),
@@ -49,6 +50,7 @@ function vehicleLabel(v: VehicleOption) {
 export default function AddMaintenancePage() {
     const router = useRouter()
     const slug = useOrgSlug()
+    const organisationId = useOrganisationId()
     const searchParams = useSearchParams()
     const preselectedVehicleId = searchParams.get('vehicleId') ?? ''
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -76,10 +78,10 @@ export default function AddMaintenancePage() {
     })
 
     useEffect(() => {
-        getVehicles()
+        getVehicles(organisationId)
             .then((data) => setVehicles(data as VehicleOption[]))
             .finally(() => setIsLoadingVehicles(false))
-    }, [])
+    }, [organisationId])
 
     function handleDateSelect(date: Date | undefined) {
         setServiceDate(date)
@@ -92,10 +94,7 @@ export default function AddMaintenancePage() {
         setIsSubmitting(true)
         try {
             const supabase = createClient()
-            const [organisationId, { data: { user } }] = await Promise.all([
-                getOrganisationIdBySlug(slug),
-                supabase.auth.getUser(),
-            ])
+            const { data: { user } } = await supabase.auth.getUser()
             const record = await createMaintenanceRecord({
                 organisation_id: organisationId,
                 vehicle_id: values.vehicle_id,

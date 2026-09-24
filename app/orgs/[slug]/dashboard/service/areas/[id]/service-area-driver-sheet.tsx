@@ -5,6 +5,7 @@ import type { ColumnDef, RowSelectionState } from "@tanstack/react-table"
 import { toast } from "sonner"
 
 import { DriverTable } from "@/components/driver/driver-table"
+import { useOrganisationId } from "@/components/organisation-provider"
 import { Button } from "@/components/ui/button"
 import {
     Sheet,
@@ -49,6 +50,7 @@ export function ServiceAreaDriverSheet({
     canEdit,
     onAttached,
 }: ServiceAreaDriverSheetProps) {
+    const organisationId = useOrganisationId()
     const [open, setOpen] = useState(false)
     const [page, setPage] = useState(1)
     const [totalPages, setTotalPages] = useState(1)
@@ -71,7 +73,7 @@ export function ServiceAreaDriverSheet({
         setHasError(false)
 
         try {
-            const result = await getAttachableDriversForServiceArea(serviceAreaId, nextPage, PAGE_SIZE)
+            const result = await getAttachableDriversForServiceArea(organisationId, serviceAreaId, nextPage, PAGE_SIZE)
 
             for (const driver of result.drivers) {
                 loadedDriversRef.current.set(driver.id, driver)

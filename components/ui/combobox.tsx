@@ -261,6 +261,7 @@ function ComboboxChip({
 
 function ComboboxChipsInput({
   className,
+  onKeyDown,
   ...props
 }: ComboboxPrimitive.Input.Props) {
   return (
@@ -270,6 +271,18 @@ function ComboboxChipsInput({
         "min-w-16 flex-1 outline-none",
         className
       )}
+      onKeyDown={(event) => {
+        onKeyDown?.(event)
+        // Base UI clears the whole selection when Escape reaches the input while
+        // the list is closed, which silently drops every chip. Escape should
+        // only ever close the list, so skip that handler here.
+        if (
+          event.key === "Escape" &&
+          event.currentTarget.getAttribute("aria-expanded") !== "true"
+        ) {
+          event.preventBaseUIHandler()
+        }
+      }}
       {...props}
     />
   )
