@@ -404,7 +404,7 @@ export function FuelCardsClient() {
     useEffect(() => {
         const load = async () => {
             const [members, vehiclesResult, connectResult] = await Promise.all([
-                getTeamMembers(1, 200),
+                getTeamMembers(organisationId, 1, 200),
                 getVehiclesByType(organisationId, [], 1, 200),
                 getConnectStatus(),
                 fetchCards(),

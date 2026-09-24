@@ -3,17 +3,19 @@
 import { getPackages, getPackagesCount } from "@/lib/supabase/supabase-rpc"
 import { PackageListTable } from "./package-list-table"
 import { useOrgSlug } from "@/lib/use-org"
+import { useOrganisationId } from "@/components/organisation-provider"
 
 export function PackagesTable() {
     const slug = useOrgSlug()
+    const organisationId = useOrganisationId()
     return (
         <PackageListTable
             addPackageHref={`/orgs/${slug}/dashboard/packages/add`}
             showCoverageFilter
             loadPage={async (pageSize, page, statuses, coverageOutcomes) => {
                 const [totalCount, data] = await Promise.all([
-                    getPackagesCount(statuses, undefined, coverageOutcomes),
-                    getPackages(pageSize, page, statuses, undefined, coverageOutcomes),
+                    getPackagesCount(organisationId, statuses, undefined, coverageOutcomes),
+                    getPackages(organisationId, pageSize, page, statuses, undefined, coverageOutcomes),
                 ])
 
                 return {

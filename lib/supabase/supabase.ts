@@ -1797,7 +1797,11 @@ export type Database = {
         }[]
       }
       get_packages_count: {
-        Args: { p_coverage_outcomes?: string[]; p_statuses: string[] }
+        Args: {
+          p_coverage_outcomes?: string[]
+          p_organisation_id: string
+          p_statuses?: string[]
+        }
         Returns: number
       }
       get_packages_with_latest_status: {
@@ -1805,6 +1809,7 @@ export type Database = {
           p_coverage_outcomes?: string[]
           p_limit?: number
           p_offset?: number
+          p_organisation_id: string
           p_statuses?: string[]
         }
         Returns: {
@@ -1848,7 +1853,12 @@ export type Database = {
         }[]
       }
       get_team_members_paginated: {
-        Args: { p_limit: number; p_page: number; p_search?: string }
+        Args: {
+          p_limit: number
+          p_organisation_id: string
+          p_page: number
+          p_search?: string
+        }
         Returns: {
           avatar_url: string
           display_name: string

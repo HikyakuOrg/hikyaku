@@ -50,6 +50,7 @@ export async function updateDriver(
 }
 
 export async function getPackages(
+    organisationId: string,
     pageSize: number,
     page: number,
     statuses?: string[],
@@ -60,6 +61,7 @@ export async function getPackages(
     const { data, error } = await client.rpc(
         "get_packages_with_latest_status",
         {
+            p_organisation_id: organisationId,
             p_limit: pageSize,
             p_offset: (page - 1) * pageSize,
             p_statuses: statuses?.length ? statuses : STATUS_OPTIONS,
@@ -75,6 +77,7 @@ export async function getPackages(
 }
 
 export async function getPackagesCount(
+    organisationId: string,
     statuses?: string[],
     supabaseClient?: SupabaseClient<Database>,
     coverageOutcomes?: string[],
@@ -83,6 +86,7 @@ export async function getPackagesCount(
     const { data, error } = await client.rpc(
         "get_packages_count",
         {
+            p_organisation_id: organisationId,
             p_statuses: statuses?.length ? statuses : STATUS_OPTIONS,
             p_coverage_outcomes: coverageOutcomes?.length ? coverageOutcomes : undefined,
         }
