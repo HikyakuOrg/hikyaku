@@ -1,34 +1,56 @@
 "use server"
 
-import { createDecoder } from "@cardog/corgi";
-import { getErrorMessage } from "@/lib/utils";
+import type { VehicleInfoDto, VinDecodeResultDto, WmiResultDto } from "@/lib/api"
+import type { ActionError } from "./api-client"
+import { getAccessToken, getApiUrl, parseApiError } from "./api-client"
 
-export async function decodeVin(vin: string) {
+export type DecodedVin = {
+    success: true
+    vehicle: VehicleInfoDto
+    wmi: WmiResultDto
+    /** Upper bound of the GVWR class in kg, or null when the class is missing or unparseable. */
+    gvwrKg: number | null
+}
+
+/**
+ * GVWR comes back as a class label, e.g. "Class 2H: 9,001 - 10,000 lb
+ * (4,082 - 4,536 kg)". Take the upper kg bound so the gross limit never
+ * understates what the vehicle can legally carry.
+ */
+function parseGvwrKg(gvwr: string | undefined): number | null {
+    const match = gvwr?.match(/([\d,]+)\s*kg\)/i)
+    if (!match) return null
+    const kg = Number(match[1].replace(/,/g, ""))
+    return Number.isFinite(kg) && kg > 0 ? kg : null
+}
+
+/**
+ * Decode a VIN via hikyaku-api's `/vin/{vin}` endpoint. The endpoint needs a
+ * bearer token but no organisation, so this skips buildApiContext().
+ */
+export async function decodeVin(vin: string): Promise<DecodedVin | ActionError> {
     if (!vin || vin.length !== 17) {
-        throw new Error('Invalid VIN length');
+        return { success: false, error: "Invalid VIN length" }
     }
 
+    const auth = await getAccessToken()
+    if ("error" in auth) return { success: false, error: auth.error }
+    const apiUrl = getApiUrl()
+    if (!apiUrl) return { success: false, error: "API is not configured." }
+
     try {
-        const decoder = await createDecoder();
-        const result = await decoder.decode(vin);
-        const vehicle = result.components.vehicle;
-        const wmi = result.components.wmi;
-        if (result.valid && vehicle && wmi) {
-            return {
-                success: true,
-                vehicle: vehicle,
-                wmi: wmi
-            };
-        } else {
-            return {
-                success: false,
-                error: 'Could not decode VIN'
-            };
+        const res = await fetch(`${apiUrl}/api/v1/vin/${encodeURIComponent(vin)}`, {
+            headers: { Authorization: `Bearer ${auth.accessToken}` },
+        })
+        if (!res.ok) return { success: false, error: await parseApiError(res) }
+
+        const result: VinDecodeResultDto = await res.json()
+        const { vehicle, wmi } = result.components
+        if (!result.valid || !vehicle || !wmi) {
+            return { success: false, error: result.errors[0]?.message || "Could not decode VIN" }
         }
-    } catch (error) {
-        return {
-            success: false,
-            error: getErrorMessage(error) || 'Internal server error during VIN decoding'
-        };
+        return { success: true, vehicle, wmi, gvwrKg: parseGvwrKg(vehicle.gvwr) }
+    } catch {
+        return { success: false, error: "Could not reach the VIN decoder. Please enter details manually." }
     }
 }

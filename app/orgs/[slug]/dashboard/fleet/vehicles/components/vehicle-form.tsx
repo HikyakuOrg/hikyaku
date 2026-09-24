@@ -122,23 +122,22 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, submitLabel }
         setIsDecoding(true)
         try {
             const result = await decodeVin(vin)
-            const vehicle = result.vehicle
-            const wmi = result.wmi
-            if (result.success && vehicle && wmi) {
-                const { make, model, year, gvwr } = vehicle
-                const { vehicleType } = wmi
+            if (result.success) {
+                const { make, model, year } = result.vehicle
+                const { vehicleType } = result.wmi
                 form.setValue('vehicle_make', make || '', { shouldDirty: true })
                 form.setValue('vehicle_model', model || '', { shouldDirty: true })
                 form.setValue('vehicle_year', year, { shouldDirty: true })
-                // Convert to kg
-                form.setValue('vehicle_gross_limits', Number(gvwr ? Math.round(Number(gvwr) / 1000) : 0), { shouldDirty: true })
+                if (result.gvwrKg) {
+                    form.setValue('vehicle_gross_limits', result.gvwrKg, { shouldDirty: true })
+                }
                 if (vehicleType == 'Motorcycle') {
                     form.setValue('vehicle_type', vehicleTypes.find(t => t.vehicle_type === 'Motorbike')?.id || '', { shouldDirty: true })
                 }
                 if (vehicleType == 'Truck') {
                     form.setValue('vehicle_type', vehicleTypes.find(t => t.vehicle_type === 'Truck')?.id || '', { shouldDirty: true })
                 }
-                if (vehicleType == 'Passenger Car' || vehicleType == 'Passenger Car' || vehicleType == 'Multipurpose Passenger Vehicle (MPV)' || vehicleType == 'Low Speed Vehicle (LSV)') {
+                if (vehicleType == 'Passenger Car' ||vehicleType == 'Multipurpose Passenger Vehicle (MPV)' || vehicleType == 'Low Speed Vehicle (LSV)') {
                     form.setValue('vehicle_type', vehicleTypes.find(t => t.vehicle_type === 'Van')?.id || '', { shouldDirty: true })
                 }
                 setIsAutoPopulated(true)

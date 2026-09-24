@@ -33,6 +33,19 @@ test.describe("Fleet Vehicles Add Flow", () => {
         await expect(page.locator("#model")).not.toHaveValue("CTS", { timeout: 90000 });
         await expect(page.locator("#year")).not.toHaveValue("2011", { timeout: 90000 });
     });
+
+    test("fills gross limits from the upper bound of the GVWR class", async ({ page }) => {
+        test.setTimeout(120000);
+
+        await page.goto(d('/fleet/vehicles/add'));
+
+        // A 2020 Ford Transit, GVWR "Class 2H: 9,001 - 10,000 lb (4,082 - 4,536 kg)".
+        await page.getByLabel(/vin/i).pressSequentially("1FTBR3X89LKA12345");
+        await expect(page.locator("#make")).toHaveValue("Ford", { timeout: 30000 });
+        await expect(page.locator("#model")).toHaveValue("Transit");
+        await expect(page.locator("#year")).toHaveValue("2020");
+        await expect(page.locator("#gross")).toHaveValue("4536");
+    });
 });
 
 test.describe("Fleet Vehicles Skills", () => {
@@ -67,7 +80,7 @@ test.describe("Fleet Vehicles Skills", () => {
         // Close the picker's popup so it cannot overlay the submit button below.
         await page.keyboard.press("Escape");
 
-        // This VIN decodes with no GVWR, so gross limits autofills to 0 — which
+        // This VIN decodes with no GVWR, so gross limits stays at 0, which
         // fails the form's `positive()` check and silently blocks submission.
         await page.locator("#gross").fill("1500");
 
