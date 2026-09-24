@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef } from "react"
-import maplibregl from "maplibre-gl"
+import * as maplibregl from "@/lib/maplibre"
 import "maplibre-gl/dist/maplibre-gl.css"
 
 import { createWarehousePinFeatureCollection } from "@/lib/maps/warehouse-geometry"

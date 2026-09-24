@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef } from "react"
-import maplibregl from "maplibre-gl"
+import * as maplibregl from "@/lib/maplibre"
 import * as THREE from "three"
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js"
 import "maplibre-gl/dist/maplibre-gl.css"

@@ -1,7 +1,8 @@
 "use client"
 
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react"
-import maplibregl, { LngLatBoundsLike } from "maplibre-gl"
+import * as maplibregl from "@/lib/maplibre"
+import { LngLatBoundsLike } from "@/lib/maplibre"
 import "maplibre-gl/dist/maplibre-gl.css"
 import {
     TerraDraw,

@@ -99,7 +99,7 @@ function writeLaunchJson(worktreeRoot, port) {
             {
                 name: "dev",
                 runtimeExecutable: "pnpm",
-                runtimeArgs: ["dev", "--", "-p", String(port)],
+                runtimeArgs: ["dev", "-p", String(port)],
                 port,
             },
         ],
