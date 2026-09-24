@@ -611,8 +611,11 @@ export async function getPackageByTrackingNumber(trackingNumber: string) {
     return data
 }
 
+// Null, not an error, when the package has no assignment row yet: every
+// unassigned or queued package is in that state, and .single() would log a
+// PGRST116 406 for each of them.
 export async function getPackageAssignment(packageId: string) {
-    const { data, error } = await supabase.from("package_assignment").select("*").eq("package_id", packageId).single()
+    const { data, error } = await supabase.from("package_assignment").select("*").eq("package_id", packageId).maybeSingle()
     if (error) throw error
     return data
 }
