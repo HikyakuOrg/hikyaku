@@ -2,6 +2,12 @@ import { expect, test, type Locator, type Page } from "@playwright/test"
 import { d } from "./helpers/org-url"
 
 /**
+ * Opening a row is a client navigation that waits on the detail page's server
+ * render, which on the dev server regularly runs past the default 5s.
+ */
+const NAVIGATION_TIMEOUT = 45000
+
+/**
  * The same GeoJSON upload the add and delete specs use. Uploading a fixed
  * polygon rather than drawing one keeps the created area at known coordinates.
  */
@@ -125,7 +131,7 @@ test.describe("Service Area Drivers", () => {
         // both stop the click from reaching the row handler.
         await listRow.locator("td").nth(1).click()
 
-        await expect(page).toHaveURL(/\/service\/areas\/[0-9a-f-]{36}$/)
+        await expect(page).toHaveURL(/\/service\/areas\/[0-9a-f-]{36}$/, { timeout: NAVIGATION_TIMEOUT })
         await expect(page.getByTestId("service-area-detail-name")).toHaveText(serviceAreaName)
 
         // A brand new area is covered by nobody, which is a normal state with a
