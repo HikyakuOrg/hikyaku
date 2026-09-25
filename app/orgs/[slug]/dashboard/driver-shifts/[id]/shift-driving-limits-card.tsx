@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
     LIMIT_DIMENSION_LABELS,
+    LIMITS_NOT_ENFORCED_NOTE,
     formatDimensionValue,
     formatUsageAgainstLimit,
     type DimensionAssessment,
@@ -80,8 +81,7 @@ export function ShiftDrivingLimitsCard({
                         className="mb-3 rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground"
                         data-testid="shift-driving-limits-not-enforced"
                     >
-                        Automatic assignment is not applying driving limits yet, so this shift was planned without
-                        them.
+                        {LIMITS_NOT_ENFORCED_NOTE}
                     </p>
                 )}
 

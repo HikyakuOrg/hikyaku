@@ -17,6 +17,7 @@ import { getShiftsByDates, getShiftStartEnd, type CalendarShift } from '@/lib/su
 import { fetchShiftsInRange } from '@/lib/actions/shift'
 import {
     LIMIT_DIMENSION_LABELS,
+    LIMITS_NOT_ENFORCED_NOTE,
     assessShift,
     flaggedDimensions,
     formatUsageAgainstLimit,
@@ -85,8 +86,9 @@ export function DriverShiftsCalendar({
     // Null until loaded, and after a failed read: no marker is better than
     // marking every shift as comfortably within its limits. Keyed by shift
     // (vrp_optimization) id, since the API resolves limits per shift rather
-    // than per driver.
-    const [limitsByShift, setLimitsByShift] = useState<Map<string, DrivingLimits> | null>(null)
+    // than per driver. `enforced` is false while automatic assignment is not
+    // applying the limits, which the marker's tooltip says.
+    const [limitsByShift, setLimitsByShift] = useState<Map<string, { limits: DrivingLimits; enforced: boolean }> | null>(null)
     // Bumped whenever an external actor (e.g. a completed optimisation run) signals
     // that shifts changed, forcing the fetch effect below to re-run.
     const [refreshTick, setRefreshTick] = useState(0)
@@ -138,7 +140,7 @@ export function DriverShiftsCalendar({
             )
             setLimitsByShift(
                 shiftsResult.success
-                    ? new Map(shiftsResult.shifts.map((s) => [s.id, s.drivingLimits]))
+                    ? new Map(shiftsResult.shifts.map((s) => [s.id, { limits: s.drivingLimits, enforced: s.drivingLimitsEnabled }]))
                     : null,
             )
         }
@@ -172,8 +174,8 @@ export function DriverShiftsCalendar({
     // without opening each shift. The plan's figures are compared to the
     // shift's limits in seconds and metres; only the tooltip converts.
     const limitFlagFor = (event: CalendarShift) => {
-        const limits = limitsByShift?.get(event.id)
-        if (!limits) return null
+        const entry = limitsByShift?.get(event.id)
+        if (!entry) return null
 
         const flagged = flaggedDimensions(assessShift(shiftUsage({
             startArrival: event.start_arrival,
@@ -182,9 +184,11 @@ export function DriverShiftsCalendar({
             stops: event.stop_count,
             distanceM: event.distance_m,
             distanceSource: event.distance_source,
-        }), limits))
+        }), entry.limits))
 
-        return flagged.status ? { status: flagged.status, dimensions: flagged.dimensions } : null
+        return flagged.status
+            ? { status: flagged.status, dimensions: flagged.dimensions, enforced: entry.enforced }
+            : null
     }
 
     const describeFlaggedDimension = (row: DimensionAssessment) =>
@@ -223,7 +227,10 @@ export function DriverShiftsCalendar({
                     {limitFlag && (
                         <span
                             className={`flex shrink-0 items-center gap-0.5 ${limitFlag.status === 'over' ? 'text-red-600' : 'text-amber-600'}`}
-                            title={limitFlag.dimensions.map(describeFlaggedDimension).join('\n')}
+                            title={[
+                                ...limitFlag.dimensions.map(describeFlaggedDimension),
+                                ...(limitFlag.enforced ? [] : [LIMITS_NOT_ENFORCED_NOTE]),
+                            ].join('\n')}
                             aria-label={`${limitFlag.status === 'over' ? 'Over' : 'Near'} driving limit: ${limitFlag.dimensions.map(describeFlaggedDimension).join('; ')}`}
                             data-testid="shift-limit-marker"
                             data-status={limitFlag.status}

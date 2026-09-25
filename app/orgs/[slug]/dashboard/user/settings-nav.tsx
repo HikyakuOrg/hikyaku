@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BuildingsIcon, CreditCardIcon, GaugeIcon, PlugsConnectedIcon, UserCircleIcon } from "@phosphor-icons/react"
+import { BuildingsIcon, CreditCardIcon, GaugeIcon, PathIcon, PlugsConnectedIcon, UserCircleIcon } from "@phosphor-icons/react"
 
 import { buttonVariants } from "@/components/ui/button-variants"
 import { Card } from "@/components/ui/card"
@@ -24,6 +24,7 @@ export function SettingsNav({
     const billingHref = useOrgPath("/dashboard/user/billing")
     const businessHref = useOrgPath("/dashboard/user/business")
     const connectedAppsHref = useOrgPath("/dashboard/user/connected-apps")
+    const dispatchHref = useOrgPath("/dashboard/user/dispatch")
     const drivingLimitsHref = useOrgPath("/dashboard/user/driving-limits")
 
     const items = [
@@ -46,6 +47,11 @@ export function SettingsNav({
                   },
               ]
             : []),
+        {
+            label: "Dispatch",
+            href: dispatchHref,
+            icon: PathIcon,
+        },
         {
             label: "Driving Limits",
             href: drivingLimitsHref,

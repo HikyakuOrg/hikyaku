@@ -582,6 +582,7 @@ import { TrackingLocationBroadcast } from "@/app/models/tracking";
 import { ListDriverDto } from "../api";
 import { getDriversByIds } from "./supabase-rpc";
 import type { DrivingLimitProfile, DrivingLimitValues } from "@/lib/driving-limits";
+import { toDispatchSettings, toDispatchSettingsRow, type DispatchSettings } from "@/lib/dispatch-settings";
 
 
 const supabase = createLazyClient()
@@ -1268,6 +1269,21 @@ export async function setOrganisationDrivingLimitDefault(organisationId: string,
         .single()
     if (error) throw error
     return data
+}
+
+/**
+ * Save every dispatch setting at once. An upsert because the row only exists
+ * once somebody has saved: until then the organisation runs on the defaults.
+ * Needs `organisation.edit`; RLS refuses anyone else.
+ */
+export async function saveOrganisationDispatchSettings(organisationId: string, settings: DispatchSettings) {
+    const { data, error } = await supabase
+        .from("organisation_dispatch_settings")
+        .upsert(toDispatchSettingsRow(organisationId, settings), { onConflict: "organisation_id" })
+        .select("assignment_mode, load_spread_enabled, service_area_matching")
+        .single()
+    if (error) throw error
+    return toDispatchSettings(data)
 }
 
 export async function searchWarehouse(organisationId: string, search: string) {

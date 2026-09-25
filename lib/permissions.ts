@@ -20,9 +20,10 @@ export const DRIVERS_UPDATE = "drivers.update" satisfies OrgPermission
 
 /**
  * Drives the update RLS policy on `organisations`, which carries the default
- * driving limit profile. The organisation's creator passes that policy too, and
- * is granted every seeded permission when the organisation is made, so checking
- * the permission alone covers both.
+ * driving limit profile, and the insert and update policies on
+ * `organisation_dispatch_settings`. The organisation's creator passes the
+ * `organisations` policy too, and is granted every seeded permission when the
+ * organisation is made, so checking the permission alone covers both.
  */
 export const ORGANISATION_EDIT = "organisation.edit" satisfies OrgPermission
 

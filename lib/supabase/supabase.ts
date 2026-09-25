@@ -384,6 +384,44 @@ export type Database = {
         }
         Relationships: []
       }
+      organisation_dispatch_settings: {
+        Row: {
+          assignment_mode: string
+          created_at: string
+          load_spread_enabled: boolean
+          organisation_id: string
+          service_area_matching: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          assignment_mode?: string
+          created_at?: string
+          load_spread_enabled?: boolean
+          organisation_id: string
+          service_area_matching?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          assignment_mode?: string
+          created_at?: string
+          load_spread_enabled?: boolean
+          organisation_id?: string
+          service_area_matching?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organisation_dispatch_settings_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: true
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organisation_invitation_permissions: {
         Row: {
           invitation_id: string
