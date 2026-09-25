@@ -45,6 +45,14 @@ export type DrivingLimitProfile = DrivingLimitValues & {
  */
 export const MAX_STOPS_CEILING = 45
 
+/**
+ * Shown beside a driver's limits while `ShiftDto.drivingLimitsEnabled` is
+ * false: the API still returns the configured limits so they can be compared
+ * to the plan, but automatic assignment did not apply them.
+ */
+export const LIMITS_NOT_ENFORCED_NOTE =
+    "Automatic assignment is not applying driving limits yet, so this shift was planned without them."
+
 export function hasAnyDrivingLimit(limits: DrivingLimits): boolean {
     return (
         limits.maxWorkingSeconds != null ||
