@@ -12,9 +12,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 
-export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
+export function SignUpForm({
+  className,
+  defaultEmail,
+  ...props
+}: React.ComponentPropsWithoutRef<'div'> & { defaultEmail?: string }) {
   const router = useRouter()
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(defaultEmail ?? '')
   const [password, setPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [repeatPassword, setRepeatPassword] = useState('')
