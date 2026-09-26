@@ -14,7 +14,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import type { ServiceAreaBounds } from "@/lib/maps/service-area-geometry"
+import { getServiceAreaListBounds, type ServiceAreaBounds } from "@/lib/maps/service-area-geometry"
 import { SERVICE_AREAS_EDIT, describeWriteError } from "@/lib/permissions"
 import { deleteServiceArea } from "@/lib/supabase/db"
 import type { ServiceAreaListItem } from "@/lib/supabase/db-server"
@@ -30,7 +30,7 @@ type ServiceAreasExplorerProps = {
 }
 
 /**
- * Owns the state the map and the list share: which area is picked, where the
+ * Owns the state the map and the list share: which areas are picked, where the
  * camera should go, and what a delete has already removed. Neither of the two
  * can hold it, so it sits in the one component that renders both.
  */
@@ -42,7 +42,7 @@ export function ServiceAreasExplorer({
 }: ServiceAreasExplorerProps) {
     const router = useRouter()
     const [areas, setAreas] = useState(initialAreas)
-    const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null)
+    const [selectedAreaIds, setSelectedAreaIds] = useState<string[]>([])
     const [focusRequest, setFocusRequest] = useState<ServiceAreaFocusRequest | null>(null)
     const [mapRefreshToken, setMapRefreshToken] = useState(0)
     const [page, setPage] = useState(1)
@@ -57,18 +57,22 @@ export function ServiceAreasExplorer({
         router.push(`/orgs/${slug}/dashboard/service/areas/${id}`)
     }
 
-    // Picking from the list also moves the camera, since the area is usually not
-    // the one on screen. Picking on the map does not: it is already in view.
-    const handleSelectFromTable = (area: ServiceAreaListItem | null) => {
-        setSelectedAreaId(area?.id ?? null)
+    // Ticking in the list also moves the camera onto what was just ticked, since
+    // it is usually not on screen. Unticking leaves the view alone, and so does
+    // picking on the map: that area is already in view.
+    const handleSelectFromTable = (ids: string[]) => {
+        const addedAreas = areas.filter((area) => ids.includes(area.id) && !selectedAreaIds.includes(area.id))
 
-        if (area?.bounds) {
-            setFocusRequest({ bounds: area.bounds, token: Date.now() })
+        setSelectedAreaIds(ids)
+
+        const bounds = getServiceAreaListBounds(addedAreas)
+        if (bounds) {
+            setFocusRequest({ bounds, token: Date.now() })
         }
     }
 
     const handleSelectFromMap = (id: string) => {
-        setSelectedAreaId(id)
+        setSelectedAreaIds((current) => (current.includes(id) ? current : [...current, id]))
 
         // Follow the pick into the list. The polygon that was clicked can be
         // listed on a page nobody is looking at, and seeing which row it is is
@@ -96,7 +100,7 @@ export function ServiceAreasExplorer({
 
             const remainingAreas = areas.filter((candidate) => candidate.id !== area.id)
             setAreas(remainingAreas)
-            setSelectedAreaId((current) => (current === area.id ? null : current))
+            setSelectedAreaIds((current) => current.filter((id) => id !== area.id))
             setPage((current) => Math.min(
                 current,
                 Math.max(1, Math.ceil(remainingAreas.length / SERVICE_AREAS_PAGE_SIZE))
@@ -124,7 +128,7 @@ export function ServiceAreasExplorer({
         <div className="space-y-6">
             <ServiceAreasMap
                 initialBounds={initialBounds}
-                selectedAreaId={selectedAreaId}
+                selectedAreaIds={selectedAreaIds}
                 focusRequest={focusRequest}
                 onSelectArea={handleSelectFromMap}
                 onOpenArea={openArea}
@@ -133,11 +137,11 @@ export function ServiceAreasExplorer({
 
             <ServiceAreasTable
                 areas={areas}
-                selectedAreaId={selectedAreaId}
+                selectedAreaIds={selectedAreaIds}
                 page={page}
                 onPageChange={setPage}
                 canEdit={canEdit}
-                onSelectArea={handleSelectFromTable}
+                onSelectionChange={handleSelectFromTable}
                 onOpenArea={(area) => openArea(area.id)}
                 onRequestDelete={setPendingDeleteArea}
             />

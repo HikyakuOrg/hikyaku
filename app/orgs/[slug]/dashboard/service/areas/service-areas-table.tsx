@@ -26,8 +26,8 @@ export const SERVICE_AREAS_PAGE_SIZE = 10
 
 type ServiceAreasTableProps = {
     areas: ServiceAreaListItem[]
-    /** Shared with the map, so a polygon click lands on the matching row. */
-    selectedAreaId: string | null
+    /** Shared with the map, so a polygon click ticks the matching row. */
+    selectedAreaIds: string[]
     page: number
     onPageChange: (page: number) => void
     /**
@@ -36,7 +36,8 @@ type ServiceAreasTableProps = {
      * `service_areas` are what actually refuse the delete.
      */
     canEdit: boolean
-    onSelectArea: (area: ServiceAreaListItem | null) => void
+    /** The full set of ticked ids, in list order. */
+    onSelectionChange: (ids: string[]) => void
     onOpenArea: (area: ServiceAreaListItem) => void
     onRequestDelete: (area: ServiceAreaListItem) => void
 }
@@ -110,11 +111,11 @@ function DeleteServiceAreaButton({
 
 export function ServiceAreasTable({
     areas,
-    selectedAreaId,
+    selectedAreaIds,
     page,
     onPageChange,
     canEdit,
-    onSelectArea,
+    onSelectionChange,
     onOpenArea,
     onRequestDelete,
 }: ServiceAreasTableProps) {
@@ -127,20 +128,16 @@ export function ServiceAreasTable({
     )
 
     const rowSelection = useMemo<RowSelectionState>(
-        () => (selectedAreaId ? { [selectedAreaId]: true } : {}),
-        [selectedAreaId]
+        () => Object.fromEntries(selectedAreaIds.map((id) => [id, true])),
+        [selectedAreaIds]
     )
 
-    // The table's selection is "which area the map is showing", so it holds one
-    // row at a time even though the header checkbox can tick a whole page.
+    // The table's selection is "which areas the map is highlighting". Rows on
+    // other pages stay ticked, since TanStack only sees the current page.
     const handleRowSelectionChange: React.Dispatch<React.SetStateAction<RowSelectionState>> = (updater) => {
         const next = typeof updater === "function" ? updater(rowSelection) : updater
-        const tickedIds = Object.keys(next).filter((id) => next[id])
-        const addedId = tickedIds.find((id) => id !== selectedAreaId) ?? null
-        const nextSelectedId = addedId
-            ?? (selectedAreaId !== null && tickedIds.includes(selectedAreaId) ? selectedAreaId : null)
 
-        onSelectArea(nextSelectedId ? areas.find((area) => area.id === nextSelectedId) ?? null : null)
+        onSelectionChange(areas.filter((area) => next[area.id]).map((area) => area.id))
     }
 
     const columns: ColumnDef<ServiceAreaListItem>[] = [
@@ -177,7 +174,7 @@ export function ServiceAreasTable({
                 <h2 className="text-lg font-semibold tracking-tight">All service areas</h2>
                 <p className="text-sm text-muted-foreground">
                     Every area in this organisation, including any drawn outside the current map view.
-                    Tick one to show it on the map, or open a row to see and change who covers it.
+                    Tick areas to highlight them on the map, or open a row to see and change who covers it.
                 </p>
             </div>
 

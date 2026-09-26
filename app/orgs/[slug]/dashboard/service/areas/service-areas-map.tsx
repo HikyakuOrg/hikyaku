@@ -23,12 +23,12 @@ export type ServiceAreaFocusRequest = {
 
 type ServiceAreasMapProps = {
     initialBounds: ServiceAreaBounds | null
-    /** The area highlighted in both the list and the map. */
-    selectedAreaId: string | null
+    /** The areas highlighted in both the list and the map. */
+    selectedAreaIds: string[]
     focusRequest: ServiceAreaFocusRequest | null
-    /** A polygon click picks that area, which highlights its row in the list. */
+    /** A polygon click adds that area to the picked set, which ticks its row in the list. */
     onSelectArea: (id: string) => void
-    /** Clicking the already-picked polygon opens it. */
+    /** Clicking an already-picked polygon opens it. */
     onOpenArea: (id: string) => void
     /**
      * Bumped when the set of areas changes (a delete). The viewport fetch skips
@@ -56,7 +56,7 @@ function createBoundsKey(bounds: ViewportBounds) {
 
 export function ServiceAreasMap({
     initialBounds,
-    selectedAreaId,
+    selectedAreaIds,
     focusRequest,
     onSelectArea,
     onOpenArea,
@@ -68,7 +68,7 @@ export function ServiceAreasMap({
     const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const latestBoundsKeyRef = useRef<string | null>(null)
     const requestSequenceRef = useRef(0)
-    const appliedSelectionRef = useRef<string | null>(null)
+    const appliedSelectionRef = useRef<string[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [hasLoaded, setHasLoaded] = useState(false)
     const [hasError, setHasError] = useState(false)
@@ -79,31 +79,33 @@ export function ServiceAreasMap({
     // away the dispatcher's pan and zoom mid-task.
     const initialBoundsRef = useRef(initialBounds)
     initialBoundsRef.current = initialBounds
-    const selectedAreaIdRef = useRef(selectedAreaId)
-    selectedAreaIdRef.current = selectedAreaId
+    const selectedAreaIdsRef = useRef(selectedAreaIds)
+    selectedAreaIdsRef.current = selectedAreaIds
     const onSelectAreaRef = useRef(onSelectArea)
     onSelectAreaRef.current = onSelectArea
     const onOpenAreaRef = useRef(onOpenArea)
     onOpenAreaRef.current = onOpenArea
 
-    // Highlight one polygon. Never moves the camera: camera moves come from the
-    // list (focusRequest), so picking an area on the map leaves the view alone.
-    const applySelection = useCallback((id: string | null) => {
+    // Highlight the picked polygons. Never moves the camera: camera moves come
+    // from the list (focusRequest), so picking an area on the map leaves the
+    // view alone.
+    const applySelection = useCallback((ids: string[]) => {
         const map = mapRef.current
         if (!map || !layersReadyRef.current) {
             return
         }
 
-        const previous = appliedSelectionRef.current
-        if (previous && previous !== id) {
-            map.setFeatureState({ source: SOURCE_ID, id: previous }, { selected: false })
+        for (const previous of appliedSelectionRef.current) {
+            if (!ids.includes(previous)) {
+                map.setFeatureState({ source: SOURCE_ID, id: previous }, { selected: false })
+            }
         }
 
-        if (id) {
+        for (const id of ids) {
             map.setFeatureState({ source: SOURCE_ID, id }, { selected: true })
         }
 
-        appliedSelectionRef.current = id
+        appliedSelectionRef.current = ids
     }, [])
 
     const fetchVisibleServiceAreas = useCallback(async (options?: { force?: boolean }) => {
@@ -146,9 +148,9 @@ export function ServiceAreasMap({
             }
 
             // Replacing the source data drops the feature state that carries the
-            // highlight, so put it back for whichever area is still selected.
-            appliedSelectionRef.current = null
-            applySelection(selectedAreaIdRef.current)
+            // highlight, so put it back for whichever areas are still selected.
+            appliedSelectionRef.current = []
+            applySelection(selectedAreaIdsRef.current)
 
             setVisibleAreaNames(nextFeatureCollection.features.map((feature) => feature.properties.name))
             setHasLoaded(true)
@@ -237,7 +239,7 @@ export function ServiceAreasMap({
             })
 
             layersReadyRef.current = true
-            applySelection(selectedAreaIdRef.current)
+            applySelection(selectedAreaIdsRef.current)
 
             if (initialBoundsRef.current) {
                 map.fitBounds(initialBoundsRef.current, {
@@ -254,7 +256,7 @@ export function ServiceAreasMap({
                     : "Service Area"
                 const id = feature?.properties?.id
 
-                return typeof id === "string" && selectedAreaIdRef.current === id
+                return typeof id === "string" && selectedAreaIdsRef.current.includes(id)
                     ? `${serviceAreaName} (click again to open)`
                     : `${serviceAreaName} (click to select)`
             }
@@ -291,10 +293,10 @@ export function ServiceAreasMap({
 
                 // Overlapping areas hide each other here: a click resolves to
                 // whichever feature the layer happens to return first. So the
-                // first click only picks the area, which highlights its row in
-                // the list and says which one was hit; clicking the picked one
-                // again is what opens it.
-                if (selectedAreaIdRef.current === id) {
+                // first click only picks the area, which ticks its row in the
+                // list and says which one was hit; clicking a picked one again
+                // is what opens it.
+                if (selectedAreaIdsRef.current.includes(id)) {
                     onOpenAreaRef.current(id)
                     return
                 }
@@ -320,14 +322,14 @@ export function ServiceAreasMap({
             map.remove()
             mapRef.current = null
             layersReadyRef.current = false
-            appliedSelectionRef.current = null
+            appliedSelectionRef.current = []
             latestBoundsKeyRef.current = null
         }
     }, [applySelection, fetchVisibleServiceAreas])
 
     useEffect(() => {
-        applySelection(selectedAreaId)
-    }, [selectedAreaId, applySelection])
+        applySelection(selectedAreaIds)
+    }, [selectedAreaIds, applySelection])
 
     useEffect(() => {
         if (!focusRequest) {

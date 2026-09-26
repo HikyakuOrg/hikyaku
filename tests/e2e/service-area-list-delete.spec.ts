@@ -130,4 +130,47 @@ test.describe("Service Area List And Delete", () => {
         await page.reload()
         expect(await openListPageContaining(page, serviceAreaName)).toBe(false)
     })
+
+    test("keeps several rows ticked at once", async ({ page }) => {
+        // Two areas to create and two to delete, each a round trip.
+        test.setTimeout(120_000)
+
+        // One shared stamp so the two names sort next to each other, and the
+        // list, which is ordered by name, walks forward from the first to the
+        // second.
+        const stamp = Date.now()
+        const names = [`Multi Select Area ${stamp} A`, `Multi Select Area ${stamp} B`]
+
+        for (const name of names) {
+            await createServiceArea(page, name)
+        }
+
+        await page.goto(d('/service/areas'))
+
+        const table = page.getByTestId("service-areas-table")
+        const rowFor = (name: string) => table.locator("tr", { hasText: name })
+
+        for (const name of names) {
+            expect(await openListPageContaining(page, name)).toBe(true)
+            await rowFor(name).getByRole("checkbox").click()
+            await expect(rowFor(name)).toHaveAttribute("data-state", "selected")
+        }
+
+        // Ticking the second must not untick the first. The two can straddle a
+        // page break, so step back until the first is listed again.
+        const previousButton = table.getByRole("button", { name: "Previous" })
+        for (let steps = 0; await rowFor(names[0]).count() === 0 && steps < 50; steps += 1) {
+            await previousButton.click()
+        }
+        await expect(rowFor(names[0])).toHaveAttribute("data-state", "selected")
+
+        await page.goto(d('/service/areas'))
+
+        for (const name of names) {
+            expect(await openListPageContaining(page, name)).toBe(true)
+            await page.getByRole("button", { name: `Delete ${name}` }).click()
+            await page.getByTestId("service-area-delete-confirmation-ok").click()
+            await expect(page.getByTestId("service-area-delete-confirmation-title")).toHaveCount(0)
+        }
+    })
 })
