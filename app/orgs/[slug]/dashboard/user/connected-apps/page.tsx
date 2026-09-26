@@ -3,10 +3,19 @@ import { redirect } from 'next/navigation'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
-import { listConnectedApps } from '@/lib/actions/oauth'
+import { listConnectedApps, type ConnectedApp } from '@/lib/actions/oauth'
 import { userHasCompanyOrg } from '@/lib/actions/organisations'
 import { orgPath } from '@/lib/subdomain'
 import { ConnectedAppsList } from './connected-apps-list'
+import type { OfficialAppId } from './official-apps'
+
+// OAuth client IDs differ per Supabase project (local, staging, prod), so they
+// come from the environment. A grant whose client isn't listed here shows under
+// "Other apps" instead of borrowing an official app's branding.
+const OFFICIAL_APP_CLIENT_IDS: Record<OfficialAppId, string | undefined> = {
+    n8n: process.env.N8N_OAUTH_CLIENT_ID,
+    shopify: process.env.SHOPIFY_OAUTH_CLIENT_ID,
+}
 
 type Props = {
     params: Promise<{ slug: string }>
@@ -18,8 +27,8 @@ export default function ConnectedAppsPage({ params }: Props) {
             <div>
                 <h2 className="text-xl font-semibold tracking-tight">Connected Apps</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                    Third-party apps you have given access to your hikyaku account. Revoking
-                    an app signs it out everywhere and forces it to ask for access again.
+                    Connect hikyaku to the tools you already use. Revoking an app signs it out
+                    everywhere and forces it to ask for access again.
                 </p>
             </div>
 
@@ -52,14 +61,21 @@ async function ConnectedApps({ params }: Props) {
         )
     }
 
-    return <ConnectedAppsList slug={slug} apps={apps} />
+    const officialGrants: Partial<Record<OfficialAppId, ConnectedApp>> = {}
+    const otherApps: ConnectedApp[] = []
+    for (const app of apps) {
+        const officialId = (Object.keys(OFFICIAL_APP_CLIENT_IDS) as OfficialAppId[]).find(
+            (id) => OFFICIAL_APP_CLIENT_IDS[id] === app.clientId,
+        )
+        if (officialId) officialGrants[officialId] = app
+        else otherApps.push(app)
+    }
+
+    return <ConnectedAppsList slug={slug} officialGrants={officialGrants} otherApps={otherApps} />
 }
 
 function ConnectedAppsSkeleton() {
     return (
-        <div className="space-y-4">
-            <Skeleton className="h-24 w-full rounded-xl" />
-            <Skeleton className="h-24 w-full rounded-xl" />
-        </div>
+        <Skeleton className="h-40 w-full rounded-xl" />
     )
 }
