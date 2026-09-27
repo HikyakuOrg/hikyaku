@@ -28,29 +28,30 @@ export async function updateServiceArea(id: string, name: string, geometry: stri
 }
 
 /**
- * Retire a service area. Soft delete, the same shape deleteVehicle() uses: the
- * row stays so anything already pointing at it keeps resolving, and every read
- * of this table filters `is_deleted` itself.
+ * Retire service areas in one write. Soft delete, the same shape deleteVehicle()
+ * uses: the rows stay so anything already pointing at them keeps resolving, and
+ * every read of this table filters `is_deleted` itself.
  *
  * Retiring an area does not re-route work that already exists. Coverage is
  * decided once, when a package is created, not continuously, so packages and
  * shifts already booked are untouched by this.
  *
- * `.select().single()` on purpose: an update the RLS policy refuses is not an
- * error in Postgres, it just matches zero rows, so without this it would return
- * quietly and look like a success. With it the refusal arrives as PGRST116,
- * which describeWriteError() turns into a sentence.
+ * Returns the ids that were actually retired. An update the RLS policy refuses
+ * is not an error in Postgres, it just matches zero rows, so the caller has to
+ * compare this against what it asked for rather than treat a quiet return as
+ * success.
  */
-export async function deleteServiceArea(id: string) {
+export async function deleteServiceAreas(ids: string[]): Promise<string[]> {
+    if (ids.length === 0) return []
+
     const { data, error } = await supabase
         .from("service_areas")
         .update({ is_deleted: true })
-        .eq("id", id)
+        .in("id", ids)
         .eq("is_deleted", false)
-        .select()
-        .single()
+        .select("id")
     if (error) throw error
-    return data
+    return data.map((row) => row.id)
 }
 
 /**
@@ -398,8 +399,7 @@ export async function attachDriversToServiceArea(areaId: string, driverIds: stri
  * exists: coverage is decided once, when a package is created, so stops already
  * on a driver's route stay there.
  *
- * `.select().single()` for the same reason `deleteServiceArea` uses it. A delete
- * the RLS policy refuses is not an error in Postgres, it simply matches zero
+ * `.select().single()` on purpose: a delete the RLS policy refuses is not an error in Postgres, it simply matches zero
  * rows, so without this it would return quietly and look like a success. With
  * it the refusal arrives as PGRST116, which describeWriteError() turns into a
  * sentence covering both readings (the row is gone, or the permission is).

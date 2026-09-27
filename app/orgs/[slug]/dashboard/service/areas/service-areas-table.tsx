@@ -26,8 +26,8 @@ export const SERVICE_AREAS_PAGE_SIZE = 10
 
 type ServiceAreasTableProps = {
     areas: ServiceAreaListItem[]
-    /** Shared with the map, so a polygon click lands on the matching row. */
-    selectedAreaId: string | null
+    /** Shared with the map, so a polygon click ticks the matching row. */
+    selectedAreaIds: string[]
     page: number
     onPageChange: (page: number) => void
     /**
@@ -36,9 +36,11 @@ type ServiceAreasTableProps = {
      * `service_areas` are what actually refuse the delete.
      */
     canEdit: boolean
-    onSelectArea: (area: ServiceAreaListItem | null) => void
+    /** The full set of ticked ids, in list order. */
+    onSelectionChange: (ids: string[]) => void
     onOpenArea: (area: ServiceAreaListItem) => void
-    onRequestDelete: (area: ServiceAreaListItem) => void
+    /** Asks to delete every ticked area, including ones on other pages. */
+    onRequestDelete: (areas: ServiceAreaListItem[]) => void
 }
 
 /**
@@ -62,15 +64,17 @@ function CreatedAt({ value }: { value: string }) {
     )
 }
 
-function DeleteServiceAreaButton({
-    area,
+function DeleteSelectedButton({
+    count,
     canEdit,
-    onRequestDelete,
+    onClick,
 }: {
-    area: ServiceAreaListItem
+    count: number
     canEdit: boolean
-    onRequestDelete: (area: ServiceAreaListItem) => void
+    onClick: () => void
 }) {
+    const label = count > 0 ? `Delete selected (${count})` : "Delete selected"
+
     if (!canEdit) {
         // Disabled with the reason attached rather than hidden, so it is clear
         // the action exists and what is missing, and rather than live, which
@@ -79,13 +83,9 @@ function DeleteServiceAreaButton({
             <TooltipProvider>
                 <Tooltip>
                     <TooltipTrigger render={<span className="inline-flex" />}>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            disabled
-                            aria-label={`Delete ${area.name}`}
-                        >
-                            <Trash2 className="size-4 text-muted-foreground" />
+                        <Button variant="outline" disabled data-testid="service-areas-delete-selected">
+                            <Trash2 className="size-4" />
+                            {label}
                         </Button>
                     </TooltipTrigger>
                     <TooltipContent side="left">
@@ -98,23 +98,24 @@ function DeleteServiceAreaButton({
 
     return (
         <Button
-            variant="ghost"
-            size="icon"
-            aria-label={`Delete ${area.name}`}
-            onClick={() => onRequestDelete(area)}
+            variant="destructive"
+            disabled={count === 0}
+            onClick={onClick}
+            data-testid="service-areas-delete-selected"
         >
-            <Trash2 className="size-4 text-destructive" />
+            <Trash2 className="size-4" />
+            {label}
         </Button>
     )
 }
 
 export function ServiceAreasTable({
     areas,
-    selectedAreaId,
+    selectedAreaIds,
     page,
     onPageChange,
     canEdit,
-    onSelectArea,
+    onSelectionChange,
     onOpenArea,
     onRequestDelete,
 }: ServiceAreasTableProps) {
@@ -126,21 +127,23 @@ export function ServiceAreasTable({
         currentPage * SERVICE_AREAS_PAGE_SIZE
     )
 
-    const rowSelection = useMemo<RowSelectionState>(
-        () => (selectedAreaId ? { [selectedAreaId]: true } : {}),
-        [selectedAreaId]
+    // In list order, so the confirmation names them the way the list does.
+    const selectedAreas = useMemo(
+        () => areas.filter((area) => selectedAreaIds.includes(area.id)),
+        [areas, selectedAreaIds]
     )
 
-    // The table's selection is "which area the map is showing", so it holds one
-    // row at a time even though the header checkbox can tick a whole page.
+    const rowSelection = useMemo<RowSelectionState>(
+        () => Object.fromEntries(selectedAreaIds.map((id) => [id, true])),
+        [selectedAreaIds]
+    )
+
+    // The table's selection is "which areas the map is highlighting". Rows on
+    // other pages stay ticked, since TanStack only sees the current page.
     const handleRowSelectionChange: React.Dispatch<React.SetStateAction<RowSelectionState>> = (updater) => {
         const next = typeof updater === "function" ? updater(rowSelection) : updater
-        const tickedIds = Object.keys(next).filter((id) => next[id])
-        const addedId = tickedIds.find((id) => id !== selectedAreaId) ?? null
-        const nextSelectedId = addedId
-            ?? (selectedAreaId !== null && tickedIds.includes(selectedAreaId) ? selectedAreaId : null)
 
-        onSelectArea(nextSelectedId ? areas.find((area) => area.id === nextSelectedId) ?? null : null)
+        onSelectionChange(areas.filter((area) => next[area.id]).map((area) => area.id))
     }
 
     const columns: ColumnDef<ServiceAreaListItem>[] = [
@@ -154,31 +157,25 @@ export function ServiceAreasTable({
             header: "Created",
             cell: ({ row }) => <CreatedAt value={row.original.created_at} />,
         },
-        {
-            id: "actions",
-            header: () => <span className="sr-only">Actions</span>,
-            cell: ({ row }) => (
-                // Same guard the selection checkbox uses: without it the click
-                // bubbles to the row and navigates away from the dialog.
-                <div className="flex justify-end" onClick={(event) => event.stopPropagation()}>
-                    <DeleteServiceAreaButton
-                        area={row.original}
-                        canEdit={canEdit}
-                        onRequestDelete={onRequestDelete}
-                    />
-                </div>
-            ),
-        },
     ]
 
     return (
         <div className="space-y-3" data-testid="service-areas-table">
-            <div>
-                <h2 className="text-lg font-semibold tracking-tight">All service areas</h2>
-                <p className="text-sm text-muted-foreground">
-                    Every area in this organisation, including any drawn outside the current map view.
-                    Tick one to show it on the map, or open a row to see and change who covers it.
-                </p>
+            <div className="flex items-end justify-between gap-4">
+                <div>
+                    <h2 className="text-lg font-semibold tracking-tight">All service areas</h2>
+                    <p className="text-sm text-muted-foreground">
+                        Every area in this organisation, including any drawn outside the current map view.
+                        Tick areas to highlight them on the map or delete them together, or open a row to
+                        see and change who covers it.
+                    </p>
+                </div>
+
+                <DeleteSelectedButton
+                    count={selectedAreas.length}
+                    canEdit={canEdit}
+                    onClick={() => onRequestDelete(selectedAreas)}
+                />
             </div>
 
             <DataTable

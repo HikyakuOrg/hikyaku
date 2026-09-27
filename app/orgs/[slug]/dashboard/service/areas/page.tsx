@@ -1,4 +1,5 @@
-import { getServiceAreaListBounds, getServiceAreas } from "@/lib/supabase/db-server"
+import { getServiceAreaListBounds } from "@/lib/maps/service-area-geometry"
+import { getServiceAreas } from "@/lib/supabase/db-server"
 import { hasOrgPermission } from "@/lib/supabase/server"
 import { SERVICE_AREAS_EDIT } from "@/lib/permissions"
 

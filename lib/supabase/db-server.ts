@@ -380,25 +380,6 @@ export async function getOrganisationBySlug(slug: string): Promise<BookingOrgani
     return data
 }
 
-/**
- * The bounding box around a list of areas, used to point the map somewhere
- * useful on first paint. Null when there is nothing to frame.
- *
- * Built from the rows getServiceAreas() already read rather than from the
- * get_service_area_extent RPC, which takes no organisation and so framed every
- * organisation the caller belongs to. Reading the list also means the box only
- * covers live areas, where the RPC included retired ones.
- */
-export function getServiceAreaListBounds(areas: ServiceAreaListItem[]): ServiceAreaBounds | null {
-    const boxes = areas.flatMap((area) => (area.bounds ? [area.bounds] : []))
-    if (boxes.length === 0) return null
-
-    return [
-        [Math.min(...boxes.map(([min]) => min[0])), Math.min(...boxes.map(([min]) => min[1]))],
-        [Math.max(...boxes.map(([, max]) => max[0])), Math.max(...boxes.map(([, max]) => max[1]))],
-    ]
-}
-
 export async function getServiceAreasInBounds(bounds: ServiceAreaViewportBounds) {
     const supabase = await createClient()
     const organisationId = await getActiveOrganisationId()

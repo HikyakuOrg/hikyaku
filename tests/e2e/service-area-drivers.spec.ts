@@ -233,7 +233,11 @@ test.describe("Service Area Drivers", () => {
         // the soft delete rather than something this spec needs to undo.
         await page.goto(d('/service/areas'))
         if (await openListPageContaining(page, serviceAreaName)) {
-            await page.getByRole("button", { name: `Delete ${serviceAreaName}`, exact: true }).click()
+            await page.getByTestId("service-areas-table")
+                .locator("tr", { hasText: serviceAreaName })
+                .getByRole("checkbox")
+                .click()
+            await page.getByTestId("service-areas-delete-selected").click()
             await page.getByTestId("service-area-delete-confirmation-ok").click()
             await expect(page.getByTestId("service-area-delete-confirmation-title")).toHaveCount(0)
         }

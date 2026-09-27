@@ -14,9 +14,9 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import type { ServiceAreaBounds } from "@/lib/maps/service-area-geometry"
+import { getServiceAreaListBounds, type ServiceAreaBounds } from "@/lib/maps/service-area-geometry"
 import { SERVICE_AREAS_EDIT, describeWriteError } from "@/lib/permissions"
-import { deleteServiceArea } from "@/lib/supabase/db"
+import { deleteServiceAreas } from "@/lib/supabase/db"
 import type { ServiceAreaListItem } from "@/lib/supabase/db-server"
 
 import { ServiceAreasMap, type ServiceAreaFocusRequest } from "./service-areas-map"
@@ -30,7 +30,7 @@ type ServiceAreasExplorerProps = {
 }
 
 /**
- * Owns the state the map and the list share: which area is picked, where the
+ * Owns the state the map and the list share: which areas are picked, where the
  * camera should go, and what a delete has already removed. Neither of the two
  * can hold it, so it sits in the one component that renders both.
  */
@@ -42,11 +42,11 @@ export function ServiceAreasExplorer({
 }: ServiceAreasExplorerProps) {
     const router = useRouter()
     const [areas, setAreas] = useState(initialAreas)
-    const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null)
+    const [selectedAreaIds, setSelectedAreaIds] = useState<string[]>([])
     const [focusRequest, setFocusRequest] = useState<ServiceAreaFocusRequest | null>(null)
     const [mapRefreshToken, setMapRefreshToken] = useState(0)
     const [page, setPage] = useState(1)
-    const [pendingDeleteArea, setPendingDeleteArea] = useState<ServiceAreaListItem | null>(null)
+    const [pendingDeleteAreas, setPendingDeleteAreas] = useState<ServiceAreaListItem[]>([])
     const [isDeleting, setIsDeleting] = useState(false)
 
     // Both surfaces open the area's detail page, where its coverage is staffed.
@@ -57,18 +57,22 @@ export function ServiceAreasExplorer({
         router.push(`/orgs/${slug}/dashboard/service/areas/${id}`)
     }
 
-    // Picking from the list also moves the camera, since the area is usually not
-    // the one on screen. Picking on the map does not: it is already in view.
-    const handleSelectFromTable = (area: ServiceAreaListItem | null) => {
-        setSelectedAreaId(area?.id ?? null)
+    // Ticking in the list also moves the camera onto what was just ticked, since
+    // it is usually not on screen. Unticking leaves the view alone, and so does
+    // picking on the map: that area is already in view.
+    const handleSelectFromTable = (ids: string[]) => {
+        const addedAreas = areas.filter((area) => ids.includes(area.id) && !selectedAreaIds.includes(area.id))
 
-        if (area?.bounds) {
-            setFocusRequest({ bounds: area.bounds, token: Date.now() })
+        setSelectedAreaIds(ids)
+
+        const bounds = getServiceAreaListBounds(addedAreas)
+        if (bounds) {
+            setFocusRequest({ bounds, token: Date.now() })
         }
     }
 
     const handleSelectFromMap = (id: string) => {
-        setSelectedAreaId(id)
+        setSelectedAreaIds((current) => (current.includes(id) ? current : [...current, id]))
 
         // Follow the pick into the list. The polygon that was clicked can be
         // listed on a page nobody is looking at, and seeing which row it is is
@@ -80,51 +84,77 @@ export function ServiceAreasExplorer({
     }
 
     const handleConfirmDelete = async () => {
-        const area = pendingDeleteArea
+        const requested = pendingDeleteAreas
 
-        if (!area) {
+        if (requested.length === 0) {
             return
         }
 
         setIsDeleting(true)
 
         try {
-            // Awaited before anything else happens. Dropping the row first and
+            // Awaited before anything else happens. Dropping the rows first and
             // reporting success alongside the request would report a refused
             // write as a success and leave the list disagreeing with the table.
-            await deleteServiceArea(area.id)
+            const retiredIds = await deleteServiceAreas(requested.map((area) => area.id))
+            const missedCount = requested.length - retiredIds.length
 
-            const remainingAreas = areas.filter((candidate) => candidate.id !== area.id)
-            setAreas(remainingAreas)
-            setSelectedAreaId((current) => (current === area.id ? null : current))
-            setPage((current) => Math.min(
-                current,
-                Math.max(1, Math.ceil(remainingAreas.length / SERVICE_AREAS_PAGE_SIZE))
-            ))
-            // The map serves a viewport it has already fetched from cache, so
-            // ask it to re-read or the retired polygon stays drawn.
-            setMapRefreshToken((current) => current + 1)
-            setPendingDeleteArea(null)
-            toast.success(`"${area.name}" deleted.`)
-            // The empty state is decided server-side, so let the page re-read now
-            // that this row is retired.
-            router.refresh()
+            if (retiredIds.length > 0) {
+                const remainingAreas = areas.filter((candidate) => !retiredIds.includes(candidate.id))
+                setAreas(remainingAreas)
+                setSelectedAreaIds((current) => current.filter((id) => !retiredIds.includes(id)))
+                setPage((current) => Math.min(
+                    current,
+                    Math.max(1, Math.ceil(remainingAreas.length / SERVICE_AREAS_PAGE_SIZE))
+                ))
+                // The map serves a viewport it has already fetched from cache, so
+                // ask it to re-read or the retired polygons stay drawn.
+                setMapRefreshToken((current) => current + 1)
+                toast.success(
+                    retiredIds.length === 1
+                        ? `"${requested.find((area) => area.id === retiredIds[0])?.name}" deleted.`
+                        : `${retiredIds.length} service areas deleted.`
+                )
+                // The empty state is decided server-side, so let the page re-read
+                // now that these rows are retired.
+                router.refresh()
+            }
+
+            if (missedCount > 0) {
+                // A refused UPDATE matches zero rows instead of raising, so the
+                // shortfall is ambiguous: already removed, or out of reach. Say
+                // both rather than assert the wrong one.
+                toast.error(
+                    missedCount === 1
+                        ? `1 service area was not deleted. It may already have been removed, or your "${SERVICE_AREAS_EDIT}" permission may have been revoked. Reload the page and try again.`
+                        : `${missedCount} service areas were not deleted. They may already have been removed, or your "${SERVICE_AREAS_EDIT}" permission may have been revoked. Reload the page and try again.`
+                )
+            }
+
+            setPendingDeleteAreas([])
         } catch (error) {
             console.error(error)
             // Hiding the control is UX; RLS is the boundary, and it can still
             // refuse a write (a permission revoked after this page rendered), so
             // translate the PostgREST code rather than show the raw string.
-            toast.error(describeWriteError(error, SERVICE_AREAS_EDIT, "Failed to delete the service area."))
+            toast.error(describeWriteError(error, SERVICE_AREAS_EDIT, "Failed to delete the service areas."))
         } finally {
             setIsDeleting(false)
         }
     }
 
+    const singlePendingName = pendingDeleteAreas.length === 1 ? pendingDeleteAreas[0].name : null
+    const deleteTitle = singlePendingName !== null
+        ? `Delete "${singlePendingName}"?`
+        : `Delete ${pendingDeleteAreas.length} service areas?`
+    const deleteSubject = singlePendingName !== null ? `"${singlePendingName}"` : "These areas"
+    const deleteVerb = singlePendingName !== null ? "stops" : "stop"
+
     return (
         <div className="space-y-6">
             <ServiceAreasMap
                 initialBounds={initialBounds}
-                selectedAreaId={selectedAreaId}
+                selectedAreaIds={selectedAreaIds}
                 focusRequest={focusRequest}
                 onSelectArea={handleSelectFromMap}
                 onOpenArea={openArea}
@@ -133,31 +163,43 @@ export function ServiceAreasExplorer({
 
             <ServiceAreasTable
                 areas={areas}
-                selectedAreaId={selectedAreaId}
+                selectedAreaIds={selectedAreaIds}
                 page={page}
                 onPageChange={setPage}
                 canEdit={canEdit}
-                onSelectArea={handleSelectFromTable}
+                onSelectionChange={handleSelectFromTable}
                 onOpenArea={(area) => openArea(area.id)}
-                onRequestDelete={setPendingDeleteArea}
+                onRequestDelete={setPendingDeleteAreas}
             />
 
             <AlertDialog
-                open={pendingDeleteArea !== null}
+                open={pendingDeleteAreas.length > 0}
                 onOpenChange={(open) => {
                     if (!open && !isDeleting) {
-                        setPendingDeleteArea(null)
+                        setPendingDeleteAreas([])
                     }
                 }}
             >
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle data-testid="service-area-delete-confirmation-title">
-                            {`Delete "${pendingDeleteArea?.name ?? ""}"?`}
+                            {deleteTitle}
                         </AlertDialogTitle>
                         <AlertDialogDescription data-testid="service-area-delete-confirmation-description">
-                            {`"${pendingDeleteArea?.name ?? ""}" stops appearing on your coverage map and in this list. Packages that have already been booked keep the coverage they were created with, so work in progress is unaffected.`}
+                            {`${deleteSubject} ${deleteVerb} appearing on your coverage map and in this list. Packages that have already been booked keep the coverage they were created with, so work in progress is unaffected.`}
                         </AlertDialogDescription>
+                        {singlePendingName === null ? (
+                            // Naming every area is the safeguard: ticked rows can sit
+                            // on pages nobody is looking at.
+                            <ul
+                                className="max-h-48 list-disc space-y-1 overflow-y-auto pl-5 text-sm"
+                                data-testid="service-area-delete-confirmation-list"
+                            >
+                                {pendingDeleteAreas.map((area) => (
+                                    <li key={area.id}>{area.name}</li>
+                                ))}
+                            </ul>
+                        ) : null}
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel
