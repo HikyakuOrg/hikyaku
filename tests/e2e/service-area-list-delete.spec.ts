@@ -107,7 +107,9 @@ test.describe("Service Area List And Delete", () => {
         await row.getByRole("checkbox").click()
         await expect(row).toHaveAttribute("data-state", "selected")
 
-        await page.getByRole("button", { name: `Delete ${serviceAreaName}` }).click()
+        // Delete acts on the ticked rows from one button above the list, not
+        // from a control on each row.
+        await page.getByTestId("service-areas-delete-selected").click()
 
         // Naming the area in the confirmation is the whole safeguard: the row was
         // reached by paging a list, not by looking at the polygon.
@@ -164,13 +166,23 @@ test.describe("Service Area List And Delete", () => {
         }
         await expect(rowFor(names[0])).toHaveAttribute("data-state", "selected")
 
-        await page.goto(d('/service/areas'))
+        // Both ticked rows go in one delete, including one on another page.
+        const deleteSelected = page.getByTestId("service-areas-delete-selected")
+        await expect(deleteSelected).toHaveText(/\(2\)/)
+        await deleteSelected.click()
 
+        await expect(page.getByTestId("service-area-delete-confirmation-title")).toContainText("2 service areas")
         for (const name of names) {
-            expect(await openListPageContaining(page, name)).toBe(true)
-            await page.getByRole("button", { name: `Delete ${name}` }).click()
-            await page.getByTestId("service-area-delete-confirmation-ok").click()
-            await expect(page.getByTestId("service-area-delete-confirmation-title")).toHaveCount(0)
+            await expect(page.getByTestId("service-area-delete-confirmation-list")).toContainText(name)
+        }
+
+        await page.getByTestId("service-area-delete-confirmation-ok").click()
+        await expect(page.getByTestId("service-area-delete-confirmation-title")).toHaveCount(0)
+        await expect(deleteSelected).toBeDisabled()
+
+        await page.reload()
+        for (const name of names) {
+            expect(await openListPageContaining(page, name)).toBe(false)
         }
     })
 })
