@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition, type ReactNode } from "react"
+import { useState, useTransition, type FormEvent, type ReactNode } from "react"
 import { format, parseISO } from "date-fns"
 import {
     ArrowSquareOutIcon,
@@ -25,6 +25,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-variants"
 import { Card } from "@/components/ui/card"
+import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
 import {
     Sheet,
     SheetContent,
@@ -47,6 +49,8 @@ const SCOPE_LABELS: Record<string, string> = {
 }
 
 type AppStatus = "connected" | "not-connected" | "coming-soon"
+
+const SHOP_DOMAIN_FORM_ID = "shop-domain-form"
 
 type Selection = { kind: "official"; id: OfficialAppId } | { kind: "other"; clientId: string }
 
@@ -321,6 +325,8 @@ function OfficialAppDetails({
                         </ol>
                     </DetailSection>
                 )}
+
+                {!grant && app.shopLoginUrl && <ShopDomainForm loginUrl={app.shopLoginUrl} />}
             </div>
 
             <SheetFooter className="border-t p-6">
@@ -329,7 +335,12 @@ function OfficialAppDetails({
                         Revoke access
                     </Button>
                 )}
-                {app.setupUrl ? (
+                {!grant && app.shopLoginUrl ? (
+                    <Button type="submit" form={SHOP_DOMAIN_FORM_ID}>
+                        Connect {app.name}
+                        <ArrowSquareOutIcon data-icon="inline-end" />
+                    </Button>
+                ) : app.setupUrl ? (
                     <a
                         href={app.setupUrl}
                         target="_blank"
@@ -345,6 +356,71 @@ function OfficialAppDetails({
             </SheetFooter>
         </>
     )
+}
+
+/**
+ * Asks for the merchant's shop before handing off to the Shopify app's login,
+ * the same field its own landing page shows. The submit button lives in the
+ * sheet footer and targets this form by id.
+ */
+function ShopDomainForm({ loginUrl }: { loginUrl: string }) {
+    const [shop, setShop] = useState("")
+    const [error, setError] = useState<string | null>(null)
+
+    function handleSubmit(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault()
+        const domain = normaliseShopDomain(shop)
+        if (!domain) {
+            setError(shop.trim() ? "Enter a valid myshopify.com domain." : "Enter your shop domain.")
+            return
+        }
+        setError(null)
+        const url = new URL(loginUrl)
+        url.searchParams.set("shop", domain)
+        window.open(url, "_blank", "noopener,noreferrer")
+    }
+
+    return (
+        <form id={SHOP_DOMAIN_FORM_ID} onSubmit={handleSubmit} noValidate>
+            <Field data-invalid={Boolean(error)}>
+                <FieldLabel htmlFor="shop-domain">Shop domain</FieldLabel>
+                <Input
+                    id="shop-domain"
+                    name="shop"
+                    value={shop}
+                    onChange={(event) => {
+                        setShop(event.target.value)
+                        if (error) setError(null)
+                    }}
+                    placeholder="my-shop-domain.myshopify.com"
+                    autoComplete="url"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    aria-invalid={Boolean(error)}
+                />
+                {error ? (
+                    <FieldError>{error}</FieldError>
+                ) : (
+                    <FieldDescription>
+                        Find it in your Shopify admin under Settings, then Domains.
+                    </FieldDescription>
+                )}
+            </Field>
+        </form>
+    )
+}
+
+/**
+ * Accepts what merchants tend to paste (the bare store name, a full URL or the
+ * admin.shopify.com/store/<name> address) and returns the myshopify.com domain
+ * Shopify's login expects, or null if it can't be one.
+ */
+function normaliseShopDomain(input: string): string | null {
+    const value = input.trim().toLowerCase().replace(/^https?:\/\//, "")
+    const adminStore = value.match(/^admin\.shopify\.com\/store\/([^/?#]+)/)
+    const host = adminStore ? adminStore[1] : value.replace(/[/?#].*$/, "")
+    const domain = host.includes(".") ? host : `${host}.myshopify.com`
+    return /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(domain) ? domain : null
 }
 
 function OtherAppDetails({ app, onRevoke }: { app: ConnectedApp; onRevoke: (app: ConnectedApp) => void }) {

@@ -18,6 +18,12 @@ export interface OfficialApp {
     /** Shown in the detail sheet until the app is connected. */
     setupSteps: string[]
     setupUrl?: string
+    /**
+     * Shopify's app login (`/auth/login` in ../hikyaku-shopify). Given a `shop`
+     * query param it sends the merchant to install the app in their admin, so
+     * the sheet asks for the shop domain instead of linking out.
+     */
+    shopLoginUrl?: string
     availability: "available" | "coming-soon"
     logo: ComponentType<SVGProps<SVGSVGElement>>
     /** Brand colours for the logo tile. */
@@ -57,11 +63,12 @@ export const OFFICIAL_APPS: OfficialApp[] = [
             "Carry the customer's name, address and contact details across",
         ],
         setupSteps: [
-            "Install Hikyaku Connect in your Shopify admin.",
-            "Open the app and click Connect your Hikyaku account.",
+            "Enter your store's myshopify.com domain below and click Connect Shopify.",
+            "Install Hikyaku Connect in your Shopify admin, then open it and click Connect Hikyaku.",
             "Sign in to hikyaku and approve access. The app then shows here as connected.",
         ],
-        availability: "coming-soon",
+        shopLoginUrl: "https://shopify.hikyaku.org/auth/login",
+        availability: "available",
         logo: ShopifyLogo,
         logoClassName: "bg-[#95BF47] text-white",
     },
