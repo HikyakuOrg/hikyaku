@@ -15,9 +15,22 @@ test.describe("Connected Apps — Shopify", () => {
         await page.goto(d("/user/connected-apps"))
 
         // The official row, not a Shopify grant listed under "Other apps".
-        await page.getByRole("button", { name: /^Shopify Turn paid Shopify orders/ }).click()
+        const row = page.getByRole("button", { name: /^Shopify Turn paid Shopify orders/ })
+        await expect(row).toBeVisible()
+        // Read before opening: the modal sheet hides the row from role queries.
+        const connected = await row.getByText("Connected", { exact: true }).isVisible()
+        await row.click()
         const sheet = page.getByRole("dialog")
         await expect(sheet.getByRole("heading", { name: "Shopify" })).toBeVisible()
+
+        // An account connects each official app once, so a connected account
+        // gets no domain field, only its grant and the revoke button.
+        if (connected) {
+            await expect(sheet.getByLabel("Shop domain")).toHaveCount(0)
+            await expect(sheet.getByRole("button", { name: "Connect Shopify" })).toHaveCount(0)
+            await expect(sheet.getByRole("button", { name: "Revoke access" })).toBeVisible()
+            return
+        }
 
         const field = sheet.getByLabel("Shop domain")
         const connect = sheet.getByRole("button", { name: "Connect Shopify" })
