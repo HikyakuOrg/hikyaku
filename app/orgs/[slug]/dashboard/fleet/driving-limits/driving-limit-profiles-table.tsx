@@ -33,7 +33,7 @@ const PAGE_SIZE = 10
 type DrivingLimitProfilesTableProps = {
     slug: string
     profiles: DrivingLimitProfile[]
-    /** The organisation default, already narrowed to a live profile or null. */
+    /** The organisation default. Null when not set or deleted. */
     defaultProfileId: string | null
     /** Drivers pointing at each profile, keyed by profile id. */
     driverCounts: Record<string, number>
@@ -51,16 +51,12 @@ function driversPhrase(count: number) {
     return count === 1 ? "the 1 driver" : `the ${count} drivers`
 }
 
-/**
- * What retiring a profile does to the drivers resolving through it. The
- * resolver treats a retired profile as absent, so its drivers fall through to
- * the organisation default, and if it was the default, to no limit at all.
- */
+/** What happens to drivers when this profile is deleted. */
 function deleteConsequence(profile: DrivingLimitProfile, count: number, defaultProfileId: string | null) {
     if (profile.id === defaultProfileId) {
         return count > 0
-            ? `It is the organisation default, so ${driversPhrase(count)} using it and every driver without a profile of their own will have no driving limits.`
-            : "It is the organisation default, so every driver without a profile of their own will have no driving limits."
+            ? `It is the organisation default, so ${driversPhrase(count)} using it and all drivers without a profile of their own will have no driving limits.`
+            : "It is the organisation default, so all drivers without a profile of their own will have no driving limits."
     }
     if (count === 0) {
         return "No drivers use it."
@@ -78,9 +74,8 @@ export function DrivingLimitProfilesTable({
     canEdit,
 }: DrivingLimitProfilesTableProps) {
     const router = useRouter()
-    // Derived from the server's list rather than copied into state: this page's
-    // client state survives a navigation away and back, and a copy would keep
-    // hiding a profile created in between.
+    // Derive from the server list. Client state stays after navigation, so a
+    // copy could hide new profiles.
     const [deletedIds, setDeletedIds] = useState<ReadonlySet<string>>(() => new Set())
     const profiles = serverProfiles.filter((profile) => !deletedIds.has(profile.id))
     const [page, setPage] = useState(1)
@@ -98,8 +93,7 @@ export function DrivingLimitProfilesTable({
         setIsDeleting(true)
 
         try {
-            // Awaited before the row goes: a refused write reported as a success
-            // would leave the list disagreeing with the table.
+            // Remove the row only after the write succeeds.
             await deleteDrivingLimitProfile(profile.id)
             setDeletedIds((current) => new Set(current).add(profile.id))
             setPendingDelete(null)
@@ -107,7 +101,7 @@ export function DrivingLimitProfilesTable({
             router.refresh()
         } catch (error) {
             console.error(error)
-            toast.error(describeWriteError(error, DRIVERS_UPDATE, "Failed to delete the profile."))
+            toast.error(describeWriteError(error, DRIVERS_UPDATE, "Could not delete the profile."))
         } finally {
             setIsDeleting(false)
         }
@@ -209,7 +203,7 @@ export function DrivingLimitProfilesTable({
                         <AlertDialogTitle>{`Delete "${pendingDelete?.name ?? ""}"?`}</AlertDialogTitle>
                         <AlertDialogDescription data-testid="driving-limit-delete-description">
                             {pendingDelete
-                                ? `${deleteConsequence(pendingDelete, driverCounts[pendingDelete.id] ?? 0, defaultProfileId)} Shifts that are already planned are not replanned because of this; the change applies the next time each one is planned.`
+                                ? `${deleteConsequence(pendingDelete, driverCounts[pendingDelete.id] ?? 0, defaultProfileId)} Planned shifts change only when they are planned again.`
                                 : ""}
                         </AlertDialogDescription>
                     </AlertDialogHeader>

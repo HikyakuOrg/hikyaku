@@ -48,12 +48,12 @@ export default async function DrivingLimitProfilePage({
                 >
                     <div className="space-y-2">
                         <h1 className="text-lg font-semibold">
-                            {isMissing ? "Profile not found" : "Profile could not be loaded"}
+                            {isMissing ? "Profile not found" : "Could not load the profile"}
                         </h1>
                         <p className="text-sm text-muted-foreground">
                             {isMissing
                                 ? "It may have been deleted, or it may belong to another organisation."
-                                : "This is a problem reading it, not a deleted profile. Reload the page, and contact support if it keeps happening."}
+                                : "Reload the page. If the problem continues, contact support."}
                         </p>
                     </div>
                 </div>
@@ -78,9 +78,9 @@ export default async function DrivingLimitProfilePage({
                 </div>
                 <p className="text-muted-foreground">
                     {driverCount === 0
-                        ? "No drivers use this profile of their own."
+                        ? "No drivers use this profile."
                         : `${driverCount} ${driverCount === 1 ? "driver uses" : "drivers use"} this profile.`}
-                    {isDefault && " Every driver without a profile of their own follows it too."}
+                    {isDefault && " Drivers without a profile of their own also use it."}
                 </p>
             </div>
 

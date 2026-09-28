@@ -18,11 +18,8 @@ import { QrCodeWithLogo } from "@/components/qr-code-with-logo"
 const MAX_LOGO_BYTES = 2 * 1024 * 1024
 
 /**
- * Lets a company org upload a logo that then gets embedded into every QR
- * code the dashboard renders for them (see components/qr-code-with-logo.tsx
- * and package-label.tsx). Upload goes straight from the browser to the
- * org-logos storage bucket, same pattern as driver avatars — this component
- * only persists the resulting URL onto organisations.logo_url afterwards.
+ * Upload a company logo for the QR codes (qr-code-with-logo.tsx,
+ * package-label.tsx). The browser uploads to storage; this saves the URL.
  */
 export function LogoSection({
     slug,
@@ -61,7 +58,7 @@ export function LogoSection({
             setLogoUrl(url)
             toast.success("Logo updated.")
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Failed to upload logo.")
+            toast.error(err instanceof Error ? err.message : "Could not upload the logo.")
         } finally {
             setBusy(false)
         }

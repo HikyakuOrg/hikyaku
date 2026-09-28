@@ -6,12 +6,8 @@ import { formatDaysRemaining, formatTrialEnd } from "@/lib/trial"
 import { ClockIcon } from "@phosphor-icons/react"
 
 /**
- * Trial countdown above the user menu in the sidebar footer.
- *
- * Renders nothing when `state` is `none` — personal orgs and pre-trial orgs have
- * no deadline, and an empty "Trial" row would be noise. It also renders nothing
- * once expired: at that point the blocking dialog is on screen saying the same
- * thing far more loudly, so a footer line would only repeat it.
+ * Trial countdown in the sidebar footer. Shown only while the trial is active;
+ * after it ends, the trial dialog shows instead.
  */
 export function NavTrial({ trial }: { trial: TrialStatus | null }) {
   if (!trial || trial.state !== "active" || !trial.trialEndsAt) return null
@@ -21,17 +17,15 @@ export function NavTrial({ trial }: { trial: TrialStatus | null }) {
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        {/* Not a SidebarMenuButton: there is nowhere to navigate to yet, and a
-            button would advertise an interaction that does not exist. */}
+        {/* Not a button: there is nothing to open yet. */}
         <div className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sidebar-foreground/70">
           <ClockIcon className="size-4 shrink-0" />
-          {/* The icon stays visible when the rail collapses; the text would
-              overflow, so it is hidden the same way the nav sub-items are. */}
+          {/* The text hides when the sidebar collapses; the icon stays. */}
           <div className="grid flex-1 text-start leading-tight group-data-[collapsible=icon]:hidden">
             <span className="truncate text-xs font-medium">
               Trial · {formatDaysRemaining(trial.daysRemaining ?? 0)}
             </span>
-            {/* title= so the full timestamp survives truncation on a narrow rail. */}
+            {/* title= shows the full date when the text is cut off. */}
             <span className="truncate text-xs" title={endsAt}>
               Ends {endsAt}
             </span>

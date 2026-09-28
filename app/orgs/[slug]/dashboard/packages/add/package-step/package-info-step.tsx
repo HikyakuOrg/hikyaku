@@ -177,17 +177,12 @@ export function PackageInfo({ onNext, defaultValues }: {
                 />
                 <Field>
                     <FieldLabel htmlFor="stepper-form-weight">
-                        Package Images
+                        Package Photos
                         <span className="text-muted-foreground ml-1">
                             (Optional)
                         </span>
                     </FieldLabel>
-                    {/*
-                      * Not a form field. The dropzone owns its own file state and
-                      * uploads to Supabase Storage under the package id, so there is
-                      * nothing for react-hook-form to hold — the Controller that used
-                      * to wrap this ignored its `field` entirely.
-                      */}
+                    {/* Not a form field: the dropzone uploads the photos itself. */}
                     <div className="flex-1">
                         <Dropzone {...props}>
                             <DropzoneEmptyState />

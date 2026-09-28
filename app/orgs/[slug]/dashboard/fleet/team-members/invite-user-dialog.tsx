@@ -127,7 +127,7 @@ export function InviteUserDialog({
                 <DialogHeader>
                     <DialogTitle>Invite a team member</DialogTitle>
                     <DialogDescription>
-                        They&apos;ll receive an email to join your organisation.
+                        They will get an email invitation to join your organisation.
                     </DialogDescription>
                 </DialogHeader>
 

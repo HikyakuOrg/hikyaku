@@ -75,7 +75,7 @@ export function FleetTable({
 
                             <DropdownMenuContent align="start" className="w-44">
                                 <DropdownMenuGroup>
-                                    <DropdownMenuLabel>Filter Vehicle Type</DropdownMenuLabel>
+                                    <DropdownMenuLabel>Filter by type</DropdownMenuLabel>
                                 </DropdownMenuGroup>
                                 <DropdownMenuSeparator />
 

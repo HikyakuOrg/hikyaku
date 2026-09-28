@@ -6,7 +6,7 @@ function ErrorContent({ searchParams }: { searchParams: Promise<{ error?: string
 
   return (
     <p className="text-muted-foreground text-sm">
-      {params?.error ? `Code error: ${params.error}` : 'An unspecified error occurred.'}
+      {params?.error ? `Error: ${params.error}` : 'An unknown error occurred.'}
     </p>
   )
 }

@@ -1,8 +1,6 @@
 import { redirect } from 'next/navigation'
 
-// The dashboard is org-scoped at /orgs/<slug>/dashboard. A bare /dashboard
-// hand-off resolves the user's first org via the existing /orgs resolver
-// (which also handles pending invitations and the no-org case).
+// The dashboard is at /orgs/<slug>/dashboard. /orgs finds the user's org.
 export default function DashboardRedirectPage() {
   redirect('/orgs')
 }

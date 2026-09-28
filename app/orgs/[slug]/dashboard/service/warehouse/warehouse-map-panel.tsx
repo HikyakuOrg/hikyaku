@@ -37,7 +37,7 @@ export function WarehouseMapPanel({
     const selectionPopupRef = useRef<maplibregl.Popup | null>(null)
     const prevSelectedRef = useRef<string | null>(null)
 
-    // Latest callback + pin lookup, read from one-time effects without re-running them.
+    // Latest callback and pins, for the mount-once effects.
     const onSelectRef = useRef(onSelectWarehouse)
     onSelectRef.current = onSelectWarehouse
 
@@ -79,8 +79,8 @@ export function WarehouseMapPanel({
         map.fitBounds(bounds, { padding: 64, maxZoom: 12, duration: 0 })
     }, [])
 
-    // Fit to all pins once the container actually has a size (immediately on
-    // desktop; on first reveal of the mobile map tab, which starts hidden at 0x0).
+    // Fit to all pins when the container has a size. On mobile the map tab
+    // starts hidden at 0x0.
     const maybeInitialFit = useCallback(() => {
         const map = mapRef.current
         if (!map || !needsInitialFitRef.current) {
@@ -93,8 +93,7 @@ export function WarehouseMapPanel({
         }
     }, [fitToPins])
 
-    // Highlight the selected pin + show its name. Does NOT move the camera —
-    // camera moves are driven by focusRequest (card clicks) only.
+    // Highlight the selected pin and show its name. Only focusRequest moves the camera.
     const applySelection = useCallback((id: string | null) => {
         const map = mapRef.current
         const selectionPopup = selectionPopupRef.current
@@ -219,8 +218,7 @@ export function WarehouseMapPanel({
             map.once("load", mountPins)
         }
 
-        // Keep the canvas sized to its container (flex/grid resizes + the mobile
-        // tab becoming visible after starting hidden at 0x0).
+        // Resize the canvas with its container, also when the mobile tab opens.
         const resizeObserver = new ResizeObserver(() => {
             map.resize()
             maybeInitialFit()
@@ -242,12 +240,12 @@ export function WarehouseMapPanel({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
-    // Push new pin data to the source if pins ever change after mount.
+    // Update the pins if they change after mount.
     useEffect(() => {
         updatePins(pins)
     }, [pins, updatePins])
 
-    // Reflect selection (pin highlight + name popup).
+    // Show the selection.
     useEffect(() => {
         applySelection(selectedWarehouseId)
     }, [selectedWarehouseId, applySelection])

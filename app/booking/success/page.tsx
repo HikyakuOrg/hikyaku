@@ -17,13 +17,11 @@ export default function BookingSuccessPage({
                     Payment received
                 </h1>
                 <p className="text-muted-foreground leading-7">
-                    Thanks! Your payment was successful and we&apos;re confirming
-                    your booking now. You&apos;ll get a confirmation shortly —
-                    no need to pay again.
+                    Thank you. We received your payment and are confirming your
+                    booking. You will get a confirmation soon. Do not pay again.
                 </p>
             </div>
-            {/* session_id comes from the request URL, so reading it is request-time
-                work that must sit inside a <Suspense> boundary (cacheComponents). */}
+            {/* Reading session_id is request-time work, so it must be inside <Suspense>. */}
             <Suspense fallback={null}>
                 <BookingReference searchParams={searchParams} />
             </Suspense>
@@ -39,9 +37,8 @@ async function BookingReference({
 }: {
     searchParams: Promise<{ session_id?: string }>
 }) {
-    // session_id is available for support/debugging only. Fulfillment (creating
-    // the customer + package) happens server-side via the Stripe webhook, never
-    // from this page — the user may close the tab before it loads.
+    // For support only. The Stripe webhook creates the booking, so the user can
+    // close this tab.
     const { session_id } = await searchParams
 
     if (!session_id) return null

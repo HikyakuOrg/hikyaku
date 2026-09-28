@@ -11,9 +11,7 @@ export default async function SettingsLayout({ children, params }: SettingsLayou
     // Business Information is company-only; personal orgs never see the tab.
     const [isCompany, hasCompanyOrg] = await Promise.all([
         getOrganisationType(slug).then((type) => type === 'company'),
-        // Connected Apps/OAuth grants are per-user, not per-org — gate on
-        // whether the account has a company org at all, not the org in the
-        // URL, so a company-org member browsing their personal org still sees it.
+        // OAuth grants are per user, so check for any company org, not the org in the URL.
         userHasCompanyOrg(),
     ])
 

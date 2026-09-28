@@ -52,10 +52,8 @@ export async function prepareCustomerFromForm(
         geocode_confidence: values.customerConfidence ?? null,
         pelias_gid: values.customerPeliasGid ?? null,
         pelias_raw: values.customerPeliasRaw ?? null,
-        // Assigned by the backend after the row exists: Stripe on create when
-        // payments are enabled; the external pair only for orders imported
-        // from a storefront connector (Shopify and friends), which is why a
-        // customer created here in the dashboard leaves both null.
+        // The backend sets these: the Stripe id when payments are on, and the
+        // external ids for orders imported from a store such as Shopify.
         stripe_customer_id: null,
         external_customer_id: null,
         external_platform: null,
@@ -68,12 +66,9 @@ export async function prepareCustomerFromForm(
 }
 
 /**
- * Whether a point is covered by at least one live territory, via the same
- * PostGIS containment the assignment engine and the areas page's coverage
- * debugger use (see `getCoverageForPoint`). Fails open: an organisation with no
- * territories drawn yet, or a coverage lookup that errored, both report
- * "covered" so this warning stays silent until there is something real to warn
- * about, exactly as it did when it read `service_areas` directly.
+ * Whether a service area covers the point (see `getCoverageForPoint`). Returns
+ * true when the organisation has no areas or the lookup fails, so the warning
+ * shows only for a real gap.
  */
 async function isPointCovered(lon: number, lat: number): Promise<boolean> {
     const result = await getCoverageForPoint(lon, lat)

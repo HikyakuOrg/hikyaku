@@ -4,10 +4,10 @@ import { z } from "zod"
 export const customerSchema = z.object({
     customerName: z.string().min(1, "Customer name is required"),
     customerPhone: z.string().refine((value) => isValidPhoneNumber(value), {
-        message: "Invalid phone number",
+        message: "Enter a valid phone number",
     }),
     // Optional: blank is allowed, but a non-blank value must be a valid email.
-    customerEmail: z.union([z.literal(""), z.email("Invalid email")]),
+    customerEmail: z.union([z.literal(""), z.email("Enter a valid email")]),
     customerCountry: z.string().min(1, "Customer country is required"),
     customerAddress: z.string().min(1, "Customer address is required"),
     customerUnit: z.string(),

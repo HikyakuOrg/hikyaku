@@ -34,12 +34,7 @@ export function AddressAutocomplete({
     /** Unit/suite/business-name value. Uncontrolled (internal state) when omitted. */
     unitValue?: string
     onUnitChange?: (value: string) => void
-    /**
-     * Fires whenever the building-escalation soft block turns on or off, so a
-     * caller can disable its own submit button. The "deliver to the main
-     * entrance" dismissal lives inside this widget, not in caller state, since
-     * callers only need to know whether it is currently blocking.
-     */
+    /** Called when the building prompt starts or stops blocking, so the caller can disable its submit button. */
     onEscalationBlockedChange?: (blocked: boolean) => void
     id?: string
     unitId?: string
@@ -57,9 +52,8 @@ export function AddressAutocomplete({
         if (unitValue === undefined) setInternalUnit(next)
     }
 
-    // The matched suggestion drives escalation. It only counts while `value` still
-    // equals what was picked; if the user edits the text afterwards, they are back
-    // to typing a raw, unmatched address, so escalation drops.
+    // The building prompt applies only while `value` is still the picked
+    // suggestion. Editing the text removes it.
     const [matchedSuggestion, setMatchedSuggestion] = useState<AddressSuggestion | null>(null)
     const [dismissedFor, setDismissedFor] = useState<string | null>(null)
     const unitInputRef = useRef<HTMLInputElement>(null)
@@ -74,8 +68,7 @@ export function AddressAutocomplete({
 
     useEffect(() => {
         if (isBuilding) unitInputRef.current?.focus()
-        // Escalating on every keystroke that keeps matching the same building
-        // suggestion would steal focus back from whatever the user is doing.
+        // Not on every keystroke, or it would take focus from the user.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isBuilding, matchedSuggestion])
 

@@ -92,7 +92,7 @@ export function PackageStep({
                                                     form.setValue("serviceId", service.id, {
                                                         shouldValidate: true,
                                                     })
-                                                    // Add-ons belong to a service — reset on change.
+                                                    // Add-ons belong to a service, so clear them.
                                                     form.setValue("addonIds", [])
                                                 }}
                                                 className={cn(
@@ -138,7 +138,7 @@ export function PackageStep({
                                 </div>
                             ) : (
                                 <p className="text-muted-foreground rounded-lg border border-dashed p-4 text-sm">
-                                    No services are currently available. Please try again later.
+                                    No services are available now. Try again later.
                                 </p>
                             )}
                             {fieldState.invalid && (
@@ -148,7 +148,7 @@ export function PackageStep({
                     )}
                 />
 
-                {/* Add-ons — only once a service with extras is selected */}
+                {/* Add-ons, when the service has them */}
                 {selectedService && selectedService.addons.length > 0 && (
                     <Controller
                         name="addonIds"

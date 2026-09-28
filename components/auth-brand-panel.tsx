@@ -1,7 +1,6 @@
 import { MapPinIcon, PackageIcon, TruckIcon } from '@phosphor-icons/react/dist/ssr'
 
-// Marketing rail shown beside every /auth form from `lg` up. Copy tracks the
-// landing hero on the marketing deploy so the two reads as one product.
+// Shown beside /auth forms from `lg` up. Same copy as the marketing site.
 const HIGHLIGHTS = [
   {
     icon: PackageIcon,

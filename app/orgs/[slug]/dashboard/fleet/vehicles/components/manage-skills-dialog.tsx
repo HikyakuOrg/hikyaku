@@ -57,13 +57,13 @@ function SkillRow({
                 const updated = await renameSkill(skill.id, trimmed)
                 onChanged(updated)
                 setIsEditing(false)
-                toast.success('Skill renamed')
+                toast.success('Skill renamed.')
             } catch (error) {
                 console.error(error)
                 toast.error(
                     isUniqueViolationError(error)
                         ? `A skill named "${trimmed}" already exists.`
-                        : getErrorMessage(error) || 'Failed to rename the skill.'
+                        : getErrorMessage(error) || 'Could not rename the skill.'
                 )
             }
         })
@@ -74,10 +74,10 @@ function SkillRow({
             try {
                 const updated = await archiveSkill(skill.id)
                 onChanged(updated)
-                toast.success(`"${skill.name}" archived`)
+                toast.success(`"${skill.name}" archived.`)
             } catch (error) {
                 console.error(error)
-                toast.error(getErrorMessage(error) || 'Failed to archive the skill.')
+                toast.error(getErrorMessage(error) || 'Could not archive the skill.')
             }
         })
     }
@@ -152,8 +152,8 @@ function SkillRow({
                                 <AlertDialogHeader>
                                     <AlertDialogTitle>{`Archive "${skill.name}"?`}</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                        It disappears from the vehicle and package pickers, but existing
-                                        assignments and historical routes keep referencing it.
+                                        It will no longer show in the vehicle and package lists. Vehicles
+                                        and packages that already have it keep it.
                                     </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
@@ -178,11 +178,7 @@ function SkillRow({
     )
 }
 
-/**
- * Rename/archive for the organisation's skill catalog. Creation lives inline
- * in the Capabilities combobox instead (see SkillsMultiSelect) — this dialog
- * only manages skills that already exist, per HIK-95.
- */
+/** Rename or archive skills. New skills are added in the Capabilities picker (SkillsMultiSelect). */
 export function ManageSkillsDialog() {
     const organisationId = useOrganisationId()
     const [open, setOpen] = useState(false)
@@ -195,7 +191,7 @@ export function ManageSkillsDialog() {
             setSkills(await getSkillCatalog(organisationId))
         } catch (error) {
             console.error(error)
-            toast.error('Failed to load the skill catalog.')
+            toast.error('Could not load the skills.')
         } finally {
             setIsLoading(false)
         }
@@ -212,7 +208,7 @@ export function ManageSkillsDialog() {
                 <DialogHeader>
                     <DialogTitle>Manage Skills</DialogTitle>
                     <DialogDescription>
-                        Rename or archive the capability labels vehicles and packages are matched on.
+                        Rename or archive the skills that vehicles and packages use.
                     </DialogDescription>
                 </DialogHeader>
 

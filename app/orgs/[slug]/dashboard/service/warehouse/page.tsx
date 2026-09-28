@@ -11,8 +11,7 @@ interface PageProps {
 export default async function WarehousePage({ params: routeParams }: PageProps) {
     const { slug } = await routeParams
 
-    // All pins (lightweight, for the map) + the first page of cards + whether
-    // this org may add another warehouse, in parallel.
+    // Map pins, the first page of cards, and the warehouse limit.
     const [pins, firstPage, allowance] = await Promise.all([
         getWarehouseLocations(),
         getWarehousesPaginated(1, WAREHOUSE_PAGE_SIZE),
@@ -35,9 +34,7 @@ export default async function WarehousePage({ params: routeParams }: PageProps) 
                     </p>
                 </div>
                 {allowance.canAdd ? (
-                    // `render` rather than a nested <Link>: the disabled variant
-                    // below has to actually be unclickable, and a disabled button
-                    // wrapping an anchor still navigates.
+                    // `render`, not a nested <Link>: a disabled button around a link still navigates.
                     <Button render={<Link href={`/orgs/${slug}/dashboard/service/warehouse/add`} />}>
                         Add Warehouse
                     </Button>

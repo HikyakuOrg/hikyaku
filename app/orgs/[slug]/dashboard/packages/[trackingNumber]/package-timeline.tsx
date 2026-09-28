@@ -57,19 +57,7 @@ export default function PackageTimeline({
             ? formatDate(timelineEntry.createdAt)
             : ""
 
-        //  Always Pending when size of element is 1
-        // if (sorted.length === 1) {
-        //     return {
-        //         ...step,
-        //         description,
-        //         status:
-        //             step.id === "PENDING"
-        //                 ? ("in-progress" as StepStatus)
-        //                 : ("pending" as StepStatus),
-        //     }
-        // }
-
-        // Fails overrides everything
+        // Failed overrides everything
         if (last.status === "FAILED") {
             return {
                 ...step,

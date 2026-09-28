@@ -6,8 +6,7 @@ export function createClient() {
   return createBrowserClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY!,
-    // Share the session across every <slug>.<root> tenant subdomain, using the
-    // same Domain the server picks for this host.
+    // Share the session across tenant subdomains. Same domain as the server.
     {
       cookieOptions: {
         domain: cookieDomain(typeof window === 'undefined' ? undefined : window.location.host),
@@ -17,15 +16,11 @@ export function createClient() {
 }
 
 /**
- * Lazily-constructed shared browser client.
+ * A shared browser client that is created on first use.
  *
- * Modules that hold a module-scoped client must use this instead of calling
- * `createClient()` at the top level. During `next build` ("Collecting page
- * data") route modules are evaluated in Node; constructing the client there
- * throws because the public Supabase env vars aren't inlined yet. This returns
- * a proxy that defers construction until the first property access — i.e. the
- * first real query, in the browser or at request time, where the env exists.
- * Behaviour is otherwise identical to holding a plain `createClient()` singleton.
+ * Use this for module-scoped clients. `next build` evaluates route modules in
+ * Node before the public env vars exist, so `createClient()` at the top level
+ * throws.
  */
 export function createLazyClient(): ReturnType<typeof createClient> {
   let client: ReturnType<typeof createClient> | undefined

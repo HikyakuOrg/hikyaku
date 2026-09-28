@@ -1,8 +1,7 @@
 import { setWorkerUrl } from "maplibre-gl"
 
-// MapLibre v6 can't locate its worker once Turbopack has bundled it, so serve
-// the copy that scripts/copy-maplibre-worker.mjs puts in public/maplibre.
-// Import maplibre through this module so the URL is set before any map mounts.
+// MapLibre v6 cannot find its worker after Turbopack bundles it, so use the copy
+// in public/maplibre. Import maplibre from here so the URL is set first.
 setWorkerUrl("/maplibre/maplibre-gl-worker.mjs")
 
 export * from "maplibre-gl"

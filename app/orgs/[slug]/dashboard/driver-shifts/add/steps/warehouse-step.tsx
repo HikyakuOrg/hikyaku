@@ -58,7 +58,7 @@ export function WarehouseStep({
 
     function handleSubmit() {
         if (!selectedWarehouse) {
-            setError("Please select a warehouse to continue.")
+            setError("Select a warehouse.")
             return
         }
         const loc = selectedWarehouse.warehouse_location as unknown as Location | null
@@ -75,7 +75,7 @@ export function WarehouseStep({
             <div>
                 <h3 className="scroll-m-20 text-2xl font-semibold tracking-tight">Select Warehouse</h3>
                 <p className="text-muted-foreground mt-2 leading-7">
-                    Choose the warehouse this shift will depart from and return to.
+                    The shift starts and ends at this warehouse.
                 </p>
             </div>
 

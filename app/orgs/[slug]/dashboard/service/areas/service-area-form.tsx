@@ -70,12 +70,7 @@ type ServiceAreaFormProps = {
     submitLabel: string
     submittingLabel: string
     successMessage: string
-    /**
-     * Whether the signed-in user holds `service_areas.edit` in this org. Resolved
-     * server-side by the page that renders this form and passed down, so no
-     * control here asks for itself. UI gating only: the RLS policies on
-     * `service_areas` remain the boundary that actually refuses the write.
-     */
+    /** Whether the user has `service_areas.edit`. For the UI only; RLS enforces it. */
     canEdit: boolean
 }
 
@@ -464,10 +459,8 @@ export function ServiceAreaForm({
             })
 
             draw.start()
-            // TerraDraw always registers its built-in `static` mode. Without the
-            // edit permission we park the map there: a saved area still renders,
-            // but clicks and drags do nothing, so nobody spends time shaping a
-            // polygon the insert/update RLS policy is certain to refuse.
+            // Without the permission, use `static` mode: the area shows but
+            // cannot change.
             draw.setMode(canEdit ? (initialPolygon ? "select" : "polygon") : "static")
             draw.on("change", syncPolygonState)
             draw.on("finish", syncPolygonState)
@@ -529,7 +522,7 @@ export function ServiceAreaForm({
         const [result] = drawRef.current.addFeatures([normalizePolygonPrecision(initialPolygon)] as Parameters<TerraDrawInstance["addFeatures"]>[0])
 
         if (!result?.valid) {
-            toast.error(result?.reason ? `Failed to load the saved service area: ${result.reason}` : "Failed to load the saved service area.")
+            toast.error(result?.reason ? `Could not load the saved service area: ${result.reason}` : "Could not load the saved service area.")
             return
         }
 
@@ -581,13 +574,13 @@ export function ServiceAreaForm({
             const uploadedPolygon = getLargestPolygonFeature(polygonFeatures)
 
             if (lineCollection.features.length === 0) {
-                toast.error("The uploaded GeoJSON did not contain any line or polygon geometry to display.")
+                toast.error("The GeoJSON file has no lines or polygons to show.")
                 return
             }
 
             const source = mapRef.current.getSource(UPLOAD_SOURCE_ID) as maplibregl.GeoJSONSource | undefined
             if (!source) {
-                toast.error("Map upload layer is not ready yet.")
+                toast.error("The map is not ready. Try again.")
                 return
             }
 
@@ -602,7 +595,7 @@ export function ServiceAreaForm({
                 const featuresToAdd = [uploadedPolygon] as Parameters<TerraDrawInstance["addFeatures"]>[0]
                 const [result] = drawRef.current.addFeatures(featuresToAdd)
                 if (!result?.valid) {
-                    toast.error(result?.reason ? `Failed to load the uploaded GeoJSON area: ${result.reason}` : "Failed to load the uploaded GeoJSON area.")
+                    toast.error(result?.reason ? `Could not load the area from the GeoJSON file: ${result.reason}` : "Could not load the area from the GeoJSON file.")
                     return
                 }
 
@@ -638,13 +631,13 @@ export function ServiceAreaForm({
             }
 
             if (polygonFeatures.length > 1) {
-                toast.success(`Loaded ${file.name}. The largest polygon was selected as the editable service area.`)
+                toast.success(`Loaded ${file.name}. The largest polygon is now the service area.`)
                 return
             }
 
             toast.success(`Loaded ${file.name}`)
         } catch {
-            toast.error("Failed to parse the uploaded GeoJSON file.")
+            toast.error("Could not read the GeoJSON file.")
         }
     }
 
@@ -686,7 +679,7 @@ export function ServiceAreaForm({
             drawRef.current.setMode(nextMode)
             setActiveMode(nextMode)
         }
-        toast.success("Uploaded GeoJSON overlay cleared.")
+        toast.success("GeoJSON lines removed.")
     }
 
     const handleConfirmUploadReplacement = async () => {
@@ -725,7 +718,7 @@ export function ServiceAreaForm({
             }
 
             if (!polygon) {
-                toast.error("Draw or upload a polygon-based service area before submitting.")
+                toast.error("Draw or upload an area before you save.")
                 return
             }
 
@@ -742,21 +735,13 @@ export function ServiceAreaForm({
                 setLastSubmission(payload)
                 toast.success(successMessage)
             } catch (error) {
-                // A name clash is the one failure the dispatcher can fix without
-                // leaving the form, so it belongs on the field rather than in a
-                // toast that disappears. The name is unique per organisation, so
-                // this only ever means their own org already has one; the same
-                // name in another org saves fine.
+                // Show a name clash on the field. Names are unique per organisation.
                 if (isUniqueViolationError(error)) {
-                    setNameError(`This organisation already has a service area called "${trimmedName}". Pick a different name.`)
+                    setNameError(`This organisation already has a service area called "${trimmedName}". Use a different name.`)
                     return
                 }
 
-                // Defense in depth. Gating the button is UX; RLS is what actually
-                // refuses the write, and it can still refuse one (a permission
-                // revoked after this page rendered), so translate its PostgREST
-                // code rather than showing the raw string.
-                toast.error(describeWriteError(error, SERVICE_AREAS_EDIT, "Failed to save the service area."))
+                toast.error(describeWriteError(error, SERVICE_AREAS_EDIT, "Could not save the service area."))
             } finally {
                 setIsSubmitting(false)
             }
@@ -770,7 +755,7 @@ export function ServiceAreaForm({
                     <AlertDialogHeader>
                         <AlertDialogTitle>Replace the current drawn area?</AlertDialogTitle>
                         <AlertDialogDescription data-testid="service-area-upload-confirmation-description">
-                            Uploading a GeoJSON file will remove the area you have already drawn. Select OK to discard your drawing and use the uploaded GeoJSON instead.
+                            The GeoJSON file will remove the area you have already drawn. Select OK to use the file instead.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -788,7 +773,7 @@ export function ServiceAreaForm({
                 <CardHeader>
                     <CardTitle>Service Area Details</CardTitle>
                     <CardDescription>
-                        Enter a name, draw one polygon for the service area, and optionally upload a GeoJSON file to display reference boundary lines.
+                        Enter a name and draw the area. You can also upload a GeoJSON file to show boundary lines.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -797,7 +782,7 @@ export function ServiceAreaForm({
                             className="rounded-md border border-dashed bg-muted/30 p-3 text-sm text-muted-foreground"
                             data-testid="service-area-permission-note"
                         >
-                            {permissionNote} You can still view the coverage below.
+                            {permissionNote} You can still see the area below.
                         </p>
                     )}
 
@@ -826,7 +811,7 @@ export function ServiceAreaForm({
                             </p>
                         ) : (
                             <p id="service-area-name-description" className="text-sm text-muted-foreground">
-                                Use a name that dispatch can recognize immediately.
+                                Use a name that dispatchers know.
                             </p>
                         )}
                     </div>
@@ -893,10 +878,10 @@ export function ServiceAreaForm({
                         <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
                             <p>
                                 {!canEdit
-                                    ? "This map is read-only for you. Drawing and uploading are disabled."
+                                    ? "You can only view this map."
                                     : drawingLocked
-                                    ? "GeoJSON overlay loaded. You can edit the service area, but drawing new geometry is locked until the upload is cleared."
-                                    : "Upload a GeoJSON file to show boundary lines, then draw one polygon to define the service area."}
+                                    ? "GeoJSON lines are on the map. You can edit the area. To draw a new area, clear the GeoJSON first."
+                                    : "Draw one polygon for the service area. To show boundary lines, upload a GeoJSON file."}
                             </p>
                         </div>
                     </div>

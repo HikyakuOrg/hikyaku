@@ -11,11 +11,7 @@ interface PageProps {
 export default async function AddWarehousePage({ params }: PageProps) {
     const { slug } = await params
 
-    // The list page hides the Add button once a personal account is at its one
-    // warehouse; this catches direct navigation and stale tabs, so the form is
-    // never rendered where it cannot succeed. The real enforcement is the
-    // warehouse_personal_org_limit trigger — this is only about not showing
-    // someone a form that will 400 on submit.
+    // Also catches direct links and old tabs. A DB trigger enforces the limit.
     const allowance = await getWarehouseAllowance(slug)
     if (!allowance.orgType) redirect('/orgs')
     if (!allowance.canAdd) redirect(orgPath(slug, '/dashboard/service/warehouse'))
@@ -25,7 +21,7 @@ export default async function AddWarehousePage({ params }: PageProps) {
             <div>
                 <h1 className="text-3xl font-bold tracking-tight">Add Warehouse</h1>
                 <p className="text-muted-foreground">
-                    Register a new warehouse for your logistics operations.
+                    Enter the name and address of the warehouse.
                 </p>
             </div>
 

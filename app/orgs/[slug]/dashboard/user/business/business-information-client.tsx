@@ -41,10 +41,8 @@ import {
 } from "@/lib/actions/connect"
 import { formatCurrency } from "@/lib/currency"
 
-// All countries supported by Stripe Connect (same list as the old onboarding
-// route). Stripe Issuing is only supported in a subset of these; the
-// card-issuing capability activates automatically once Stripe verifies the
-// account in a supported country.
+// Countries that Stripe Connect supports. Card issuing starts automatically
+// after Stripe verifies an account in a country that supports it.
 const STRIPE_COUNTRIES = [
     { code: "AU", label: "Australia" },
     { code: "AT", label: "Austria" },
@@ -100,8 +98,7 @@ const STRIPE_COUNTRIES = [
     { code: "UY", label: "Uruguay" },
 ]
 
-// This page only renders for company orgs — the settings nav hides it for
-// personal ones and the server component redirects direct navigation.
+// Company orgs only. The page redirects personal orgs.
 export function BusinessInformationClient() {
     return (
         <div className="space-y-6">
@@ -132,9 +129,8 @@ function CompanySection() {
         return result.data
     }, [])
 
-    // Begin (or resume) embedded onboarding. The first createAccountSession
-    // call both creates the connected account and returns the platform
-    // publishable key needed to initialise @stripe/connect-js.
+    // Start or resume onboarding. The first call creates the account and
+    // returns the publishable key for @stripe/connect-js.
     const beginOnboarding = useCallback((c: string) => {
         startStartTransition(async () => {
             const first = await createAccountSession(c)
@@ -199,8 +195,8 @@ function CompanySection() {
                 <CardHeader>
                     <CardTitle>Finish your payments setup</CardTitle>
                     <CardDescription>
-                        Complete the steps below to activate your Stripe account. You
-                        can issue fuel cards once your account is verified.
+                        Complete these steps to activate your Stripe account. After Stripe
+                        verifies it, you can issue fuel cards.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -229,8 +225,8 @@ function CompanySection() {
             <CardHeader>
                 <CardTitle>Set up payments</CardTitle>
                 <CardDescription>
-                    Select your country to create a Stripe account. This enables card
-                    payments and, where available, fuel card issuing.
+                    Select your country to create a Stripe account. You can then take card
+                    payments and, where available, issue fuel cards.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -381,8 +377,8 @@ function OnboardedView({ status }: { status: ConnectStatus }) {
                     <CardHeader>
                         <CardTitle>Issuing balance</CardTitle>
                         <CardDescription>
-                            Funds available to spend on cards. Top up from your own bank
-                            using the instructions below.
+                            Money available for card payments. To add money, use the bank
+                            transfer details below.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -429,8 +425,8 @@ function FundingDetails({ funding }: { funding: FundingInstructions }) {
     return (
         <div className="rounded-md border p-4 space-y-4 text-sm">
             <p className="text-muted-foreground">
-                Send a bank transfer from your organisation&apos;s bank account to the
-                details below. Funds appear in your Issuing balance once received.
+                Send a bank transfer to these details. The money shows in your issuing balance
+                when it arrives.
             </p>
             {funding.bank_transfer.financial_addresses.map((addr, i) => {
                 const type = String(addr.type ?? "")

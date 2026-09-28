@@ -4,6 +4,6 @@
  */
 export function d(path = ''): string {
     const slug = process.env.PLAYWRIGHT_ORG_SLUG
-    if (!slug) throw new Error('PLAYWRIGHT_ORG_SLUG not set — check playwright.global-setup.ts')
+    if (!slug) throw new Error('PLAYWRIGHT_ORG_SLUG is not set. Check playwright.global-setup.ts.')
     return `/orgs/${slug}/dashboard${path}`
 }

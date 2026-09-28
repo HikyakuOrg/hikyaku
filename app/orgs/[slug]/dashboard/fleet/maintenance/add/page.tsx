@@ -26,7 +26,7 @@ import { getVehicles, createMaintenanceRecord } from '@/lib/supabase/db'
 import { useOrganisationId } from '@/components/organisation-provider'
 
 const maintenanceSchema = z.object({
-    vehicle_id: z.string().min(1, 'Please select a vehicle'),
+    vehicle_id: z.string().min(1, 'Select a vehicle'),
     odometer: z.number().min(0, 'Odometer must be 0 or more'),
     description: z.string().min(1, 'Description is required'),
     date_serviced: z.string().min(1, 'Date serviced is required'),
@@ -44,7 +44,7 @@ type VehicleOption = {
 
 function vehicleLabel(v: VehicleOption) {
     const makeModel = [v.vehicle_make, v.vehicle_model].filter(Boolean).join(' ')
-    return [v.vehicle_plate, makeModel].filter(Boolean).join(' — ') || 'Unnamed vehicle'
+    return [v.vehicle_plate, makeModel].filter(Boolean).join(' · ') || 'Unnamed vehicle'
 }
 
 export default function AddMaintenancePage() {
@@ -115,12 +115,12 @@ export default function AddMaintenancePage() {
                 )
             }
 
-            toast.success('Maintenance record added')
+            toast.success('Maintenance record added.')
             form.reset()
             setServiceDate(undefined)
             upload.setFiles([])
         } catch (error) {
-            toast.error(getErrorMessage(error) || 'Failed to add maintenance record')
+            toast.error(getErrorMessage(error) || 'Could not add the maintenance record.')
         } finally {
             setIsSubmitting(false)
         }
@@ -133,7 +133,7 @@ export default function AddMaintenancePage() {
             <div>
                 <h1 className="text-3xl font-bold tracking-tight">Add Maintenance Record</h1>
                 <p className="text-muted-foreground">
-                    Log a completed service performed on a fleet vehicle.
+                    Record a completed vehicle service.
                 </p>
             </div>
 
@@ -238,7 +238,7 @@ export default function AddMaintenancePage() {
                 <Card className="border-none shadow-premium bg-card/50 backdrop-blur-sm">
                     <CardHeader>
                         <CardTitle>Photo</CardTitle>
-                        <CardDescription>Optionally attach a photo of the service.</CardDescription>
+                        <CardDescription>Optional. Add a photo of the service.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Dropzone {...upload} className="min-h-[150px] flex items-center justify-center">

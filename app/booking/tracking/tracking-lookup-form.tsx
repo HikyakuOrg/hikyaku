@@ -50,7 +50,7 @@ export function TrackingLookupForm({ defaultValue = "", notFound = false }: Trac
 
                 {notFound && (
                     <p className="text-sm text-red-600">
-                        We couldn&apos;t find a delivery with that tracking number. Check it and try again.
+                        No delivery has this tracking number. Check it and try again.
                     </p>
                 )}
 

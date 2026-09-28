@@ -9,14 +9,10 @@ export type ShiftUsageStatus = ShiftUsageStatusDto
 export type VanityUrlStatus = VanityUrlStatusDto
 
 /**
- * Trial state for the active organisation.
+ * Trial state for the active organisation, or null on any error.
  *
- * Unlike the other billing-adjacent actions this one never surfaces an error to
- * the caller — it returns `null` instead. It runs in the dashboard *layout*, so a
- * transient API blip must not take down every page underneath it; a null result
- * simply renders no countdown and no dialog, leaving the dashboard exactly as it
- * behaved before trials existed. The API is the enforcement boundary regardless,
- * so failing open here does not grant access to anything.
+ * It runs in the dashboard layout, so an API error must not break every page.
+ * Null shows no countdown and no dialog. The API enforces the trial.
  */
 export async function getTrialStatus(): Promise<TrialStatus | null> {
     const ctx = await buildApiContext()
@@ -25,9 +21,7 @@ export async function getTrialStatus(): Promise<TrialStatus | null> {
     try {
         const res = await fetch(`${ctx.apiUrl}/api/v1/billing/trial`, {
             headers: ctx.headers,
-            // The deadline decides whether the dashboard is usable, so it is read
-            // fresh per request rather than served from a cache that could keep
-            // showing "2 days left" after expiry.
+            // Read fresh each time; a cached value can be wrong after expiry.
             cache: "no-store",
         })
         if (!res.ok) {
@@ -41,13 +35,8 @@ export async function getTrialStatus(): Promise<TrialStatus | null> {
 }
 
 /**
- * Shift usage for the active organisation's current billing period.
- *
- * Same fail-open-to-`null` shape as getTrialStatus, for the same reason: this
- * drives a usage indicator and a block-explanation dialog, not the enforcement
- * itself (the DB trigger is that boundary — see AddShiftUsageMetering in
- * hikyaku-api). A transient blip here should not make either UI element wrong
- * in a way that blocks the user; it should just not render.
+ * Shift usage for the current billing period, or null on any error (like
+ * getTrialStatus). A DB trigger enforces the limit.
  */
 export async function getShiftUsage(): Promise<ShiftUsageStatus | null> {
     const ctx = await buildApiContext()
@@ -69,12 +58,8 @@ export async function getShiftUsage(): Promise<ShiftUsageStatus | null> {
 }
 
 /**
- * Vanity URL entitlement state for the active organisation.
- *
- * Same fail-open-to-`null` shape as getTrialStatus/getShiftUsage: this drives
- * the Business Information settings page's live/locked display, not the
- * enforcement itself — get_booking_organisation()/get_tracking_details() in
- * hikyaku-api are what actually decide whether a vanity host resolves.
+ * Vanity URL status for the active organisation, or null on any error (like
+ * getTrialStatus). The database decides whether a vanity host works.
  */
 export async function getVanityUrlStatus(): Promise<VanityUrlStatus | null> {
     const ctx = await buildApiContext()
@@ -96,11 +81,8 @@ export async function getVanityUrlStatus(): Promise<VanityUrlStatus | null> {
 }
 
 /**
- * Creates a Stripe Billing Portal session for the active organisation and
- * returns the URL to redirect the browser to. Unlike the two read actions
- * above, a failure here is surfaced to the caller rather than swallowed — this
- * is a user-initiated action (the "Add payment method" button), so silently
- * doing nothing would look like a broken button.
+ * Create a Stripe Billing Portal session and return its URL. Errors go to the
+ * caller, because the user clicked a button and must see why nothing happened.
  */
 export async function createBillingPortalSession(
     returnUrl: string,
@@ -120,6 +102,6 @@ export async function createBillingPortalSession(
         const body: { url: string } = await res.json()
         return { success: true, url: body.url }
     } catch {
-        return { success: false, error: "Failed to reach the API." }
+        return { success: false, error: "Could not reach the server. Check your connection." }
     }
 }

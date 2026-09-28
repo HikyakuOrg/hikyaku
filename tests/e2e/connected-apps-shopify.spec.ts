@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test"
 import { d } from "./helpers/org-url"
 
-test.describe("Connected Apps — Shopify", () => {
+test.describe("Connected Apps: Shopify", () => {
     test("asks for the shop domain before opening the Shopify login", async ({ page }) => {
         // Capture the hand-off instead of letting it open a real Shopify tab.
         await page.addInitScript(() => {

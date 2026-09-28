@@ -52,14 +52,14 @@ export function WarehouseDriverSheet({ warehouseId, onDriverAdded }: WarehouseDr
         <Sheet>
             <SheetTrigger>
                 <Button>
-                    Attach Driver
+                    Add Drivers
                 </Button>
             </SheetTrigger>
             <SheetContent className="w-screen flex flex-col h-screen">
                 <SheetHeader>
-                    <SheetTitle>Assign Driver</SheetTitle>
+                    <SheetTitle>Add Drivers</SheetTitle>
                     <SheetDescription>
-                        Assign a driver to this warehouse.
+                        Select drivers to add to this warehouse.
                     </SheetDescription>
                 </SheetHeader>
 
@@ -97,7 +97,7 @@ export function WarehouseDriverSheet({ warehouseId, onDriverAdded }: WarehouseDr
                                     setRowSelection({})
                                     setDrivers(prev => prev.filter(d => !selectedIds.includes(d.id)))
                                     onDriverAdded(selectedIds)
-                                    toast.success("Drivers added successfully", { position: "bottom-right" })
+                                    toast.success("Drivers added.", { position: "bottom-right" })
                                 }}>
                                     Add Selected
                                 </Button>

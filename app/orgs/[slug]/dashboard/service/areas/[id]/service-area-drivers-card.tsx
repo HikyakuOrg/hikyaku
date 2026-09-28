@@ -51,9 +51,7 @@ function DetachDriverButton({
     onRequestDetach: (driver: ServiceAreaDriver) => void
 }) {
     if (!canEdit) {
-        // Disabled with the reason attached rather than hidden, so it is clear
-        // the action exists and what is missing, and rather than live, which
-        // would offer a write RLS is certain to refuse.
+        // Disabled with the reason, so users know the action exists.
         return (
             <TooltipProvider>
                 <Tooltip>
@@ -88,13 +86,8 @@ function DetachDriverButton({
 }
 
 /**
- * Who covers this territory, and the two controls that change it.
- *
- * Coverage is many-to-many in both directions: a driver covers as many areas as
- * a dispatcher attaches them to, and an area is covered by as many drivers as
- * they staff it with. Overlapping coverage is a legitimate configuration, not a
- * mistake, so nothing here is single-select and nothing implies a driver belongs
- * to this area alone.
+ * The drivers attached to this area, with controls to attach and detach. A
+ * driver can cover many areas, and an area can have many drivers.
  */
 export function ServiceAreaDriversCard({
     serviceAreaId,
@@ -118,9 +111,7 @@ export function ServiceAreaDriversCard({
             setDrivers(await getDriversByServiceArea(serviceAreaId))
         } catch (error) {
             console.error(error)
-            // An area nobody covers and a read that failed look identical as an
-            // empty list, and only one of them means coverage falls back to the
-            // floater rule. Say which this is.
+            // Show an error, not the empty state.
             setDrivers([])
             setHasError(true)
         } finally {
@@ -155,10 +146,7 @@ export function ServiceAreaDriversCard({
         setIsDetaching(true)
 
         try {
-            // Awaited before anything else happens. Dropping the row first and
-            // reporting success alongside the request would report a refused
-            // write as a success and leave the page disagreeing with the
-            // database about who covers this territory.
+            // Update the list only after the write succeeds.
             await detachDriverFromServiceArea(serviceAreaId, driver.id)
 
             const remainingDrivers = drivers.filter((candidate) => candidate.id !== driver.id)
@@ -171,10 +159,7 @@ export function ServiceAreaDriversCard({
             toast.success(`${driver.display_name} no longer covers "${serviceAreaName}".`)
         } catch (error) {
             console.error(error)
-            // Hiding the control is UX; RLS is the boundary, and it can still
-            // refuse a write (a permission revoked after this page rendered), so
-            // translate the PostgREST code rather than show the raw string.
-            toast.error(describeWriteError(error, SERVICE_AREAS_EDIT, "Failed to detach the driver."))
+            toast.error(describeWriteError(error, SERVICE_AREAS_EDIT, "Could not detach the driver."))
         } finally {
             setIsDetaching(false)
         }
@@ -199,8 +184,7 @@ export function ServiceAreaDriversCard({
             id: "actions",
             header: () => <span className="sr-only">Actions</span>,
             cell: ({ row }) => (
-                // Same guard the selection checkbox uses: without it the click
-                // bubbles to the row and navigates away from the dialog.
+                // Stop the click from opening the row.
                 <div className="flex justify-end" onClick={(event) => event.stopPropagation()}>
                     <DetachDriverButton
                         driver={row.original}
@@ -218,11 +202,8 @@ export function ServiceAreaDriversCard({
                 <div className="max-w-3xl space-y-1">
                     <h2 className="text-lg font-semibold tracking-tight">Drivers covering this area</h2>
                     <p className="text-sm text-muted-foreground">
-                        A driver can cover several areas and an area can be covered by several
-                        drivers. Overlapping coverage is normal, and attaching a driver here does not
-                        take them off any other area. Each driver&apos;s warehouse is listed because
-                        dispatch only offers them work out of that warehouse, so covering this area
-                        changes nothing for packages sent from a different one.
+                        A driver can cover several areas, and an area can have several drivers.
+                        Drivers get work only from their own warehouse.
                     </p>
                 </div>
 
@@ -234,24 +215,13 @@ export function ServiceAreaDriversCard({
                 />
             </div>
 
-            {/*
-                THE FLOATER RULE, IN THE PLACE A DISPATCHER FIRST MEETS IT.
-
-                It is decided and implemented on the backend, it is invisible in
-                the schema, and this page is where somebody notices a driver
-                missing from every area's list and has to know what that means.
-                Stated in both the empty and the filled state, because it matters
-                either way: a staffed area still leaves every unstaffed driver
-                free to work here.
-            */}
+            {/* Shown in both states: floaters can always work here. */}
             <p
                 className="max-w-3xl rounded-md border bg-muted/30 px-4 py-3 text-sm text-muted-foreground"
                 data-testid="service-area-floater-note"
             >
-                A driver with no service areas at all is a floater: they can be given work anywhere,
-                including here. Attaching a driver to their first area ends that, and from then on
-                they are only offered work inside the areas they cover. Detaching a driver from the
-                last area they cover makes them a floater again.
+                A driver with no service areas is a floater and can get work anywhere, including
+                here. After you attach a driver to an area, they get work only in their areas.
             </p>
 
             {hasError ? (
@@ -260,10 +230,7 @@ export function ServiceAreaDriversCard({
                     data-testid="service-area-drivers-error"
                 >
                     <div className="space-y-2">
-                        <p className="text-sm font-medium">Drivers for this area could not be loaded</p>
-                        <p className="text-sm text-muted-foreground">
-                            This is a problem reading them, not an area nobody covers.
-                        </p>
+                        <p className="text-sm font-medium">Could not load the drivers for this area</p>
                         <Button variant="outline" size="sm" onClick={() => void loadDrivers()}>
                             Try again
                         </Button>
@@ -286,12 +253,9 @@ export function ServiceAreaDriversCard({
                     data-testid="service-area-drivers-empty"
                 >
                     <div className="mx-auto max-w-2xl space-y-2">
-                        <h3 className="text-base font-semibold">Nobody is attached to this area yet</h3>
+                        <h3 className="text-base font-semibold">No drivers in this area yet</h3>
                         <p className="text-sm text-muted-foreground">
-                            That is a normal state, not an error, and it does not stop deliveries here.
-                            Until somebody is attached, this territory is served the way it was before
-                            it was drawn: every driver who covers no areas of their own can still be
-                            given work inside it.
+                            Deliveries here still work. Floaters can get work in this area.
                         </p>
                     </div>
                 </div>
@@ -322,7 +286,7 @@ export function ServiceAreaDriversCard({
                             {`Detach ${pendingDetachDriver?.display_name ?? ""} from "${serviceAreaName}"?`}
                         </AlertDialogTitle>
                         <AlertDialogDescription data-testid="service-area-detach-confirmation-description">
-                            {`This does not move work that already exists. Coverage is decided once, when a package is created, so any stop already on ${pendingDetachDriver?.display_name ?? "this driver"}'s route stays there, and this is not a way to pull them off today's run. It only changes packages created from now on. If this is the last area they cover, they become a floater again and can be given work anywhere.`}
+                            {`This does not move work that already exists. Stops already on ${pendingDetachDriver?.display_name ?? "this driver"}'s route stay there. Only new packages change. If this is their last area, they become a floater again.`}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

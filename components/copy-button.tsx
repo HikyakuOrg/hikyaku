@@ -18,7 +18,7 @@ export function CopyButton({
             setCopied(true)
             setTimeout(() => setCopied(false), 1500)
         } catch {
-            // Clipboard unavailable (e.g. insecure context) — silently ignore.
+            // No clipboard (for example, an insecure context). Ignore.
         }
     }
 

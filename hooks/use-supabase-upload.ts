@@ -9,9 +9,8 @@ const supabase = createLazyClient()
 const noErrors: { name: string; message: string }[] = []
 
 /**
- * react-dropzone tags every file of an over-limit drop with `too-many-files`. Once the
- * set is back within the limit that rejection no longer applies, so it is cleared on
- * write instead of being rewritten from an effect.
+ * react-dropzone marks every file in an over-limit drop as `too-many-files`.
+ * Clear that when the set is within the limit again.
  */
 function clearStaleTooManyFilesErrors(files: FileWithPreview[], maxFiles: number) {
   if (files.length > maxFiles) {

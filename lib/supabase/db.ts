@@ -1,6 +1,5 @@
-// service_areas.is_deleted is a soft delete filtered in the query layer, never
-// in RLS (the same convention vehicles.is_deleted follows), so every read of the
-// table has to exclude retired rows itself. Nothing in the database will do it.
+// service_areas.is_deleted is a soft delete. RLS does not filter it, so every
+// read must exclude deleted rows.
 export async function getServiceAreaById(id: string) {
     const { data, error } = await supabase
         .from("service_areas")
@@ -17,9 +16,8 @@ export async function updateServiceArea(id: string, name: string, geometry: stri
         .from("service_areas")
         .update({ name, geometry })
         .eq("id", id)
-        // A retired area is not editable. Matching zero rows here surfaces as
-        // PGRST116 from .single(), which describeWriteError already words for a
-        // row that has gone out of reach since the page loaded.
+        // A deleted area cannot be edited. Zero matched rows give PGRST116,
+        // which describeWriteError() reports.
         .eq("is_deleted", false)
         .select()
         .single()
@@ -28,18 +26,12 @@ export async function updateServiceArea(id: string, name: string, geometry: stri
 }
 
 /**
- * Retire service areas in one write. Soft delete, the same shape deleteVehicle()
- * uses: the rows stay so anything already pointing at them keeps resolving, and
- * every read of this table filters `is_deleted` itself.
+ * Soft-delete service areas in one write, like deleteVehicle(). Existing
+ * packages and shifts do not change: coverage is decided once, when a package
+ * is created.
  *
- * Retiring an area does not re-route work that already exists. Coverage is
- * decided once, when a package is created, not continuously, so packages and
- * shifts already booked are untouched by this.
- *
- * Returns the ids that were actually retired. An update the RLS policy refuses
- * is not an error in Postgres, it just matches zero rows, so the caller has to
- * compare this against what it asked for rather than treat a quiet return as
- * success.
+ * Returns the deleted ids. An RLS refusal matches zero rows without an error,
+ * so the caller must compare this with the ids it sent.
  */
 export async function deleteServiceAreas(ids: string[]): Promise<string[]> {
     if (ids.length === 0) return []
@@ -55,17 +47,12 @@ export async function deleteServiceAreas(ids: string[]): Promise<string[]> {
 }
 
 /**
- * A driver, shaped for the two tables on the service area detail page: the ones
- * already covering the area, and the ones that could be attached to it.
+ * A driver row for the service area detail page (attached and attachable
+ * tables). Both tables use `components/driver/driver-table`.
  *
- * Extends the driver shape the rest of the app uses rather than inventing a
- * second one, because both tables render through `components/driver/driver-table`.
- *
- * `warehouse_name` is carried alongside because dispatch only ever offers a
- * driver work out of their own warehouse, so which depot a driver sits at is the
- * difference between coverage that does something and coverage that quietly does
- * nothing. See the note in `service-area-driver-sheet.tsx` for why the picker
- * shows the column instead of filtering on it.
+ * Dispatch gives a driver work only from their own warehouse, so the tables
+ * show `warehouse_name`. See `service-area-driver-sheet.tsx` for why the picker
+ * shows this column and does not filter on it.
  */
 export type ServiceAreaDriver = ListDriverDto & {
     warehouse_id: string | null
@@ -81,12 +68,8 @@ export type AttachableDriverPage = {
 }
 
 /**
- * Driver ids already attached to an area.
- *
- * `driver_service_area` has no `is_deleted`: retiring a territory keeps its
- * staffing so it can be un-retired, which means the soft delete lives entirely
- * on `service_areas`. Nothing here has to filter it, because every caller has
- * already resolved a live area to get its id.
+ * Driver ids attached to an area. `driver_service_area` has no `is_deleted`;
+ * every caller already has a live area id.
  */
 async function getServiceAreaDriverIds(areaId: string): Promise<string[]> {
     const { data, error } = await supabase
@@ -98,14 +81,9 @@ async function getServiceAreaDriverIds(areaId: string): Promise<string[]> {
 }
 
 /**
- * Warehouse id and name for a set of drivers, as two plain lookups rather than a
- * PostgREST embed.
- *
- * Reading `warehouse` needs `warehouse.view`, which is a different permission
- * from the `drivers.view` that got us the driver rows, so a caller can
- * legitimately be allowed one and not the other. Keeping them separate means
- * that case degrades to an empty warehouse column instead of failing the whole
- * read.
+ * Warehouse id and name for each driver. Two queries, not a PostgREST embed:
+ * `warehouse` needs `warehouse.view`, and `drivers` needs `drivers.view`. A
+ * caller without `warehouse.view` gets an empty warehouse column, not an error.
  */
 async function getDriverWarehouses(driverIds: string[]) {
     if (driverIds.length === 0) {
@@ -130,8 +108,7 @@ async function getDriverWarehouses(driverIds: string[]) {
             .select("id, warehouse_name")
             .in("id", warehouseIds)
 
-        // Not fatal. A caller without warehouse.view sees the drivers and an
-        // empty warehouse column, which is more useful than an error panel.
+        // Not fatal: without warehouse.view the warehouse column stays empty.
         if (warehouseError) {
             console.error(warehouseError)
         }
@@ -153,13 +130,9 @@ async function getDriverWarehouses(driverIds: string[]) {
 }
 
 /**
- * Merge driver ids with the profile and warehouse lookups into display rows.
- *
- * A driver whose profile does not come back keeps its row rather than
- * disappearing: dropping it would make the attachable page counts disagree with
- * what is on screen, and on the attached list it would hide a driver who really
- * is covering the area. It happens when the `auth.users` row behind a driver is
- * gone, which the RPC's join filters out.
+ * Merge driver ids with profiles and warehouses into display rows. A driver
+ * with no profile (its `auth.users` row is gone) keeps its row, so page counts
+ * match the screen.
  */
 function toServiceAreaDrivers(
     driverIds: string[],
@@ -187,18 +160,12 @@ function toServiceAreaDrivers(
 }
 
 /**
- * The drivers currently covering one service area.
+ * The drivers attached to one service area, sorted by name.
  *
- * Three reads rather than one join, because the pieces live in three places that
- * PostgREST cannot join across: the pairings are in `driver_service_area`, the
- * warehouse is on `drivers`, and display name, phone and avatar are in
- * `auth.users.raw_user_meta_data`, reachable only through the SECURITY DEFINER
- * `get_drivers_by_ids` RPC the rest of the app already uses for exactly this.
- * The row counts here are a depot's worth of drivers, not a page of packages, so
- * the extra round trips are cheaper than a new database function would be.
- *
- * Sorted by name, since the order drivers happened to be attached in is not
- * something a dispatcher is looking for.
+ * Three reads, because PostgREST cannot join these sources: links in
+ * `driver_service_area`, warehouse on `drivers`, and name, phone and avatar in
+ * `auth.users` (through the `get_drivers_by_ids` RPC). A depot has few drivers,
+ * so this costs less than a new database function.
  */
 export async function getDriversByServiceArea(areaId: string): Promise<ServiceAreaDriver[]> {
     const driverIds = await getServiceAreaDriverIds(areaId)
@@ -217,19 +184,12 @@ export async function getDriversByServiceArea(areaId: string): Promise<ServiceAr
 }
 
 /**
- * One page of drivers that could still be attached to an area.
+ * One page of drivers not yet attached to an area.
  *
- * The exclusion is applied in the database, not after paging, so page 2 is the
- * real second page of attachable drivers rather than the second page of all
- * drivers with some rows missing. None of the existing driver RPCs
- * (`get_drivers_paginated`, `list_unassigned_drivers`, `list_drivers_by_warehouse`)
- * takes a service-area argument, and this table is owned by the web app rather
- * than by the API, so this pages `drivers` directly and picks the names up
- * afterwards.
- *
- * Ordered by id descending to match `get_drivers_paginated`, so paging through
- * this picker behaves like paging through the other driver pickers. Sorting by
- * name is not available here: the name is not a column on this table.
+ * The exclusion runs in the database before paging, so every page is full. No
+ * driver RPC takes a service area, so this pages `drivers` directly and loads
+ * names after. Ordered by id descending, like `get_drivers_paginated`; the name
+ * is not a column on this table.
  */
 export async function getAttachableDriversForServiceArea(
     organisationId: string,
@@ -249,9 +209,8 @@ export async function getAttachableDriversForServiceArea(
         .range(from, to)
 
     if (attachedIds.length > 0) {
-        // PostgREST wants a parenthesised list here rather than an array. The
-        // ids are uuids read back out of the database a moment ago, so there is
-        // nothing in them to quote or escape.
+        // PostgREST needs a parenthesised list. The ids are uuids from the
+        // database, so they need no escaping.
         query = query.not("id", "in", `(${attachedIds.join(",")})`)
     }
 
@@ -285,16 +244,12 @@ export type OrganisationDriverPage = {
 }
 
 /**
- * One page of the organisation's drivers, for the pickers that pair a driver
- * with a vehicle or a warehouse. `unassignedOnly` keeps the drivers that have no
- * warehouse yet.
+ * One page of the organisation's drivers, for the vehicle and warehouse
+ * pickers. `unassignedOnly` keeps drivers with no warehouse.
  *
- * This pages `drivers` directly instead of calling `get_drivers_paginated` or
- * `list_unassigned_drivers`, because neither RPC takes an organisation: they
- * return every driver in every organisation the caller belongs to, so a member
- * of two organisations was offered the other organisation's drivers. The order
- * matches those RPCs (id descending), and the names come from
- * `get_drivers_by_ids` afterwards, as they do for the service area picker.
+ * `get_drivers_paginated` and `list_unassigned_drivers` take no organisation
+ * and return drivers from every organisation the caller belongs to, so this
+ * pages `drivers` directly. The order matches those RPCs (id descending).
  */
 export async function getOrganisationDrivers(
     organisationId: string,
@@ -337,27 +292,14 @@ export async function getOrganisationDrivers(
 }
 
 /**
- * Attach a whole selection of drivers to one service area.
+ * Attach drivers to one service area in one insert, so the whole selection
+ * succeeds or fails together.
  *
- * ONE INSERT FOR THE WHOLE SELECTION. Forty drivers is forty rows in one
- * request, never forty requests, which is also what makes the whole selection
- * land or not land together.
+ * `ON CONFLICT DO NOTHING` skips drivers that are already attached. Filtering
+ * first would race when two dispatchers staff the same area at the same time.
  *
- * Already-attached drivers are a no-op rather than an error, resolved by
- * `ON CONFLICT (driver_id, service_area_id) DO NOTHING` (the table's primary
- * key) rather than by filtering them out here first. The filter version is a
- * read followed by a write, so two dispatchers staffing the same area at the
- * same time can both read "not attached yet" and the second insert then fails
- * on the primary key with nothing having gone wrong. `ON CONFLICT` is decided
- * inside the one statement, where that race has nowhere to happen. The picker
- * hides attached drivers anyway, so a duplicate reaching here means a sheet that
- * has been open a while, which is exactly the case that should stay quiet.
- *
- * `organisation_id` is NOT NULL with no default, so the insert has to carry it,
- * and it is read off the area rather than off the session: composite foreign
- * keys pin it to both parents, so a value disagreeing with either the area or
- * the driver cannot be inserted by any role. Reading it here just means sending
- * the value the database is going to insist on.
+ * `organisation_id` is required and comes from the area. Composite foreign keys
+ * reject a value that does not match both the area and the driver.
  */
 export async function attachDriversToServiceArea(areaId: string, driverIds: string[]) {
     if (driverIds.length === 0) {
@@ -384,25 +326,18 @@ export async function attachDriversToServiceArea(areaId: string, driverIds: stri
         )
         .select()
 
-    // Unlike a refused UPDATE, a refused INSERT does raise: an RLS WITH CHECK
-    // failure comes back as 42501, which describeWriteError() words. So an empty
-    // `data` here means every row was already attached, not that the write was
-    // turned away.
+    // A refused INSERT raises 42501 (a refused UPDATE does not), so empty
+    // `data` means every driver was already attached.
     if (error) throw error
     return data ?? []
 }
 
 /**
- * Detach one driver from one service area.
+ * Detach one driver from one service area. Stops already on the driver's route
+ * stay there.
  *
- * A plain delete of the single link row. It does not touch work that already
- * exists: coverage is decided once, when a package is created, so stops already
- * on a driver's route stay there.
- *
- * `.select().single()` on purpose: a delete the RLS policy refuses is not an error in Postgres, it simply matches zero
- * rows, so without this it would return quietly and look like a success. With
- * it the refusal arrives as PGRST116, which describeWriteError() turns into a
- * sentence covering both readings (the row is gone, or the permission is).
+ * An RLS refusal matches zero rows without an error. `.select().single()` turns
+ * that into PGRST116, which describeWriteError() reports.
  */
 export async function detachDriverFromServiceArea(areaId: string, driverId: string) {
     const { data, error } = await supabase
@@ -416,23 +351,16 @@ export async function detachDriverFromServiceArea(areaId: string, driverId: stri
     return data
 }
 
-/** One area a driver covers, for the "where does this driver work" card on their detail page (HIK-16). */
+/** One area a driver covers. */
 export type DriverServiceArea = {
     id: string
     name: string
 }
 
 /**
- * The areas one driver covers, for the driver detail page's Service Areas
- * card. The reverse direction of `getDriversByServiceArea`: same link table,
- * read from the driver side instead of the area side.
- *
- * Two reads rather than one embedded select: `driver_service_area`'s foreign
- * key into `service_areas` is composite (`service_area_id, organisation_id`,
- * see `driver_service_area_area_org_fkey`), which Supabase's generated types
- * treat as a to-many relationship regardless of actual cardinality. Reading it
- * as two plain queries, the same shape `getServiceAreaDriverIds` already uses
- * on the other side of this table, sidesteps that rather than fighting it.
+ * The areas one driver covers, sorted by name. Two queries, not an embed: the
+ * foreign key into `service_areas` is composite, and the generated types treat
+ * it as to-many.
  */
 export async function getServiceAreasByDriver(driverId: string): Promise<DriverServiceArea[]> {
     const { data: links, error: linksError } = await supabase
@@ -455,10 +383,8 @@ export async function getServiceAreasByDriver(driverId: string): Promise<DriverS
 }
 
 /**
- * Live areas this driver does not already cover, newest first, optionally
- * narrowed by name. Powers the search box in the card's add-area combobox;
- * `search` is matched with `ilike` so it works the moment a dispatcher starts
- * typing rather than only on a prefix.
+ * Live areas the driver does not cover yet, sorted by name. `search` matches
+ * any part of the name. Used by the add-area combobox on the driver page.
  */
 export async function searchAttachableServiceAreasForDriver(
     organisationId: string,
@@ -485,9 +411,7 @@ export async function searchAttachableServiceAreasForDriver(
     }
 
     if (attachedIds.length > 0) {
-        // Same parenthesised-list requirement `getAttachableDriversForServiceArea` notes: PostgREST
-        // wants `(id1,id2)` here, not an array, and these ids came back from the database a moment
-        // ago so there is nothing in them that needs escaping.
+        // PostgREST needs a parenthesised list; see getAttachableDriversForServiceArea.
         query = query.not("id", "in", `(${attachedIds.join(",")})`)
     }
 
@@ -497,11 +421,8 @@ export async function searchAttachableServiceAreasForDriver(
 }
 
 /**
- * Attach a driver to a whole selection of areas in one bulk write, the same
- * shape `attachDriversToServiceArea` uses in the other direction: one insert
- * for every area picked, `ON CONFLICT DO NOTHING` on the table's own primary
- * key so an area the picker already excluded cannot fail the request if it was
- * attached moments ago by someone else.
+ * Attach a driver to several areas in one insert. `ON CONFLICT DO NOTHING`
+ * skips areas that someone else attached a moment ago.
  */
 export async function attachServiceAreasToDriver(driverId: string, areaIds: string[]) {
     if (areaIds.length === 0) {
@@ -531,12 +452,7 @@ export async function attachServiceAreasToDriver(driverId: string, areaIds: stri
     return data ?? []
 }
 
-/**
- * Detach one area from one driver. `.select().single()` for the same reason
- * `detachDriverFromServiceArea` uses it: a delete RLS refuses matches zero
- * rows rather than raising, and without this it would look identical to a
- * success.
- */
+/** Detach one area from one driver. See detachDriverFromServiceArea for `.select().single()`. */
 export async function detachServiceAreaFromDriver(driverId: string, areaId: string) {
     const { data, error } = await supabase
         .from("driver_service_area")
@@ -564,8 +480,7 @@ export async function getDriverWarehouse(driverId: string): Promise<{ id: string
         .select("id, warehouse_name")
         .eq("id", driver.warehouse_id)
         .maybeSingle()
-    // Not fatal, same reasoning getDriverWarehouses() documents: a caller
-    // without warehouse.view still gets the rest of the driver page.
+    // Not fatal; see getDriverWarehouses().
     if (warehouseError) {
         console.error(warehouseError)
         return null
@@ -612,9 +527,8 @@ export async function getPackageByTrackingNumber(trackingNumber: string) {
     return data
 }
 
-// Null, not an error, when the package has no assignment row yet: every
-// unassigned or queued package is in that state, and .single() would log a
-// PGRST116 406 for each of them.
+// Null when the package has no assignment yet (unassigned or queued).
+// .single() would log a PGRST116 406 for each of these.
 export async function getPackageAssignment(packageId: string) {
     const { data, error } = await supabase.from("package_assignment").select("*").eq("package_id", packageId).maybeSingle()
     if (error) throw error
@@ -665,20 +579,17 @@ export function subscribeToDriverLocationUpdates(driverId: string, onUpdate: (pa
 }
 
 /**
- * Public live-tracking subscription for the customer tracking page.
- *
- * Listens on the private Realtime channel `tracking:<trackingNumber>`. The DB
- * trigger (migration 0025) only broadcasts to this topic while the package is
- * IN_TRANSIT, and the realtime.messages RLS policy only lets `anon` join it
- * while IN_TRANSIT — so this never leaks location for other states, and the
- * payload carries lng/lat/updated_at only (never the driver id).
+ * Live location for the public tracking page, on the private Realtime channel
+ * `tracking:<trackingNumber>`. The DB trigger and RLS allow this only while the
+ * package is IN_TRANSIT. The payload has lng, lat and updated_at, and no
+ * driver id.
  */
 export function subscribeToTrackingLocation(
     trackingNumber: string,
     onLocation: (location: TrackingLocationBroadcast) => void
 ): RealtimeChannel {
-    // Realtime Authorization needs an auth token; for the anon page this is the
-    // publishable/anon key the browser client already carries.
+    // Realtime Authorization needs a token. On the public page this is the
+    // anon key the browser client already has.
     void supabase.realtime.setAuth()
 
     const channel = supabase
@@ -762,7 +673,7 @@ export async function getVehiclesByType(organisationId: string, selectedTypes: s
         .eq('organisation_id', organisationId)
         .eq('is_deleted', false)
 
-    // Apply filter only if array has values
+    // Filter only when types are selected
     if (selectedTypes.length > 0) {
         query = query.in('vehicle_type', selectedTypes)
     }
@@ -949,11 +860,10 @@ export async function createVehicle(vehicle: TablesInsert<'vehicles'>) {
 }
 
 /**
- * Hard delete a vehicle the add form has only just inserted, when a follow-up
- * write for it (its skills, its images) fails. Unlike deleteVehicle() this
- * frees the plate, so the form can be resubmitted as is; its vehicle_skills
- * rows go with it through the FK cascade. RLS silently skips the row for
- * anyone without vehicles.delete, so the result says whether it really went.
+ * Hard-delete a vehicle the add form just created, when saving its skills or
+ * images fails. This frees the plate so the form can be sent again. The FK
+ * cascade removes its vehicle_skills rows. Returns false when RLS skipped the
+ * row (no vehicles.delete).
  */
 export async function discardVehicle(vehicleId: string) {
     const { data, error } = await supabase.from("vehicles").delete().eq("id", vehicleId).select("id")
@@ -1126,10 +1036,9 @@ export async function getOrganisationIdBySlug(slug: string) {
     return data.id
 }
 
-// driving_limit_profile.is_deleted is a soft delete filtered in the query layer,
-// never in RLS, exactly like service_areas.is_deleted. Every read below excludes
-// retired profiles itself, and hikyaku-api's resolver skips them the same way, so
-// a driver still pointing at one is planned as if it were not there.
+// driving_limit_profile.is_deleted is a soft delete, like service_areas. RLS
+// does not filter it, so every read below does. The hikyaku-api resolver also
+// ignores deleted profiles.
 
 const DRIVING_LIMIT_PROFILE_COLUMNS =
     "id, name, max_working_seconds, max_driving_seconds, max_distance_m, max_stops"
@@ -1137,11 +1046,8 @@ const DRIVING_LIMIT_PROFILE_COLUMNS =
 export type DrivingLimitProfileInput = DrivingLimitValues & { name: string }
 
 /**
- * Every live profile in one organisation, by name.
- *
- * Filtered on the organisation explicitly rather than left to RLS: RLS lets a
- * member of two organisations read both organisations' profiles, and offering
- * the other one's in a picker only earns a foreign key refusal on save.
+ * Live profiles in one organisation, by name. Filtered by organisation because
+ * RLS shows a member the profiles of every organisation they belong to.
  */
 export async function getDrivingLimitProfiles(organisationId: string): Promise<DrivingLimitProfile[]> {
     const { data, error } = await supabase
@@ -1154,11 +1060,7 @@ export async function getDrivingLimitProfiles(organisationId: string): Promise<D
     return data ?? []
 }
 
-/**
- * Save a new profile. The limit values arrive already in seconds and metres:
- * the form is the one place hours and kilometres are converted, and nothing
- * between it and the table converts again.
- */
+/** Save a new profile. Values are in seconds and metres; only the form converts units. */
 export async function createDrivingLimitProfile(organisationId: string, input: DrivingLimitProfileInput) {
     const { data, error } = await supabase
         .from("driving_limit_profile")
@@ -1169,11 +1071,7 @@ export async function createDrivingLimitProfile(organisationId: string, input: D
     return data
 }
 
-/**
- * `.eq("is_deleted", false).select().single()` for the reason `updateServiceArea`
- * gives: a retired row, or an update RLS refuses, matches zero rows instead of
- * raising, and PGRST116 is what lets describeWriteError() say so.
- */
+/** A deleted row or an RLS refusal gives PGRST116, as in updateServiceArea. */
 export async function updateDrivingLimitProfile(id: string, input: DrivingLimitProfileInput) {
     const { data, error } = await supabase
         .from("driving_limit_profile")
@@ -1187,11 +1085,9 @@ export async function updateDrivingLimitProfile(id: string, input: DrivingLimitP
 }
 
 /**
- * Retire a profile. A soft delete, so the drivers and the organisation default
- * pointing at it are left alone rather than rewritten: the resolver already
- * treats a retired profile as absent, so those drivers fall through to the
- * organisation default (or to no limit) without a second write that could fail
- * halfway.
+ * Soft-delete a profile. Drivers and the organisation default that point at it
+ * do not change. The resolver ignores a deleted profile, so those drivers use
+ * the organisation default, or no limit.
  */
 export async function deleteDrivingLimitProfile(id: string) {
     const { data, error } = await supabase
@@ -1206,14 +1102,11 @@ export async function deleteDrivingLimitProfile(id: string) {
 }
 
 /**
- * Which profile a team member's driver row in this organisation points at.
- * `isDriver` is false when there is no such row, which is a team member the
- * limits do not apply to rather than a driver with no profile.
+ * The profile of a team member's driver row in this organisation. `isDriver` is
+ * false when there is no driver row; limits do not apply to that member.
  *
- * Scoped to the organisation on purpose. RLS lets a user read their own driver
- * row whichever organisation it belongs to, so an admin who drives for another
- * organisation would otherwise look like a driver here, and pointing that row at
- * this organisation's profile is refused by the composite foreign key.
+ * Scoped to the organisation because RLS lets users read their own driver row
+ * in any organisation.
  */
 export async function getDriverDrivingLimitProfileId(
     driverId: string,
@@ -1229,11 +1122,7 @@ export async function getDriverDrivingLimitProfileId(
     return { isDriver: data !== null, profileId: data?.driving_limit_profile_id ?? null }
 }
 
-/**
- * Point a driver at a profile, or at none. The composite foreign key pins the
- * profile to the driver's own organisation, so a profile from another tenant is
- * refused by the database whatever this is sent.
- */
+/** Set or clear a driver's profile. A composite foreign key rejects profiles from other organisations. */
 export async function setDriverDrivingLimitProfile(driverId: string, organisationId: string, profileId: string | null) {
     const { data, error } = await supabase
         .from("drivers")
@@ -1246,7 +1135,7 @@ export async function setDriverDrivingLimitProfile(driverId: string, organisatio
     return data
 }
 
-/** The organisation's id and its default profile pointer, which may name a retired profile. */
+/** The organisation id and its default profile id. That profile can be deleted. */
 export async function getOrganisationDrivingLimitDefault(
     slug: string,
 ): Promise<{ organisationId: string; defaultProfileId: string | null }> {
@@ -1272,9 +1161,8 @@ export async function setOrganisationDrivingLimitDefault(organisationId: string,
 }
 
 /**
- * Save every dispatch setting at once. An upsert because the row only exists
- * once somebody has saved: until then the organisation runs on the defaults.
- * Needs `organisation.edit`; RLS refuses anyone else.
+ * Save all dispatch settings. Upsert, because the row exists only after the
+ * first save; until then the defaults apply. RLS requires `organisation.edit`.
  */
 export async function saveOrganisationDispatchSettings(organisationId: string, settings: DispatchSettings) {
     const { data, error } = await supabase
@@ -1327,12 +1215,8 @@ export async function searchServiceArea(organisationId: string, search: string) 
     return data
 }
 
-// Package creation lives behind POST /api/v1/packages (lib/actions/packages.ts).
-// insertPackage / insertPackageDimension / insertPackageDeliveryWindow used to
-// write those three tables from the browser, one round trip each and no
-// transaction — a half-created package survived any failure after the first
-// insert. The API writes all of them, plus the PENDING timeline row, in one
-// transaction and then assigns the package to a shift.
+// Packages are created through POST /api/v1/packages (lib/actions/packages.ts),
+// which writes all package tables in one transaction.
 
 export async function getPackageFailure(packageId: string) {
     const { data, error } = await supabase
@@ -1379,32 +1263,20 @@ export async function getDeliveryRoutes(organisationId: string, page: number, pa
 }
 
 
-/**
- * One shift as the calendars render it.
- *
- * A shift is a `vrp_optimization` row. Until AddShiftLifecycleColumns it had no
- * driver, vehicle, warehouse, date or status, so the calendar had to reconstruct
- * shifts from two directions at once: package delivery windows (which missed
- * every empty shift) plus an unbounded scan of manual optimisations filtered by
- * a JSON blob in JavaScript. Both are replaced by one indexed query on
- * (shift_date, status).
- */
+/** One shift (a `vrp_optimization` row) as the calendars show it. */
 export interface CalendarShift {
     /** vrp_optimization.id. */
     id: string;
-    /**
-     * vrp_route.id — what the shift detail page is keyed on. Null when the shift
-     * has no route row yet, in which case there is nothing to open.
-     */
+    /** vrp_route.id, used by the shift detail page. Null when the shift has no route yet. */
     route_id: string | null;
     driver_id: string | null;
     /** Warehouse-local service day, YYYY-MM-DD. */
     shift_date: string;
     scheduled_start: string | null;
     status: VrpOptimizationStatus;
-    /** Bumped on every plan rewrite — the calendar re-fetches when it moves. */
+    /** Increases on every plan change. The calendar re-fetches when it changes. */
     revision: number;
-    /** Packages on the shift. Zero is a real, displayable state. */
+    /** Packages on the shift. Can be zero. */
     stop_count: number;
     /** Planned route duration in seconds, or null while the shift is empty. */
     duration_seconds: number | null;
@@ -1419,7 +1291,7 @@ export interface CalendarShift {
     distance_source: string | null;
 }
 
-/** Shifts that are not cancelled, i.e. everything the calendar should draw. */
+/** All statuses except cancelled. */
 const CALENDAR_SHIFT_STATUSES: VrpOptimizationStatus[] = [
     "planned",
     "dispatched",
@@ -1427,12 +1299,9 @@ const CALENDAR_SHIFT_STATUSES: VrpOptimizationStatus[] = [
 ]
 
 /**
- * Every shift whose service day falls in [startDate, endDate]. Dates may be
- * passed as ISO instants; only the calendar day is used, because `shift_date` is
- * warehouse-local and has no time component.
- *
- * Empty shifts appear natively — they are rows here like any other, not a
- * separate lookup that has to be deduped against this one.
+ * Every shift, empty ones included, with a service day in [startDate,
+ * endDate]. Only the date part is used: `shift_date` is warehouse-local and has
+ * no time.
  */
 export async function getShiftsByDates(
     organisationId: string,
@@ -1464,8 +1333,7 @@ export async function getShiftsByDates(
         .gte('shift_date', startDate.slice(0, 10))
         .lte('shift_date', endDate.slice(0, 10))
         .in('status', CALENDAR_SHIFT_STATUSES)
-        // Only the depot steps carry what the driving limit marker needs (elapsed
-        // time and total travel), so the job steps stay in the database.
+        // The driving limit marker needs only the start and end steps.
         .in('vrp_solution.vrp_route.vrp_route_step.type', ['start', 'end'])
         .order('shift_date', { ascending: true })
 
@@ -1475,8 +1343,7 @@ export async function getShiftsByDates(
     if (error) throw error
 
     return (data ?? []).flatMap((row) => {
-        // shift_date is nullable in the schema (it is backfilled, not enforced),
-        // and a shift with no service day cannot be placed on a calendar.
+        // shift_date is nullable. A shift without one cannot go on the calendar.
         if (!row.shift_date) return []
 
         const route = row.vrp_solution.flatMap((solution) => solution.vrp_route)[0] ?? null
@@ -1506,10 +1373,8 @@ export async function getShiftsByDates(
 const EMPTY_SHIFT_DURATION_SECONDS = 60 * 60
 
 /**
- * When a shift occupies the calendar grid. `scheduled_start` is the set-off time
- * when one has been chosen; otherwise the shift is drawn from 08:00 on its
- * service day, in the viewer's timezone, so it lands in the working part of the
- * grid rather than at midnight.
+ * The calendar position of a shift. It starts at `scheduled_start`, or at 08:00
+ * local time on its service day when that is not set.
  */
 export function getShiftStartEnd(shift: CalendarShift): { start: Date; end: Date } {
     const start = shift.scheduled_start
@@ -1538,17 +1403,12 @@ export async function createServiceArea(name: string, geometry: string, organisa
     return data
 }
 
-// ── Skills catalog (HIK-90) ──────────────────────────────────────────────────
+// ── Skills catalog ───────────────────────────────────────────────────────────
 //
-// Org-defined capability labels ("Fragile Handling", "Requires Liftgate"),
-// assigned to vehicles and required by packages, enforced by VROOM as a hard
-// constraint. hikyaku-api exposes create/list/archive for headless
-// integrations (HIK-93), but the dashboard writes straight to Supabase here —
-// the same "this form already writes straight to Tables<>" precedent
-// vehicle-form.tsx follows — because RLS on `skills` already grants
-// authenticated org members with `vehicles.update` insert/update/delete, and
-// that is also the only way to expose renaming (hikyaku-api has no rename
-// endpoint).
+// Organisation labels such as "Fragile Handling". Vehicles have skills and
+// packages require them; VROOM enforces the match. The dashboard writes to
+// Supabase directly (RLS allows members with `vehicles.update`) because
+// hikyaku-api cannot rename skills.
 
 /** A skill in the organisation's catalog, shaped for pickers and chips. */
 export type Skill = {
@@ -1556,7 +1416,7 @@ export type Skill = {
     name: string
 }
 
-/** Active (non-archived) skills, alphabetical — what a picker offers. */
+/** Active skills, by name, for pickers. */
 export async function getSkills(organisationId: string): Promise<Skill[]> {
     const { data, error } = await supabase
         .from("skills")
@@ -1568,7 +1428,7 @@ export async function getSkills(organisationId: string): Promise<Skill[]> {
     return data ?? []
 }
 
-/** Every skill, including archived, newest first — for the Manage Skills dialog. */
+/** All skills, archived included, newest first, for the Manage Skills dialog. */
 export async function getSkillCatalog(organisationId: string): Promise<Tables<'skills'>[]> {
     const { data, error } = await supabase
         .from("skills")
@@ -1579,7 +1439,7 @@ export async function getSkillCatalog(organisationId: string): Promise<Tables<'s
     return data ?? []
 }
 
-/** Skills by id, for resolving a package's or vehicle's `skillIds` into names for display. */
+/** Skills by id, to show names for `skillIds`. */
 export async function getSkillsByIds(skillIds: string[]): Promise<Skill[]> {
     if (skillIds.length === 0) return []
     const { data, error } = await supabase
@@ -1612,10 +1472,8 @@ export async function renameSkill(id: string, name: string) {
 }
 
 /**
- * Retire a skill. Idempotent-in-effect (setting archived_at again just
- * updates the same row), mirroring SkillsService.archive on the API side.
- * Archived skills drop out of `getSkills()` but stay resolvable by id for
- * historical vehicle_skills/package_skills rows.
+ * Archive a skill. Archived skills leave `getSkills()` but still resolve by id
+ * for old vehicle_skills and package_skills rows.
  */
 export async function archiveSkill(id: string) {
     const { data, error } = await supabase
@@ -1649,11 +1507,8 @@ export async function getSkillsByVehicle(vehicleId: string): Promise<Skill[]> {
 }
 
 /**
- * Replace a vehicle's whole skill set in one call, diffing against what it
- * already holds. The vehicle form submits the full selection at once (a
- * chips combobox bound to one form field), unlike the driver/service-area
- * card's incremental attach-then-separately-detach flow, so a diff-and-write
- * fits it better than exposing separate attach/detach functions here.
+ * Replace a vehicle's skills with `skillIds`. The vehicle form sends the full
+ * selection, so this adds and removes only the difference.
  */
 export async function setVehicleSkills(vehicleId: string, skillIds: string[]) {
     const { data: vehicle, error: vehicleError } = await supabase
@@ -1698,12 +1553,7 @@ export async function setVehicleSkills(vehicleId: string, skillIds: string[]) {
     }
 }
 
-/**
- * The skills one package requires, for the package detail page. `skillIds`
- * are sent to hikyaku-api at creation time (CreatePackageDto), but the
- * detail page reads packages through Supabase directly, so this reads the
- * join table the same way `getSkillsByVehicle` reads its own.
- */
+/** The skills one package requires, for the package detail page. */
 export async function getSkillsByPackage(packageId: string): Promise<Skill[]> {
     const { data: links, error: linksError } = await supabase
         .from("package_skills")

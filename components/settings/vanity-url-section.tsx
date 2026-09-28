@@ -10,22 +10,16 @@ import {
 } from "@/components/ui/card"
 import { CopyButton } from "@/components/copy-button"
 
-/**
- * Read-only display of a company org's vanity booking URL. The value itself
- * is derived automatically from the org's name (set_organisation_vanity_slug
- * in hikyaku-api) — this section only ever shows current state, it does not
- * offer a way to edit it.
- */
+/** Shows the org's vanity booking URL. A DB trigger sets it from the org name; it cannot be edited. */
 export function VanityUrlSection({
     vanityUrl,
     hasVanityUrlEntitlement,
 }: {
-    /** Full https://<vanity>.hikyaku.org/booking URL, or null if the org's
-     *  name has no sluggable characters. */
+    /** The full booking URL, or null when the org name gives no vanity slug. */
     vanityUrl: string | null
     hasVanityUrlEntitlement: boolean
 }) {
-    // Nothing to show for a name that produced no vanity slug at all.
+    // No vanity slug, so nothing to show.
     if (!vanityUrl) return null
 
     return (

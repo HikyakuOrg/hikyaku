@@ -76,15 +76,11 @@ export function AddWarehouseForm() {
                 warehouse_state: values.warehouseState,
                 warehouse_city: values.warehouseCity,
             })
-            toast.success('Warehouse added successfully')
+            toast.success('Warehouse added.')
             router.push(`/orgs/${slug}/dashboard/service/warehouse/${warehouse!.id}`)
         } catch (error) {
-            // The one-warehouse cap for personal accounts is raised by the
-            // warehouse_personal_org_limit trigger with a user-facing message,
-            // so it falls through here as-is. The page guard keeps this path
-            // from being reached normally; it still fires if the warehouse was
-            // created in another tab after this form loaded.
-            toast.error(getErrorMessage(error) || 'Failed to add warehouse')
+            // The DB trigger for the personal account limit gives a readable message.
+            toast.error(getErrorMessage(error) || 'Could not add the warehouse.')
         } finally {
             setIsSubmitting(false)
         }

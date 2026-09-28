@@ -5,11 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 /** Discriminated error shape returned by tenant-scoped server actions. */
 export type ActionError = { success: false; error: string }
 
-/**
- * Everything a tenant-scoped call to hikyaku-api needs: the backend base URL,
- * the active org slug, the caller's access token, and a ready-to-send headers
- * object (JSON + bearer auth + org slug).
- */
+/** What a tenant-scoped hikyaku-api call needs: URL, org slug, token and headers. */
 export type ApiContext = {
     apiUrl: string
     slug: string
@@ -32,14 +28,13 @@ export async function getAccessToken(): Promise<{ accessToken: string } | { erro
     const supabase = await createClient()
     const { data } = await supabase.auth.getSession()
     const accessToken = data?.session?.access_token
-    if (!accessToken) return { error: "Session expired. Please log in again." }
+    if (!accessToken) return { error: "Your session expired. Sign in again." }
     return { accessToken }
 }
 
 /**
- * Resolve the full context for a tenant-scoped API call. Returns an
- * `ActionError` if the session, active org, or API config is missing, so
- * callers can `if ("error" in ctx) return ctx`.
+ * Build the context for a tenant-scoped API call. Returns an `ActionError`
+ * when the session, org or API URL is missing.
  */
 export async function buildApiContext(): Promise<ApiContext | ActionError> {
     const auth = await getAccessToken()
@@ -61,10 +56,8 @@ export async function buildApiContext(): Promise<ApiContext | ActionError> {
 }
 
 /**
- * Extract a human-friendly message from a failed hikyaku-api response. The body
- * is an `ApiErrorDto`, whose `message` is an array only when request validation
- * is what rejected the call. Partial because a proxy or gateway can return an
- * error that never reached the API.
+ * A readable message from a failed hikyaku-api response. `message` is an array
+ * for validation errors. Partial, because a proxy error has a different body.
  */
 export async function parseApiError(res: Response): Promise<string> {
     let message = `Request failed (${res.status})`

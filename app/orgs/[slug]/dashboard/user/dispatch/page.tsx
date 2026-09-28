@@ -25,8 +25,8 @@ export default async function DispatchSettingsPage({ params }: { params: Promise
                     className="rounded-xl border border-destructive/40 bg-destructive/5 px-6 py-8 text-center"
                     data-testid="dispatch-settings-read-error"
                 >
-                    <h3 className="text-lg font-semibold">Dispatch settings could not be loaded</h3>
-                    <p className="text-sm text-muted-foreground">Reload the page, and contact support if it keeps happening.</p>
+                    <h3 className="text-lg font-semibold">Could not load the dispatch settings</h3>
+                    <p className="text-sm text-muted-foreground">Reload the page. If the problem continues, contact support.</p>
                 </div>
             ) : (
                 <DispatchSettingsForm

@@ -17,11 +17,7 @@ import { useHydrated } from "@/hooks/use-hydrated"
 import { SERVICE_AREAS_EDIT, permissionRequiredMessage } from "@/lib/permissions"
 import type { ServiceAreaListItem } from "@/lib/supabase/db-server"
 
-/**
- * Rows per page. Exported because picking an area on the map has to page the
- * list to wherever that area is listed, and that happens where the two are wired
- * together rather than in here.
- */
+/** Rows per page. Exported so a map click can go to the correct page. */
 export const SERVICE_AREAS_PAGE_SIZE = 10
 
 type ServiceAreasTableProps = {
@@ -30,11 +26,7 @@ type ServiceAreasTableProps = {
     selectedAreaIds: string[]
     page: number
     onPageChange: (page: number) => void
-    /**
-     * Whether the signed-in user holds `service_areas.edit`. Resolved server-side
-     * by the page and passed down. UI gating only: the RLS policies on
-     * `service_areas` are what actually refuse the delete.
-     */
+    /** Whether the user has `service_areas.edit`. For the UI only; RLS enforces it. */
     canEdit: boolean
     /** The full set of ticked ids, in list order. */
     onSelectionChange: (ids: string[]) => void
@@ -43,12 +35,7 @@ type ServiceAreasTableProps = {
     onRequestDelete: (areas: ServiceAreaListItem[]) => void
 }
 
-/**
- * The calendar day depends on the viewer's time zone, which the server cannot
- * know, so the date is only written once hydrated. Formatting on the server too
- * would let the two disagree near midnight and fail hydration, which also
- * drops the row click handlers.
- */
+/** Shows the date only after hydration: the server does not know the viewer's time zone. */
 function CreatedAt({ value }: { value: string }) {
     const hydrated = useHydrated()
     const created = parseISO(value)
@@ -76,9 +63,7 @@ function DeleteSelectedButton({
     const label = count > 0 ? `Delete selected (${count})` : "Delete selected"
 
     if (!canEdit) {
-        // Disabled with the reason attached rather than hidden, so it is clear
-        // the action exists and what is missing, and rather than live, which
-        // would offer a write RLS is certain to refuse.
+        // Disabled with the reason, so users know the action exists.
         return (
             <TooltipProvider>
                 <Tooltip>
@@ -138,8 +123,7 @@ export function ServiceAreasTable({
         [selectedAreaIds]
     )
 
-    // The table's selection is "which areas the map is highlighting". Rows on
-    // other pages stay ticked, since TanStack only sees the current page.
+    // Selection is shared with the map. Rows on other pages stay ticked.
     const handleRowSelectionChange: React.Dispatch<React.SetStateAction<RowSelectionState>> = (updater) => {
         const next = typeof updater === "function" ? updater(rowSelection) : updater
 
@@ -165,9 +149,8 @@ export function ServiceAreasTable({
                 <div>
                     <h2 className="text-lg font-semibold tracking-tight">All service areas</h2>
                     <p className="text-sm text-muted-foreground">
-                        Every area in this organisation, including any drawn outside the current map view.
-                        Tick areas to highlight them on the map or delete them together, or open a row to
-                        see and change who covers it.
+                        All areas in this organisation, also those outside the map view. Tick areas to
+                        show them on the map or to delete them. Open a row to see its drivers.
                     </p>
                 </div>
 

@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test"
 import { uniqueOrgName } from "./helpers/test-data"
 import { d } from "./helpers/org-url"
 
-test.describe("Organisation create — happy path + duplicate fail", () => {
+test.describe("Organisation create: happy path + duplicate fail", () => {
     test.describe.configure({ mode: "serial" })
 
     let orgName = ""
@@ -26,7 +26,7 @@ test.describe("Organisation create — happy path + duplicate fail", () => {
         await expect(page).toHaveURL(/\/orgs\/new$/)
 
         await page.locator("#org-name").fill(orgName)
-        await page.getByRole("button", { name: /create organization/i }).click()
+        await page.getByRole("button", { name: /create company/i }).click()
 
         await expect(page).toHaveURL(/\/orgs\/[a-z0-9-]+\/dashboard\/?$/, {
             timeout: 20_000,
@@ -55,7 +55,7 @@ test.describe("Organisation create — happy path + duplicate fail", () => {
         await expect(page).toHaveURL(/\/orgs\/new$/)
 
         await page.locator("#org-name").fill(orgName)
-        await page.getByRole("button", { name: /create organization/i }).click()
+        await page.getByRole("button", { name: /create company/i }).click()
 
         // The createOrganisation server action returns a string error on failure,
         // which the page renders as a <p class="text-destructive"> near the input.

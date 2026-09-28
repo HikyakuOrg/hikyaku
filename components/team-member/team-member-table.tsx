@@ -107,7 +107,7 @@ export function TeamMemberTable({
         const deletable = members.filter((m) => !m.is_admin)
         const skipped = members.length - deletable.length
         if (skipped > 0) {
-            toast.warning(`${skipped} admin account(s) cannot be removed`)
+            toast.warning(`${skipped} admin account(s) cannot be removed.`)
         }
         if (deletable.length === 0) return
         const ids = deletable.map((m) => m.id)
@@ -117,9 +117,9 @@ export function TeamMemberTable({
                 toast.error(result.error)
             } else {
                 if (result.failed.length > 0) {
-                    toast.error(`Failed to remove ${result.failed.length} member(s)`)
+                    toast.error(`Could not remove ${result.failed.length} member(s).`)
                 } else {
-                    toast.success(`${ids.length} member(s) removed`)
+                    toast.success(`${ids.length} member(s) removed.`)
                     setRowSelection({})
                     onDataChange?.()
                 }

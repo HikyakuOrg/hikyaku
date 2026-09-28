@@ -19,12 +19,12 @@ export function WarehouseSummary({ warehouses }: WarehouseSummaryProps) {
                     <WarehouseIcon className="h-5 w-5 text-primary" />
                     Warehouse Operations
                 </CardTitle>
-                <p className="text-sm text-muted-foreground">Current package volume by location</p>
+                <p className="text-sm text-muted-foreground">Pending packages at each warehouse</p>
             </CardHeader>
             <CardContent>
                 <div className="space-y-6">
                     {warehouses.length === 0 ? (
-                        <p className="text-center text-muted-foreground py-8">No warehouse data available.</p>
+                        <p className="text-center text-muted-foreground py-8">No warehouses yet.</p>
                     ) : (
                         warehouses.map((warehouse) => {
                             return (

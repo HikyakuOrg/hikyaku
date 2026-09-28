@@ -145,13 +145,13 @@ export function TeamMembersList({ canAdd, canEdit, canDelete, roles, permissions
                 <div>
                     <h2 className="text-base font-semibold">Access control</h2>
                     <p className="mt-1 text-sm text-muted-foreground">
-                        Manage team members of your organisation and set their access level.
+                        Add team members and set what they can access.
                     </p>
                 </div>
 
                 <div className="space-y-4">
                     <p className="mt-0.5 text-sm text-muted-foreground">
-                        Learn more about role based access control in our{" "}<a
+                        Read more about roles and permissions in our{" "}<a
                             href="https://docs.whendan.com/docs/security-and-access"
                             target="_blank"
                             className="text-primary underline"

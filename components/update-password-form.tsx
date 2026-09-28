@@ -26,8 +26,7 @@ export function UpdatePasswordForm({ className, ...props }: React.ComponentProps
       const { data, error } = await supabase.auth.updateUser({ password })
       if (error) throw error
       if (!data.user) throw new Error('No user returned after updating the password')
-      // The reset link already established a session, so the org lookup is
-      // authorised, so land on the dashboard the same way login does.
+      // The reset link created a session, so go to the dashboard like login does.
       router.push(await resolveAuthenticatedDestination(supabase, data.user.id))
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An error occurred')

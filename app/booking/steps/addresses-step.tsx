@@ -203,9 +203,8 @@ export function AddressesStep({
         name: "recipients",
     })
 
-    // Building-escalation soft block, tracked per address (sender + each
-    // recipient by its stable useFieldArray id) so one unresolved address
-    // holds up the step regardless of how many others are already clear.
+    // An open building prompt blocks the step. Track it per address: the
+    // sender, and each recipient by its field id.
     const [blockedKeys, setBlockedKeys] = useState<ReadonlySet<string>>(new Set())
     const handleBlockedChange = useCallback((key: string, blocked: boolean) => {
         setBlockedKeys((prev) => {
@@ -294,7 +293,7 @@ export function AddressesStep({
                 <div className="flex items-center gap-3">
                     {isAnyAddressBlocked && (
                         <p className="text-sm text-muted-foreground">
-                            Resolve the building prompts above to continue.
+                            Complete the building details above to continue.
                         </p>
                     )}
                     <Button type="submit" disabled={isAnyAddressBlocked}>Next</Button>

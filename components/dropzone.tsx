@@ -89,7 +89,7 @@ const DropzoneContent = ({ className }: { className?: string }) => {
       <div className={cn("flex flex-row items-center gap-x-2 justify-center", className)}>
         <CheckCircle size={16} className="text-primary" />
         <p className="text-primary text-sm">
-          Successfully uploaded {files.length} file{files.length > 1 ? 's' : ''}
+          Uploaded {files.length} file{files.length > 1 ? 's' : ''}
         </p>
       </div>
     )
@@ -126,17 +126,17 @@ const DropzoneContent = ({ className }: { className?: string }) => {
                   {file.errors
                     .map((e) =>
                       e.message.startsWith('File is larger than')
-                        ? `File is larger than ${formatBytes(maxFileSize, 2)} (Size: ${formatBytes(file.size, 2)})`
+                        ? `This file is ${formatBytes(file.size, 2)}. The limit is ${formatBytes(maxFileSize, 2)}.`
                         : e.message
                     )
                     .join(', ')}
                 </p>
               ) : loading && !isSuccessfullyUploaded ? (
-                <p className="text-xs text-muted-foreground">Uploading file...</p>
+                <p className="text-xs text-muted-foreground">Uploading…</p>
               ) : !!fileError ? (
-                <p className="text-xs text-destructive">Failed to upload: {fileError.message}</p>
+                <p className="text-xs text-destructive">Could not upload: {fileError.message}</p>
               ) : isSuccessfullyUploaded ? (
-                <p className="text-xs text-primary">Successfully uploaded file</p>
+                <p className="text-xs text-primary">Uploaded</p>
               ) : (
                 <p className="text-xs text-muted-foreground">{formatBytes(file.size, 2)}</p>
               )}
@@ -157,7 +157,7 @@ const DropzoneContent = ({ className }: { className?: string }) => {
       })}
       {exceedMaxFiles && (
         <p className="text-sm text-start mt-2 text-destructive">
-          You may upload only up to {maxFiles} files, please remove {files.length - maxFiles} file
+          You can upload {maxFiles} files at most. Remove {files.length - maxFiles} file
           {files.length - maxFiles > 1 ? 's' : ''}.
         </p>
       )}

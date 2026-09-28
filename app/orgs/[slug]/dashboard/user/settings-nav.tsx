@@ -15,7 +15,7 @@ export function SettingsNav({
 }: {
     /** Business Information only applies to company orgs. */
     showBusinessInformation: boolean
-    /** OAuth token issuance is organisation-only — personal accounts never see the tab. */
+    /** Only for users in a company org. */
     showConnectedApps: boolean
 }) {
     const pathname = usePathname()

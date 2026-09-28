@@ -7,8 +7,7 @@ import { PendingInvitationsDialog } from '@/components/pending-invitations-dialo
 import { listPendingInvitations } from '@/lib/actions/invitations'
 
 export default function OrgsResolverPage() {
-    // Pure server-side resolver: reads the session (cookies) and redirects. That
-    // request-time work must sit inside a <Suspense> boundary (cacheComponents).
+    // Reads the session and redirects. This must be inside <Suspense> (cacheComponents).
     return (
         <Suspense fallback={null}>
             <OrgsResolver />
@@ -35,9 +34,7 @@ async function OrgsResolver() {
         return <PendingInvitationsDialog invitations={invitations} />
     }
 
-    // No org yet (the handle_new_user() signup trigger hasn't landed, or this
-    // account predates it) — create the personal org now rather than bouncing
-    // to the "name your company" form.
+    // No org yet (signup did not create one), so create the personal org.
     const created = await createOrganisation(null, 'personal')
     redirect(typeof created === 'string' ? '/orgs/new' : orgPath(created.slug, '/dashboard'))
 }

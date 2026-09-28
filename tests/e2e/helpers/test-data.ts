@@ -7,7 +7,7 @@ export function uniqueOrgName(prefix = "Test-Org"): string {
 export function uniqueSignupEmail(localPrefix = "signup"): string {
     const domain = process.env.RESEND_INBOUND_DOMAIN
     if (!domain) {
-        throw new Error("RESEND_INBOUND_DOMAIN not set — required by tests/e2e/helpers/test-data.ts")
+        throw new Error("RESEND_INBOUND_DOMAIN is not set. tests/e2e/helpers/test-data.ts needs it.")
     }
     return `${localPrefix}-${Date.now()}-${faker.string.alphanumeric({ length: 6, casing: "lower" })}@${domain}`
 }

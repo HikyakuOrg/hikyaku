@@ -56,7 +56,7 @@ export function PackageImages({ packageId }: PackageImagesProps) {
                 </div>
                 <h3 className="font-semibold text-base mb-1">No Photos</h3>
                 <p className="text-sm text-muted-foreground max-w-[200px]">
-                    No photos have been uploaded for this package yet.
+                    This package has no photos yet.
                 </p>
             </div>
         )
@@ -70,7 +70,7 @@ export function PackageImages({ packageId }: PackageImagesProps) {
                 </div>
                 <div>
                     <h3 className="font-semibold text-sm">Package Photos</h3>
-                    <p className="text-xs text-muted-foreground">{images.length} {images.length === 1 ? 'photo' : 'photos'} available</p>
+                    <p className="text-xs text-muted-foreground">{images.length} {images.length === 1 ? 'photo' : 'photos'}</p>
                 </div>
             </div>
 

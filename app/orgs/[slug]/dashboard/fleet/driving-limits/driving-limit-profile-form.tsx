@@ -54,7 +54,7 @@ const LIMIT_FIELDS: LimitField[] = [
         dimension: "working",
         label: "Working time",
         unit: "hours",
-        description: "Depot to depot, including the 15 minutes booked at every stop.",
+        description: "Depot to depot, including 15 minutes at each stop.",
         inputMode: "decimal",
         invalidNumber: "Enter a number of hours, like 10 or 7.5.",
     },
@@ -62,7 +62,7 @@ const LIMIT_FIELDS: LimitField[] = [
         dimension: "driving",
         label: "Driving time",
         unit: "hours",
-        description: "Time on the road only. Time spent at stops does not count.",
+        description: "Time on the road only. Time at stops does not count.",
         inputMode: "decimal",
         invalidNumber: "Enter a number of hours, like 8 or 6.5.",
     },
@@ -78,7 +78,7 @@ const LIMIT_FIELDS: LimitField[] = [
         dimension: "stops",
         label: "Stops",
         unit: "stops",
-        description: `Deliveries on one shift. The planner never plans more than ${MAX_STOPS_CEILING}, so this can only lower that.`,
+        description: `Deliveries on one shift. The maximum is ${MAX_STOPS_CEILING}.`,
         inputMode: "numeric",
         invalidNumber: "Enter a whole number of stops, like 40.",
     },
@@ -91,13 +91,8 @@ type ParsedLimit = { ok: true; value: number | null } | { ok: false; error: stri
 const EMPTY_INPUTS: LimitInputs = { working: "", driving: "", distance: "", stops: "" }
 
 /**
- * The form edge of the unit rule: hours and kilometres in, seconds and metres
- * out. Nothing after this function converts anything.
- *
- * Blank is its own answer, "no limit", and is never read as zero. Zero itself
- * is refused with a sentence pointing back at blank, because a dispatcher who
- * types 0 almost certainly meant "no limit" and the database would refuse it
- * anyway.
+ * Converts hours and kilometres to seconds and metres. Blank means no limit.
+ * Zero is refused: the user probably meant no limit.
  */
 function parseLimit(field: LimitField, text: string): ParsedLimit {
     const trimmed = text.trim()
@@ -115,12 +110,11 @@ function parseLimit(field: LimitField, text: string): ParsedLimit {
         if (!Number.isInteger(number)) {
             return { ok: false, error: field.invalidNumber }
         }
-        // Said here rather than left to driving_limit_profile_max_stops_chk, so
-        // the dispatcher reads why instead of a constraint name.
+        // Explain here, not with a database constraint error.
         if (number > MAX_STOPS_CEILING) {
             return {
                 ok: false,
-                error: `At most ${MAX_STOPS_CEILING}. The planner never puts more than ${MAX_STOPS_CEILING} stops on one shift, so a stop limit can only lower that.`,
+                error: `At most ${MAX_STOPS_CEILING}. The planner puts no more than ${MAX_STOPS_CEILING} stops on one shift.`,
             }
         }
         return { ok: true, value: number }
@@ -136,7 +130,7 @@ function parseLimit(field: LimitField, text: string): ParsedLimit {
     return { ok: true, value: stored }
 }
 
-/** The form edge the other way: stored seconds and metres as the text each input shows. */
+/** Stored values as input text. */
 function inputsFromValues(values: DrivingLimitValues): LimitInputs {
     return {
         working: secondsToHoursInput(values.max_working_seconds),
@@ -209,10 +203,7 @@ function LimitInput({
                     <InputGroupText>{field.unit}</InputGroupText>
                 </InputGroupAddon>
             </InputGroup>
-            {/* The blank state is spelled out rather than left to the placeholder:
-                "no limit" versus "not filled in yet" is the distinction this whole
-                form exists to make, and a placeholder disappears the moment the
-                field has focus. */}
+            {/* Always state "No limit": the placeholder hides on focus. */}
             <p
                 id={statusId}
                 className={cn(
@@ -229,7 +220,7 @@ function LimitInput({
                         No limit on {lowerLabel}
                     </>
                 ) : (
-                    `Capped at ${formatDimensionValue(field.dimension, parsed.value)}`
+                    `Maximum ${formatDimensionValue(field.dimension, parsed.value)}`
                 )}
             </p>
             <p className="text-xs text-muted-foreground">{field.description}</p>
@@ -240,11 +231,7 @@ function LimitInput({
 type DrivingLimitProfileFormProps = {
     /** The profile being edited. Absent when creating one. */
     profile?: DrivingLimitProfile
-    /**
-     * Whether the signed-in user holds `drivers.update`. Resolved server-side by
-     * the page. UI gating only: the RLS policies on `driving_limit_profile` are
-     * what actually refuse the write.
-     */
+    /** Whether the user has `drivers.update`. For the UI only; RLS enforces it. */
     canEdit: boolean
 }
 
@@ -274,8 +261,7 @@ export function DrivingLimitProfileForm({ profile, canEdit }: DrivingLimitProfil
         setInputs(inputsFromValues(template.values))
         setTemplateKey(template.key)
 
-        // Keep a name the dispatcher typed themselves; replace one that only
-        // ever came from the template picked before this one.
+        // Keep a name the user typed. Replace a name from the previous template.
         const previousTemplateName = DRIVING_LIMIT_TEMPLATES.find((candidate) => candidate.key === templateKey)?.name
         if (name.trim() === "" || name === previousTemplateName) {
             setName(template.name)
@@ -313,9 +299,7 @@ export function DrivingLimitProfileForm({ profile, canEdit }: DrivingLimitProfil
 
             toast.success(isCreating ? `"${trimmedName}" created.` : `"${trimmedName}" saved.`)
 
-            // This page's state outlives the navigation away from it, so a
-            // create form cleared now is not still holding this profile the
-            // next time "Add Profile" opens it.
+            // Clear the form: its state stays after navigation.
             if (isCreating) {
                 setName("")
                 setInputs(EMPTY_INPUTS)
@@ -325,15 +309,14 @@ export function DrivingLimitProfileForm({ profile, canEdit }: DrivingLimitProfil
             router.push(listHref)
             router.refresh()
         } catch (error) {
-            // Names are unique among live profiles in one organisation, which is
-            // something to fix on the name field, not in a toast.
+            // Show a name clash on the field.
             if (isUniqueViolationError(error)) {
                 setNameError(`This organisation already has a profile named "${trimmedName}".`)
                 return
             }
 
             console.error(error)
-            toast.error(describeWriteError(error, DRIVERS_UPDATE, "Failed to save the profile."))
+            toast.error(describeWriteError(error, DRIVERS_UPDATE, "Could not save the profile."))
         } finally {
             setIsSubmitting(false)
         }
@@ -355,9 +338,8 @@ export function DrivingLimitProfileForm({ profile, canEdit }: DrivingLimitProfil
                     <CardHeader>
                         <CardTitle>Start from a template</CardTitle>
                         <CardDescription>
-                            Illustrative starting points, not recommendations, and not a statement of what any
-                            fatigue or working-time rule requires. Picking one fills in the form below. From then
-                            on it is your profile: every number, and the name, is yours to change.
+                            Examples only. They do not follow any fatigue or working-time law. A template fills in
+                            the form below, and you can change every value.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -390,7 +372,7 @@ export function DrivingLimitProfileForm({ profile, canEdit }: DrivingLimitProfil
                 <CardHeader>
                     <CardTitle>Profile</CardTitle>
                     <CardDescription>
-                        A name dispatchers will recognise when they point a driver at this profile.
+                        A name that dispatchers know.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -421,8 +403,7 @@ export function DrivingLimitProfileForm({ profile, canEdit }: DrivingLimitProfil
                 <CardHeader>
                     <CardTitle>Limits</CardTitle>
                     <CardDescription>
-                        Every limit is optional. Leave a field blank for no limit on that dimension: blank is not
-                        zero, and a driver on this profile is only held to the limits you fill in.
+                        All limits are optional. Leave a field blank for no limit.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -444,15 +425,14 @@ export function DrivingLimitProfileForm({ profile, canEdit }: DrivingLimitProfil
                             className="rounded-md border bg-muted/20 px-4 py-3 text-sm text-muted-foreground"
                             data-testid="driving-limit-all-blank-note"
                         >
-                            Every field is blank, so this profile sets no limits. Drivers on it are planned
-                            exactly as they would be with no profile at all.
+                            All fields are blank, so this profile has no limits.
                         </p>
                     )}
 
                     {drivingNeverBinds && (
                         <p className="rounded-md border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-                            The driving-time limit is not below the working-time limit, so it will never be the
-                            one that stops a shift: driving time is part of working time.
+                            The driving time limit is not less than the working time limit, so it has no effect.
+                            Driving time is part of working time.
                         </p>
                     )}
                 </CardContent>

@@ -26,8 +26,7 @@ export interface TrackingTimelineEntry {
     created_at: string
 }
 
-/** Driver identity — only populated while the package is IN_TRANSIT. Plate and
- *  label are omitted for bicycle couriers. */
+/** The driver. Set only while the package is IN_TRANSIT. No plate or label for bicycles. */
 export interface TrackingDriver {
     name: string | null
     vehicle_type: string | null

@@ -7,12 +7,7 @@ import { createBillingPortalSession } from "@/lib/actions/billing"
 import { getErrorMessage } from "@/lib/utils"
 import { toast } from "sonner"
 
-/**
- * Redirects to Stripe's hosted Billing Portal. This is the one persistent,
- * discoverable entry point to add/update a payment method or view invoices —
- * the only other place that links here (the driver-shift Overview step) only
- * appears once the free allowance is already exhausted.
- */
+/** Opens the Stripe Billing Portal to change the payment method or see invoices. */
 export function ManageBillingButton() {
     const [isLoading, setIsLoading] = useState(false)
 
@@ -26,7 +21,7 @@ export function ManageBillingButton() {
             }
             window.location.href = result.url
         } catch (err) {
-            toast.error(getErrorMessage(err) || "Failed to open the billing portal")
+            toast.error(getErrorMessage(err) || "Could not open the billing portal.")
         } finally {
             setIsLoading(false)
         }

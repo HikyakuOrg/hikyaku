@@ -52,14 +52,14 @@ export function WarehouseVehicleSheet({ warehouseId, onVehicleAdded, vehicleType
         <Sheet>
             <SheetTrigger>
                 <Button>
-                    Attach Vehicle
+                    Add Vehicles
                 </Button>
             </SheetTrigger>
             <SheetContent>
                 <SheetHeader>
-                    <SheetTitle>Assign Vehicle</SheetTitle>
+                    <SheetTitle>Add Vehicles</SheetTitle>
                     <SheetDescription>
-                        Assign a vehicle to this warehouse.
+                        Select vehicles to add to this warehouse.
                     </SheetDescription>
                 </SheetHeader>
                 <div className="flex-1 overflow-y-auto py-4">
@@ -114,7 +114,7 @@ export function WarehouseVehicleSheet({ warehouseId, onVehicleAdded, vehicleType
                                     updateVehiclesWarehouse(selectedIds, warehouseId)
                                     setRowSelection({})
                                     setVehicles(prev => prev.filter(v => !selectedIds.includes(v.id)))
-                                    toast.success("Vehicles added successfully", { position: "bottom-right" })
+                                    toast.success("Vehicles added.", { position: "bottom-right" })
                                     onVehicleAdded(selectedIds)
                                 }}>
                                     Add Selected

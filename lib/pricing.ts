@@ -1,7 +1,7 @@
 import { formatCurrency } from "@/lib/currency"
 import type { CreateServiceDtoPricingUnitEnum } from "@/lib/api"
 
-/** Billing units the catalog endpoints accept, from the generated OpenAPI models. */
+/** Billing units the catalog endpoints accept. */
 export type PricingUnit = CreateServiceDtoPricingUnitEnum
 
 /** Options for the "Billed per" selector, in menu order. */
@@ -32,11 +32,7 @@ export function unitSuffix(unit: string): string {
     }
 }
 
-/**
- * Convert Stripe integer minor units to a major-unit number for display. Uses
- * the currency's own fraction-digit count, which matches Stripe for every
- * currency this product can charge in (usd/gbp/eur are all two-decimal).
- */
+/** Stripe minor units (cents) to major units (dollars), using the currency's decimals. */
 export function minorToMajor(amountMinor: number, currency: string): number {
     const digits =
         new Intl.NumberFormat("default", { style: "currency", currency })

@@ -29,11 +29,7 @@ type ServiceAreasExplorerProps = {
     canEdit: boolean
 }
 
-/**
- * Owns the state the map and the list share: which areas are picked, where the
- * camera should go, and what a delete has already removed. Neither of the two
- * can hold it, so it sits in the one component that renders both.
- */
+/** Holds the state the map and the list share: selection, camera and deletes. */
 export function ServiceAreasExplorer({
     slug,
     initialAreas,
@@ -49,17 +45,13 @@ export function ServiceAreasExplorer({
     const [pendingDeleteAreas, setPendingDeleteAreas] = useState<ServiceAreaListItem[]>([])
     const [isDeleting, setIsDeleting] = useState(false)
 
-    // Both surfaces open the area's detail page, where its coverage is staffed.
-    // Redrawing the boundary is a separate route reached from there, because
-    // "who covers this" is the question somebody has when they open an area, and
-    // dropping them straight into a drawing tool answered a different one.
+    // Open the area's detail page. The boundary editor opens from there.
     const openArea = (id: string) => {
         router.push(`/orgs/${slug}/dashboard/service/areas/${id}`)
     }
 
-    // Ticking in the list also moves the camera onto what was just ticked, since
-    // it is usually not on screen. Unticking leaves the view alone, and so does
-    // picking on the map: that area is already in view.
+    // Ticking in the list moves the map to the new areas. Unticking and map
+    // clicks do not move it.
     const handleSelectFromTable = (ids: string[]) => {
         const addedAreas = areas.filter((area) => ids.includes(area.id) && !selectedAreaIds.includes(area.id))
 
@@ -74,9 +66,7 @@ export function ServiceAreasExplorer({
     const handleSelectFromMap = (id: string) => {
         setSelectedAreaIds((current) => (current.includes(id) ? current : [...current, id]))
 
-        // Follow the pick into the list. The polygon that was clicked can be
-        // listed on a page nobody is looking at, and seeing which row it is is
-        // the whole point of highlighting it.
+        // Go to the list page that shows the clicked area.
         const index = areas.findIndex((area) => area.id === id)
         if (index >= 0) {
             setPage(Math.floor(index / SERVICE_AREAS_PAGE_SIZE) + 1)
@@ -93,9 +83,7 @@ export function ServiceAreasExplorer({
         setIsDeleting(true)
 
         try {
-            // Awaited before anything else happens. Dropping the rows first and
-            // reporting success alongside the request would report a refused
-            // write as a success and leave the list disagreeing with the table.
+            // Wait for the result: RLS can refuse the write without an error.
             const retiredIds = await deleteServiceAreas(requested.map((area) => area.id))
             const missedCount = requested.length - retiredIds.length
 
@@ -107,37 +95,30 @@ export function ServiceAreasExplorer({
                     current,
                     Math.max(1, Math.ceil(remainingAreas.length / SERVICE_AREAS_PAGE_SIZE))
                 ))
-                // The map serves a viewport it has already fetched from cache, so
-                // ask it to re-read or the retired polygons stay drawn.
+                // The map caches viewports, so tell it to reload.
                 setMapRefreshToken((current) => current + 1)
                 toast.success(
                     retiredIds.length === 1
                         ? `"${requested.find((area) => area.id === retiredIds[0])?.name}" deleted.`
                         : `${retiredIds.length} service areas deleted.`
                 )
-                // The empty state is decided server-side, so let the page re-read
-                // now that these rows are retired.
+                // The server decides the empty state.
                 router.refresh()
             }
 
             if (missedCount > 0) {
-                // A refused UPDATE matches zero rows instead of raising, so the
-                // shortfall is ambiguous: already removed, or out of reach. Say
-                // both rather than assert the wrong one.
+                // Zero rows: already deleted, or the permission was removed.
                 toast.error(
                     missedCount === 1
-                        ? `1 service area was not deleted. It may already have been removed, or your "${SERVICE_AREAS_EDIT}" permission may have been revoked. Reload the page and try again.`
-                        : `${missedCount} service areas were not deleted. They may already have been removed, or your "${SERVICE_AREAS_EDIT}" permission may have been revoked. Reload the page and try again.`
+                        ? `1 service area was not deleted. Someone may have deleted it, or you no longer have the "${SERVICE_AREAS_EDIT}" permission. Reload the page and try again.`
+                        : `${missedCount} service areas were not deleted. Someone may have deleted them, or you no longer have the "${SERVICE_AREAS_EDIT}" permission. Reload the page and try again.`
                 )
             }
 
             setPendingDeleteAreas([])
         } catch (error) {
             console.error(error)
-            // Hiding the control is UX; RLS is the boundary, and it can still
-            // refuse a write (a permission revoked after this page rendered), so
-            // translate the PostgREST code rather than show the raw string.
-            toast.error(describeWriteError(error, SERVICE_AREAS_EDIT, "Failed to delete the service areas."))
+            toast.error(describeWriteError(error, SERVICE_AREAS_EDIT, "Could not delete the service areas."))
         } finally {
             setIsDeleting(false)
         }
@@ -148,7 +129,6 @@ export function ServiceAreasExplorer({
         ? `Delete "${singlePendingName}"?`
         : `Delete ${pendingDeleteAreas.length} service areas?`
     const deleteSubject = singlePendingName !== null ? `"${singlePendingName}"` : "These areas"
-    const deleteVerb = singlePendingName !== null ? "stops" : "stop"
 
     return (
         <div className="space-y-6">
@@ -186,11 +166,10 @@ export function ServiceAreasExplorer({
                             {deleteTitle}
                         </AlertDialogTitle>
                         <AlertDialogDescription data-testid="service-area-delete-confirmation-description">
-                            {`${deleteSubject} ${deleteVerb} appearing on your coverage map and in this list. Packages that have already been booked keep the coverage they were created with, so work in progress is unaffected.`}
+                            {`${deleteSubject} will be removed from the map and this list. Packages that are already booked do not change.`}
                         </AlertDialogDescription>
                         {singlePendingName === null ? (
-                            // Naming every area is the safeguard: ticked rows can sit
-                            // on pages nobody is looking at.
+                            // Name every area: some can be on other pages.
                             <ul
                                 className="max-h-48 list-disc space-y-1 overflow-y-auto pl-5 text-sm"
                                 data-testid="service-area-delete-confirmation-list"

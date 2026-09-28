@@ -112,7 +112,7 @@ function CatalogItemFields({
                             <Label>Billed per</Label>
                             <Select value={field.value} onValueChange={field.onChange}>
                                 <SelectTrigger>
-                                    {/* base-ui renders the raw value by default — map it to the friendly label. */}
+                                    {/* Show the label, not the raw value. */}
                                     <SelectValue>
                                         {(value: string) =>
                                             PRICING_UNIT_OPTIONS.find((o) => o.value === value)?.label}
@@ -182,7 +182,7 @@ function NewServiceDialog({ currency, onDone }: { currency: string; onDone: () =
                 toast.error(result.error)
                 return
             }
-            toast.success("Service created")
+            toast.success("Service created.")
             reset()
             setOpen(false)
             onDone()
@@ -196,7 +196,7 @@ function NewServiceDialog({ currency, onDone }: { currency: string; onDone: () =
                 <DialogHeader>
                     <DialogTitle>New Service</DialogTitle>
                     <DialogDescription>
-                        Charged in {currency.toUpperCase()}. Add optional extras after creating it.
+                        Charged in {currency.toUpperCase()}. You can add extras after you create it.
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit(submit)} className="space-y-4">
@@ -245,7 +245,7 @@ function AddAddonDialog({
                 toast.error(result.error)
                 return
             }
-            toast.success("Add-on created")
+            toast.success("Add-on created.")
             reset()
             setOpen(false)
             onDone()
@@ -378,7 +378,7 @@ function EditItemDialog({
                 toast.error(result.error)
                 return
             }
-            toast.success("Changes saved")
+            toast.success("Changes saved.")
             setOpen(false)
             onDone()
         })
@@ -435,7 +435,7 @@ function AddonRow({ addon, onDone }: { addon: CatalogAddon; onDone: () => void }
                             toast.error(result.error)
                             return
                         }
-                        toast.success("Add-on deleted")
+                        toast.success("Add-on deleted.")
                         onDone()
                     }}
                 />
@@ -478,7 +478,7 @@ function ServiceCard({
                                 toast.error(result.error)
                                 return
                             }
-                            toast.success("Service deleted")
+                            toast.success("Service deleted.")
                             onDone()
                         }}
                     />
@@ -508,7 +508,7 @@ export function ServicesManager({ catalog }: { slug: string; catalog: ServiceCat
     const router = useRouter()
     const [currency, setCurrency] = useState("usd")
 
-    // Prefill the new-service currency hint from the connected account.
+    // Use the connected account's currency.
     useEffect(() => {
         getConnectStatus().then((result) => {
             if (result.success && result.data.currency) setCurrency(result.data.currency)
@@ -524,7 +524,7 @@ export function ServicesManager({ catalog }: { slug: string; catalog: ServiceCat
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Service Rates</h1>
                     <p className="text-muted-foreground mt-2">
-                        Unit-priced services and add-ons customers choose at booking.
+                        The services and add-ons that customers choose when they book.
                     </p>
                 </div>
                 <NewServiceDialog currency={currency} onDone={refresh} />
@@ -532,7 +532,7 @@ export function ServicesManager({ catalog }: { slug: string; catalog: ServiceCat
 
             {services.length === 0 ? (
                 <div className="py-20 text-center">
-                    <p className="text-muted-foreground">No services have been created yet.</p>
+                    <p className="text-muted-foreground">No services yet.</p>
                 </div>
             ) : (
                 <div className="grid gap-4">

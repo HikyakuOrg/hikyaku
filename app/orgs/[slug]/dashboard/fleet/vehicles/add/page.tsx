@@ -10,9 +10,8 @@ import { createClient } from '@/lib/supabase/client'
 import { VehicleForm, VehicleFormValues } from '../components/vehicle-form'
 
 /**
- * Undo a vehicle whose skills or images failed to save, so the add form stays
- * all or nothing. Returns false when the row could not be removed (the user
- * can add vehicles but not delete them), leaving it for the next attempt.
+ * Remove a vehicle whose skills or photos did not save. Returns false when it
+ * cannot be removed (no delete permission); the next save then updates it.
  */
 async function rollBackVehicle(vehicleId: string, uploadedPaths: string[]) {
     try {
@@ -30,9 +29,8 @@ export default function AddVehiclePage() {
     const router = useRouter()
     const { slug } = useParams() as { slug: string }
     const [isSubmitting, setIsSubmitting] = useState(false)
-    // A vehicle an earlier attempt inserted but could not roll back. Saving
-    // again finishes that row instead of inserting a second one, which would
-    // also trip the unique plate.
+    // A vehicle from an earlier try that could not be removed. Saving again
+    // updates it, so there is no second vehicle with the same plate.
     const strandedVehicleId = useRef<string | null>(null)
 
     const handleSubmit = async (values: VehicleFormValues, newFiles: File[]) => {
@@ -60,8 +58,8 @@ export default function AddVehiclePage() {
             failedStep = 'skills'
             await setVehicleSkills(vehicleId, skillIds)
 
-            // 3. Upload images if any. Settle every upload before failing so
-            // the rollback knows each path that did land.
+            // 3. Upload photos. Wait for all uploads, so the rollback knows
+            // which files to remove.
             failedStep = 'images'
             if (newFiles.length > 0) {
                 const supabase = createClient()
@@ -82,23 +80,23 @@ export default function AddVehiclePage() {
             }
 
             strandedVehicleId.current = null
-            toast.success('Vehicle added successfully')
+            toast.success('Vehicle added.')
             router.push(`/orgs/${slug}/dashboard/fleet/vehicles`)
         } catch (error) {
             const reason = getErrorMessage(error)
             if (failedStep === 'vehicle') {
-                toast.error(reason || 'Failed to add vehicle')
+                toast.error(reason || 'Could not add the vehicle.')
                 return
             }
 
             const rolledBack = await rollBackVehicle(vehicleId!, uploadedPaths)
             strandedVehicleId.current = rolledBack ? null : vehicleId
             if (rolledBack) {
-                toast.error(`Couldn't save the vehicle's ${failedStep}, so it was not added.`, {
+                toast.error(`Could not save the vehicle's ${failedStep}. The vehicle was not added.`, {
                     description: reason
                 })
             } else {
-                toast.error(`Couldn't save the vehicle's ${failedStep}. Saving again will finish it rather than add another.`, {
+                toast.error(`Could not save the vehicle's ${failedStep}. Save again to finish adding this vehicle.`, {
                     description: reason
                 })
             }
@@ -112,7 +110,7 @@ export default function AddVehiclePage() {
             <div className="flex items-center gap-4 mb-2">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Add New Vehicle</h1>
-                    <p className="text-muted-foreground">Expand your fleet by adding a new vehicle record.</p>
+                    <p className="text-muted-foreground">Enter the details of the new vehicle.</p>
                 </div>
             </div>
 
@@ -120,7 +118,7 @@ export default function AddVehiclePage() {
                 onSubmit={handleSubmit}
                 isSubmitting={isSubmitting}
                 title="Add New Vehicle"
-                description="Expand your fleet by adding a new vehicle record."
+                description="Enter the details of the new vehicle."
                 submitLabel="Save Vehicle"
             />
         </div>

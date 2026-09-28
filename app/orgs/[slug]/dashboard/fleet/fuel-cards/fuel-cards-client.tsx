@@ -78,14 +78,13 @@ interface VehicleOption {
 }
 
 const SUPPORTED_CURRENCIES = [
-    { code: "usd", label: "USD — US Dollar" },
-    { code: "eur", label: "EUR — Euro" },
-    { code: "gbp", label: "GBP — British Pound" },
+    { code: "usd", label: "USD (US Dollar)" },
+    { code: "eur", label: "EUR (Euro)" },
+    { code: "gbp", label: "GBP (British Pound)" },
 ]
 
-// `satisfies` rejects a value the API does not accept; the Record below is
-// exhaustive, so an interval added backend-side fails the build until it is
-// given a label here.
+// `satisfies` and the exhaustive Record below fail the build when the API
+// adds an interval without a label here.
 const SPENDING_INTERVAL_VALUES = [
     "per_authorization",
     "daily",
@@ -118,7 +117,7 @@ const issueSchema = z.object({
         .optional()
         .refine(
             (val) => !val || (!isNaN(Number(val)) && Number(val) > 0),
-            "Must be a positive number",
+            "Enter a number more than 0",
         ),
     interval: z.enum(SPENDING_INTERVAL_VALUES).optional(),
 })
@@ -191,8 +190,7 @@ function IssueCardDialog({
 
     const onSubmit = (values: IssueFormValues) => {
         startTransition(async () => {
-            // The API treats these as optional, not nullable: omit them rather
-            // than sending null, so the body matches IssueCardDto.
+            // Omit empty optional fields; do not send null.
             const limitMajor =
                 values.spendingLimitMajor && values.spendingLimitMajor !== ""
                     ? Number(values.spendingLimitMajor)
@@ -208,7 +206,7 @@ function IssueCardDialog({
                 toast.error(result.error)
                 return
             }
-            toast.success("Fuel card issued successfully")
+            toast.success("Fuel card issued.")
             form.reset()
             onOpenChange(false)
             onIssued()
@@ -221,7 +219,7 @@ function IssueCardDialog({
                 <DialogHeader>
                     <DialogTitle>Issue Fuel Card</DialogTitle>
                     <DialogDescription>
-                        Issue a virtual fuel card restricted to fuel merchants. The card can be added to Apple or Google Pay.
+                        A virtual card that works only at fuel stations. Drivers can add it to Apple Pay or Google Pay.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -452,10 +450,10 @@ export function FuelCardsClient() {
             setCards((prev) => prev.map((c) => (c.id === card.id ? result.data : c)))
             toast.success(
                 status === "inactive"
-                    ? "Card frozen"
+                    ? "Card frozen."
                     : status === "active"
-                      ? "Card unfrozen"
-                      : "Card canceled",
+                      ? "Card unfrozen."
+                      : "Card canceled.",
             )
         })
     }
@@ -474,10 +472,9 @@ export function FuelCardsClient() {
             {!issuingActive && (
                 <Alert>
                     <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Card issuing isn&apos;t active</AlertTitle>
+                    <AlertTitle>Card issuing is not active yet</AlertTitle>
                     <AlertDescription>
-                        Card issuing for your organisation is not yet active. This
-                        activates automatically once Stripe has verified your account.
+                        It starts automatically after Stripe verifies your account.
                     </AlertDescription>
                 </Alert>
             )}
@@ -580,7 +577,7 @@ export function FuelCardsClient() {
                     {transactions.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
                             <Fuel className="h-10 w-10 opacity-30" />
-                            <p>No transactions recorded yet.</p>
+                            <p>No transactions yet.</p>
                         </div>
                     ) : (
                         <div className="rounded-md border">
@@ -619,7 +616,7 @@ export function FuelCardsClient() {
                                                 {txn.type === "refund" ? (
                                                     <Badge variant="secondary">Refund</Badge>
                                                 ) : (
-                                                    <Badge variant="outline">Capture</Badge>
+                                                    <Badge variant="outline">Purchase</Badge>
                                                 )}
                                             </TableCell>
                                             <TableCell className="text-right font-mono">
@@ -655,8 +652,8 @@ export function FuelCardsClient() {
                             <CardTitle>Issuing balance</CardTitle>
                         </div>
                         <CardDescription>
-                            Funds available to spend on cards. Top up from your organisation&apos;s
-                            bank account using the instructions below.
+                            Money available for card payments. To add money, use the bank transfer
+                            details below.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -696,8 +693,8 @@ function FundingDetails({ funding }: { funding: FundingInstructions }) {
     return (
         <div className="rounded-md border p-4 space-y-4 text-sm">
             <p className="text-muted-foreground">
-                Send a bank transfer from your organisation&apos;s bank account to the
-                details below. Funds appear in your Issuing balance once received.
+                Send a bank transfer to these details. The money shows in your issuing balance
+                when it arrives.
             </p>
             {funding.bank_transfer.financial_addresses.map((addr, i) => {
                 const type = String(addr.type ?? "")

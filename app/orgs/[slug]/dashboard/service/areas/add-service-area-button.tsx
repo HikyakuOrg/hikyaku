@@ -13,7 +13,7 @@ import { SERVICE_AREAS_EDIT, permissionRequiredMessage } from "@/lib/permissions
 
 type AddServiceAreaButtonProps = {
     slug: string
-    /** Resolved server-side on the page; never re-checked from the browser. */
+    /** Checked on the server by the page. */
     canEdit: boolean
 }
 

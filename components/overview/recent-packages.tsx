@@ -32,7 +32,7 @@ export function RecentPackages({ packages, slug }: RecentPackagesProps) {
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                     <CardTitle>Recent Packages</CardTitle>
-                    <p className="text-sm text-muted-foreground">Latest package updates across the network</p>
+                    <p className="text-sm text-muted-foreground">The newest packages</p>
                 </div>
                 <Link
                     href={`/orgs/${slug}/dashboard/packages`}

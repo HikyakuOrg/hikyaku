@@ -1,36 +1,21 @@
 import { PostgrestError } from "@supabase/supabase-js"
 
-/**
- * Permission strings seeded into the `app_permission` table. Add a member here
- * when a screen starts gating on a new one, so callers get a checked union
- * instead of a free-form string that silently never matches.
- */
+/** Permissions from the `app_permission` table. Add one here when a screen needs it. */
 export type OrgPermission = "service_areas.edit" | "drivers.update" | "organisation.edit"
 
-/** Drives the insert/update/delete RLS policies on `service_areas`. */
+/** Needed to insert, update and delete `service_areas` (RLS). */
 export const SERVICE_AREAS_EDIT = "service_areas.edit" satisfies OrgPermission
 
-/**
- * Drives the write RLS policies on `driving_limit_profile`, and the update
- * policy on `drivers`, which is where each driver's profile is pointed at. One
- * permission for both halves on purpose: authoring a profile and assigning a
- * driver to it are the same dispatcher job.
- */
+/** Needed to write `driving_limit_profile` and to update `drivers` (RLS). */
 export const DRIVERS_UPDATE = "drivers.update" satisfies OrgPermission
 
 /**
- * Drives the update RLS policy on `organisations`, which carries the default
- * driving limit profile, and the insert and update policies on
- * `organisation_dispatch_settings`. The organisation's creator passes the
- * `organisations` policy too, and is granted every seeded permission when the
- * organisation is made, so checking the permission alone covers both.
+ * Needed to update `organisations` and `organisation_dispatch_settings` (RLS).
+ * The creator of an organisation gets every permission.
  */
 export const ORGANISATION_EDIT = "organisation.edit" satisfies OrgPermission
 
-/**
- * What each permission lets somebody change, and what a write matching zero
- * rows may have run into, so the sentences below name the right thing.
- */
+/** Text for the error messages below. */
 const PERMISSION_SUBJECTS: Record<OrgPermission, { change: string; missingRow: string }> = {
     "service_areas.edit": {
         change: "change service areas",
@@ -46,33 +31,19 @@ const PERMISSION_SUBJECTS: Record<OrgPermission, { change: string; missingRow: s
     },
 }
 
-/**
- * Postgres `insufficient_privilege`. PostgREST surfaces it for both a plain
- * table-level denial and an INSERT that fails an RLS WITH CHECK clause.
- */
+/** Postgres `insufficient_privilege`: a table denial or an RLS WITH CHECK failure. */
 const INSUFFICIENT_PRIVILEGE = "42501"
 
 /**
- * PostgREST "no (or multiple) rows returned". An UPDATE the RLS USING clause
- * filters out is not an error in Postgres, it simply matches zero rows, so a
- * refused update surfaces here rather than as 42501 whenever the query ends in
- * `.select().single()`.
+ * PostgREST "no rows returned". An UPDATE that RLS refuses matches zero rows,
+ * so with `.select().single()` it gives this code, not 42501.
  */
 const NO_ROWS_RETURNED = "PGRST116"
 
-/**
- * Postgres `unique_violation`. Names are unique per organisation rather than
- * globally (`service_areas.name`, and `driving_limit_profile.name` among
- * profiles that are not deleted), so this means the caller's own org already
- * has one by that name. The same name in another org is not a conflict.
- */
+/** Postgres `unique_violation`. Names are unique per organisation. */
 const UNIQUE_VIOLATION = "23505"
 
-/**
- * The stated reason shown next to a control we have disabled. Keep it in one
- * place so the tooltip, the inline note and the failed-write toast all name the
- * same permission.
- */
+/** The reason shown next to a disabled control and in failed-save messages. */
 export function permissionRequiredMessage(permission: OrgPermission): string {
     return `You do not have permission to ${PERMISSION_SUBJECTS[permission].change}. Ask an organisation admin for the "${permission}" permission.`
 }
@@ -93,20 +64,14 @@ export function isPermissionDeniedError(error: unknown): boolean {
     return /row-level security|permission denied/i.test(postgrest.message ?? "")
 }
 
-/**
- * Whether a failed write collided with a unique index rather than with RLS.
- * Callers use it to put the failure on the offending field instead of in a
- * toast, since a name clash is something the dispatcher can fix in place.
- */
+/** Whether a failed write hit a unique index. Callers show this on the field. */
 export function isUniqueViolationError(error: unknown): boolean {
     return asPostgrestError(error)?.code === UNIQUE_VIOLATION
 }
 
 /**
- * Turn a failed write into a sentence a dispatcher can act on. Defense in depth
- * only: RLS is the real boundary and hiding a control never relaxes it, so this
- * exists purely so a write that slips past the UI gate (a permission revoked
- * mid-session, say) does not surface as a raw PostgREST string.
+ * A failed write as a message a dispatcher can act on, for example when a
+ * permission is removed during a session.
  */
 export function describeWriteError(
     error: unknown,
@@ -117,9 +82,7 @@ export function describeWriteError(
         return permissionRequiredMessage(permission)
     }
 
-    // A refused UPDATE matches zero rows instead of raising, so this code is
-    // ambiguous: the row was either removed or is now out of reach. Say both
-    // rather than assert the wrong one.
+    // Zero rows: the row was deleted, or the permission was removed.
     if (asPostgrestError(error)?.code === NO_ROWS_RETURNED) {
         return `Nothing was saved. ${PERMISSION_SUBJECTS[permission].missingRow}, or your "${permission}" permission may have been revoked. Reload the page and try again.`
     }

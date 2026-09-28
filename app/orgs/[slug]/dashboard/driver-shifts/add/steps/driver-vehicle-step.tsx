@@ -41,8 +41,7 @@ export function DriverVehicleStep({
     const [selectedDvaId, setSelectedDvaId] = useState<string | null>(defaultValues?.dvaId ?? null)
     const [error, setError] = useState<string | null>(null)
 
-    // `loadedKey` marks which warehouse/date the current `pairs` belong to, so the
-    // loading flag is derived instead of being reset synchronously inside the effect.
+    // Derive loading from the loaded warehouse and date, not from a flag set in the effect.
     const requestKey = `${warehouse.warehouseId}|${shiftDate}`
     const [loadedKey, setLoadedKey] = useState<string | null>(null)
     const isLoading = loadedKey !== requestKey
@@ -57,7 +56,7 @@ export function DriverVehicleStep({
             })
             .catch(() => {
                 if (!active) return
-                setError("Failed to load available driver-vehicle pairs.")
+                setError("Could not load drivers and vehicles.")
             })
             .finally(() => {
                 if (!active) return
@@ -72,7 +71,7 @@ export function DriverVehicleStep({
     function handleSubmit() {
         const pair = pairs.find((p) => p.dvaId === selectedDvaId)
         if (!pair) {
-            setError("Please select a driver-vehicle pair to continue.")
+            setError("Select a driver and vehicle.")
             return
         }
         onNext({
@@ -100,7 +99,7 @@ export function DriverVehicleStep({
             <div>
                 <h3 className="scroll-m-20 text-2xl font-semibold tracking-tight">Assign Driver & Vehicle</h3>
                 <p className="text-muted-foreground mt-2 leading-7">
-                    Select an available driver-vehicle pair for this shift. Only pairs not already scheduled on{" "}
+                    Select a driver and vehicle for this shift. Only those free on{" "}
                     {format(parseISO(shiftDate + "T00:00:00"), "MMMM d, yyyy")} are shown.
                 </p>
             </div>
@@ -108,11 +107,11 @@ export function DriverVehicleStep({
             {isLoading ? (
                 <div className="flex items-center justify-center py-12 text-muted-foreground gap-2">
                     <Loader2 className="h-5 w-5 animate-spin" />
-                    Loading available pairs...
+                    Loading drivers and vehicles...
                 </div>
             ) : pairs.length === 0 ? (
                 <div className="rounded-md border border-dashed py-12 text-center text-muted-foreground">
-                    No available driver-vehicle pairs for this date.
+                    No available drivers with vehicles for this date.
                 </div>
             ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -168,7 +167,7 @@ export function DriverVehicleStep({
                                 {expired && (
                                     <div className="mt-2 flex items-center gap-1.5 text-xs text-destructive">
                                         <AlertTriangle className="h-3 w-3" />
-                                        License expired — verify before proceeding
+                                        License expired. Check before you continue.
                                     </div>
                                 )}
                             </button>

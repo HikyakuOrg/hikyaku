@@ -21,7 +21,7 @@ import {
     setDriverDrivingLimitProfile,
 } from "@/lib/supabase/db"
 
-/** The Select's value for "no profile of their own". Profile ids are uuids, so it cannot collide. */
+/** Select value for "no profile of their own". It cannot match a uuid. */
 const NO_PROFILE = "none"
 
 const DIMENSION_COLUMNS: { dimension: LimitDimension; column: keyof DrivingLimitValues }[] = [
@@ -39,17 +39,12 @@ type CardState =
           status: "ready"
           organisationId: string
           profiles: DrivingLimitProfile[]
-          /** Narrowed to a live profile: a driver pointing at a retired one has none. */
+          /** Null when the driver has no live profile. */
           profileId: string | null
           defaultProfile: DrivingLimitProfile | null
       }
 
-/**
- * Which driving limit profile this driver is planned within, and what that
- * resolves to dimension by dimension once the organisation default fills the
- * gaps. Writes `drivers.driving_limit_profile_id` straight through PostgREST
- * under RLS, the same way the service areas card beside it writes its link.
- */
+/** The driver's driving limit profile, and each limit after the organisation default applies. */
 export function DriverDrivingLimitsCard({
     driverId,
     slug,
@@ -104,8 +99,7 @@ export function DriverDrivingLimitsCard({
         setIsSaving(true)
 
         try {
-            // Awaited before the picker moves, so it never shows a profile the
-            // database did not accept.
+            // Change the picker only after the write succeeds.
             await setDriverDrivingLimitProfile(driverId, state.organisationId, nextProfileId)
             setState({ ...state, profileId: nextProfileId })
 
@@ -119,7 +113,7 @@ export function DriverDrivingLimitsCard({
             )
         } catch (error) {
             console.error(error)
-            toast.error(describeWriteError(error, DRIVERS_UPDATE, "Failed to change this driver's driving limits."))
+            toast.error(describeWriteError(error, DRIVERS_UPDATE, "Could not change this driver's driving limits."))
         } finally {
             setIsSaving(false)
         }
@@ -129,9 +123,8 @@ export function DriverDrivingLimitsCard({
         <div>
             <h2 className="font-medium">Driving Limits</h2>
             <p className="max-w-2xl text-sm text-muted-foreground">
-                The limits automatic assignment plans this driver&apos;s shifts within. Without a profile of
-                their own they follow the organisation default. A change applies the next time their shifts
-                are planned, not to plans already made.
+                Automatic assignment plans this driver&apos;s shifts within these limits. Without a profile of
+                their own, the organisation default applies. Changes apply the next time a shift is planned.
             </p>
         </div>
     )
@@ -151,7 +144,7 @@ export function DriverDrivingLimitsCard({
                 {heading}
                 <div className="flex h-24 w-full items-center justify-center rounded-md border border-destructive/40 bg-destructive/5 px-6 text-center">
                     <div className="space-y-2">
-                        <p className="text-sm font-medium">This driver&apos;s driving limits could not be loaded</p>
+                        <p className="text-sm font-medium">Could not load this driver&apos;s driving limits</p>
                         <Button variant="outline" size="sm" onClick={() => void load()}>
                             Try again
                         </Button>
@@ -166,7 +159,7 @@ export function DriverDrivingLimitsCard({
             <div className="space-y-4" data-testid="driver-driving-limits">
                 {heading}
                 <p className="text-sm text-muted-foreground" data-testid="driver-driving-limits-not-driver">
-                    Driving limits apply to drivers, and this team member has no driver record.
+                    Driving limits apply only to drivers. This team member is not a driver.
                 </p>
             </div>
         )

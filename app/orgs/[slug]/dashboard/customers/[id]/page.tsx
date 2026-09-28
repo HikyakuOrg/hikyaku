@@ -45,8 +45,7 @@ function formatDateTime(input: string) {
 export default function CustomerDetailPage({ params }: CustomerDetailPageProps) {
     const { id } = use(params)
     const slug = useOrgSlug()
-    // Keyed by `id` so a pending request for a previous customer never renders as
-    // this one's data, and so "loading" is derived rather than reset in an effect.
+    // Keyed by `id`, so an old request never shows as this customer. Loading is derived.
     const [result, setResult] = useState<{ id: string; customer: Customer | null } | null>(null)
 
     useEffect(() => {
@@ -203,7 +202,7 @@ export default function CustomerDetailPage({ params }: CustomerDetailPageProps) 
                             <div>
                                 <CardTitle>Package activity</CardTitle>
                                 <CardDescription>
-                                    Browse packages this customer has shipped and received.
+                                    Packages this customer sent and received.
                                 </CardDescription>
                             </div>
                         </CardHeader>

@@ -16,7 +16,7 @@ export default function MobileSettingsPage() {
         <div className="space-y-6 p-6">
             <div>
                 <h1 className="text-3xl font-bold tracking-tight mb-2">Scan the QR code in WhenDan app</h1>
-                <p className="text-muted-foreground">Use the WhenDan mobile app to scan this code and connect securely.</p>
+                <p className="text-muted-foreground">Scan this code with the WhenDan mobile app to connect.</p>
             </div>
             <MobileSettingsQr value={qrValue} />
         </div>

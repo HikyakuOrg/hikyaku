@@ -118,7 +118,7 @@ export function TrackingView({ details }: { details: TrackingDetails }) {
                         />
                     ) : (
                         <div className="flex h-[200px] items-center justify-center rounded-xl border bg-muted/20 text-sm text-muted-foreground">
-                            Map unavailable for this delivery.
+                            No map for this delivery.
                         </div>
                     )}
 

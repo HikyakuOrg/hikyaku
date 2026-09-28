@@ -14,9 +14,8 @@ export const emptyWarehousePinFeatureCollection: WarehousePinFeatureCollection =
     features: [],
 }
 
-// Builds the GeoJSON the map's pin layer renders. The warehouse id is set both
-// as the feature id and as a property so maplibre's `promoteId: "id"` can target
-// features by id with setFeatureState (hover/selected).
+// GeoJSON for the warehouse pin layer. The id is also a property, for
+// `promoteId: "id"` and setFeatureState (hover, selected).
 export function createWarehousePinFeatureCollection(
     pins: WarehousePin[]
 ): WarehousePinFeatureCollection {

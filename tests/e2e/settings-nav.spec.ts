@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test"
 import { d } from "./helpers/org-url"
 
-test.describe("Settings — side navigation", () => {
+test.describe("Settings: side navigation", () => {
     test("account page shows Settings layout with side nav", async ({ page }) => {
         await page.goto(d('/user/account'))
 
@@ -25,7 +25,7 @@ test.describe("Settings — side navigation", () => {
         await expect(
             page.getByRole("heading", { name: "Business Information" }),
         ).toBeVisible()
-        // The account-type switcher is gone — type is fixed at org creation.
+        // No account type switcher. The type is set when the org is created.
         await expect(page.getByRole("tab", { name: "Personal" })).toHaveCount(0)
         await expect(page.getByRole("tab", { name: "Company" })).toHaveCount(0)
     })

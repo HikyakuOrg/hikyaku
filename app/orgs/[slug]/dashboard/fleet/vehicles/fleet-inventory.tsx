@@ -30,8 +30,7 @@ export function FleetInventory() {
     const organisationId = useOrganisationId()
     const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
 
-    // `loadedKey` marks which filter/page the current `vehicles` belong to, so the
-    // loading flag is derived instead of being reset synchronously inside the effect.
+    // Derive loading from the loaded filter and page, not from a flag set in the effect.
     const requestKey = `${currentPage}|${vehicleTypeFilter.join(",")}`
     const [loadedKey, setLoadedKey] = useState<string | null>(null)
     const loading = loadedKey !== requestKey
@@ -110,7 +109,7 @@ export function FleetInventory() {
                             await Promise.all(promises)
                             setVehicles(prev => prev.filter(v => !rows.map(r => r.id).includes(v.id)))
                             setRowSelection({})
-                            toast.success("Vehicles deleted successfully")
+                            toast.success("Vehicles deleted.")
                         } catch (error) {
                             toast.error(getErrorMessage(error))
                         }

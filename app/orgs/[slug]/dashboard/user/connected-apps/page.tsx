@@ -9,9 +9,8 @@ import { orgPath } from '@/lib/subdomain'
 import { ConnectedAppsList } from './connected-apps-list'
 import type { OfficialAppId } from './official-apps'
 
-// OAuth client IDs differ per Supabase project (local, staging, prod), so they
-// come from the environment. A grant whose client isn't listed here shows under
-// "Other apps" instead of borrowing an official app's branding.
+// OAuth client ids differ per Supabase project, so they come from the
+// environment. Other clients show under "Other apps".
 const OFFICIAL_APP_CLIENT_IDS: Record<OfficialAppId, string | undefined> = {
     n8n: process.env.N8N_OAUTH_CLIENT_ID,
     shopify: process.env.SHOPIFY_OAUTH_CLIENT_ID,
@@ -27,13 +26,11 @@ export default function ConnectedAppsPage({ params }: Props) {
             <div>
                 <h2 className="text-xl font-semibold tracking-tight">Connected Apps</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                    Connect hikyaku to the tools you already use. Revoking an app signs it out
-                    everywhere and forces it to ask for access again.
+                    Connect hikyaku to the tools you use.
                 </p>
             </div>
 
-            {/* Request-time work (cookies, Supabase calls) must sit inside a
-                Suspense boundary — same pattern as app/oauth/consent/page.tsx. */}
+            {/* Request-time work must be inside Suspense. */}
             <Suspense fallback={<ConnectedAppsSkeleton />}>
                 <ConnectedApps params={params} />
             </Suspense>
@@ -43,8 +40,7 @@ export default function ConnectedAppsPage({ params }: Props) {
 
 async function ConnectedApps({ params }: Props) {
     const { slug } = await params
-    // OAuth token issuance is organisation-only — the nav hides this section
-    // for personal accounts, and direct navigation lands back on Account.
+    // Only company orgs can issue OAuth tokens. Others go back to Account.
     if (!(await userHasCompanyOrg())) redirect(orgPath(slug, '/dashboard/user/account'))
 
     let apps
@@ -55,7 +51,7 @@ async function ConnectedApps({ params }: Props) {
             <Alert variant="destructive">
                 <AlertTitle>Could not load connected apps</AlertTitle>
                 <AlertDescription>
-                    {error instanceof Error ? error.message : 'Please try again.'}
+                    {error instanceof Error ? error.message : 'Try again.'}
                 </AlertDescription>
             </Alert>
         )

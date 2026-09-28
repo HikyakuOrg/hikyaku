@@ -2,20 +2,14 @@ import { expect, test, type Page } from "@playwright/test"
 import { d } from "./helpers/org-url"
 
 /**
- * Settings > Dispatch, the per-organisation replacement for hikyaku-api's
- * ASSIGNMENT_MODE, LOAD_SPREAD_ENABLED and SERVICE_AREA_MATCHING environment
- * variables.
+ * Settings > Dispatch. It replaces the ASSIGNMENT_MODE, LOAD_SPREAD_ENABLED and
+ * SERVICE_AREA_MATCHING environment variables in hikyaku-api.
  *
- * Only load spreading is ever saved here, and it is always put back: this runs
- * against a shared organisation whose packages other specs create, and load
- * spreading is the one setting whose change can neither stop a package being
- * assigned nor change which drivers may take it.
+ * Only load spreading is saved, and it is always set back. Other specs use this
+ * organisation, and load spreading does not change who can get a package.
  */
 
-/**
- * Long enough for a route the dev server has not compiled yet, which is the
- * first navigation to each of these pages on a fresh server.
- */
+/** Long enough for the dev server to compile a page on first visit. */
 const NAVIGATION_TIMEOUT = 45000
 
 const SETTING_NAMES = [
@@ -25,9 +19,8 @@ const SETTING_NAMES = [
 ]
 
 /**
- * A page this app navigated away from stays mounted but hidden, so a test id
- * can match both the live page and the previous one. Only the visible one is
- * ever the one under test.
+ * The previous page stays mounted but hidden, so a test id can match two
+ * elements. Use only the visible one.
  */
 function visible(page: Page, testId: string) {
     return page.getByTestId(testId).filter({ visible: true })
@@ -46,15 +39,12 @@ async function saveLoadSpread(page: Page, on: boolean) {
 
     await checkbox.click()
     await visible(page, "dispatch-settings-save").click()
-    // The toast, not the button: the button is also disabled while the write
-    // is still in flight.
+    // Check the toast. The button is also disabled while saving.
     await expect(page.getByText("Dispatch settings saved.", { exact: false })).toBeVisible()
 }
 
-test.describe("Settings — dispatch", () => {
-    // Every test here opens at least one route the dev server may not have
-    // compiled yet, and the first compile alone can take most of the default
-    // 30 s.
+test.describe("Settings: dispatch", () => {
+    // A first compile in dev can take most of the default 30 s.
     test.describe.configure({ timeout: 120_000 })
 
     test("is reachable from the settings side navigation", async ({ page }) => {

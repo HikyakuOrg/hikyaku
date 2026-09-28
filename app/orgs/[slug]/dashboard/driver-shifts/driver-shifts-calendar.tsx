@@ -83,14 +83,10 @@ export function DriverShiftsCalendar({
     const [endDate, setEndDate] = useState(endOfWeek(new Date(), { weekStartsOn: 0 }))
     const [events, setEvents] = useState<CalendarShift[]>([])
     const [drivers, setDrivers] = useState<Record<string, ListDriverDto>>({})
-    // Null until loaded, and after a failed read: no marker is better than
-    // marking every shift as comfortably within its limits. Keyed by shift
-    // (vrp_optimization) id, since the API resolves limits per shift rather
-    // than per driver. `enforced` is false while automatic assignment is not
-    // applying the limits, which the marker's tooltip says.
+    // Limits per shift id. Null until loaded or after an error, so no marker
+    // shows. `enforced` is false while automatic assignment does not use limits.
     const [limitsByShift, setLimitsByShift] = useState<Map<string, { limits: DrivingLimits; enforced: boolean }> | null>(null)
-    // Bumped whenever an external actor (e.g. a completed optimisation run) signals
-    // that shifts changed, forcing the fetch effect below to re-run.
+    // Increases when shifts change elsewhere, to reload.
     const [refreshTick, setRefreshTick] = useState(0)
 
     const onRangeChange = (range: Date[] | { start: Date; end: Date }) => {
@@ -105,8 +101,6 @@ export function DriverShiftsCalendar({
 
     useEffect(() => {
         const fetchEvents = async () => {
-            // One indexed query over vrp_optimization. Empty shifts are ordinary
-            // rows here, so there is no second source to dedupe against.
             const shifts = await getShiftsByDates(
                 organisationId,
                 startDate.toISOString(),
@@ -147,9 +141,7 @@ export function DriverShiftsCalendar({
         fetchEvents()
     }, [driverId, startDate, endDate, refreshTick, slug, organisationId])
 
-    // The Optimise-routes button lives in a separate client island and cannot
-    // reach this component's state, so it broadcasts a window event on completion.
-    // router.refresh() alone won't help — this calendar fetches its data client-side.
+    // Reload when the Re-optimise button sends SHIFTS_REFRESH_EVENT.
     useEffect(() => {
         const handler = () => setRefreshTick((t) => t + 1)
         window.addEventListener(SHIFTS_REFRESH_EVENT, handler)
@@ -170,9 +162,7 @@ export function DriverShiftsCalendar({
     })
 
 
-    // Near or over a driving limit, so a dispatcher scanning the week sees it
-    // without opening each shift. The plan's figures are compared to the
-    // shift's limits in seconds and metres; only the tooltip converts.
+    // Mark shifts near or over a driving limit.
     const limitFlagFor = (event: CalendarShift) => {
         const entry = limitsByShift?.get(event.id)
         if (!entry) return null
@@ -222,8 +212,7 @@ export function DriverShiftsCalendar({
             <div className="flex flex-col h-full p-1 gap-1 text-black">
                 <div className="flex items-center justify-between gap-1 text-xs font-semibold">
                     <span>{format(start, 'HH:mm')} - {format(end, 'HH:mm')}</span>
-                    {/* On the first line, because a short shift's block clips
-                        everything below it. The tooltip names the dimensions. */}
+                    {/* On the first line: a short shift hides the lines below. */}
                     {limitFlag && (
                         <span
                             className={`flex shrink-0 items-center gap-0.5 ${limitFlag.status === 'over' ? 'text-red-600' : 'text-amber-600'}`}
@@ -267,8 +256,7 @@ export function DriverShiftsCalendar({
                 onRangeChange={onRangeChange}
                 eventPropGetter={eventStyleGetter}
                 onSelectEvent={(event) => {
-                    // The detail page is keyed on the route; a shift that has not
-                    // been planned yet has none, so there is nothing to open.
+                    // A shift without a route has no detail page.
                     if (event.route_id) {
                         router.push(`/orgs/${slug}/dashboard/driver-shifts/${event.route_id}`);
                     }

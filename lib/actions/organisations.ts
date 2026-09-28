@@ -6,20 +6,18 @@ import { getIssuingStatuses } from '@/lib/actions/connect'
 export interface OrganisationSummary {
   id: string
   slug: string
-  /** NULL for personal orgs — UI renders these as "Personal". */
+  /** Null for personal orgs. The UI shows "Personal". */
   name: string | null
   orgType: string
   cardIssuingStatus: string | null
   detailsSubmitted: boolean
-  /** Whether the org can accept payments — gates the "Service Rates" menu item. */
+  /** Whether the org can accept payments. Controls the "Service Rates" menu item. */
   chargesEnabled: boolean
 }
 
 /**
- * Create or look up the caller's org. Personal orgs are unique per user
- * (enforced by the partial unique index in migration 0010): if the caller
- * already has a personal org — usually the one auto-created at signup by
- * handle_new_user() — we return its slug instead of inserting a duplicate.
+ * Create an org. A user has one personal org (usually made at signup), so for
+ * a personal org this returns the existing slug.
  */
 export async function createOrganisation(
   name: string | null,
@@ -28,9 +26,8 @@ export async function createOrganisation(
   const supabase = await createClient()
 
   if (orgType === 'personal') {
-    // Reuse the user's existing personal org (almost always the signup one).
     const { data: userData } = await supabase.auth.getUser()
-    if (!userData.user) return 'Not authenticated.'
+    if (!userData.user) return 'You are not signed in.'
 
     const { data: existing } = await supabase
       .from('organisations')
@@ -40,7 +37,7 @@ export async function createOrganisation(
       .maybeSingle()
     if (existing?.slug) return { slug: existing.slug }
 
-    // Defensive — the signup trigger should already have created one.
+    // Fallback: signup normally creates it.
     const { data, error } = await supabase
       .from('organisations')
       .insert({ name: null, org_type: 'personal' })
@@ -64,9 +61,8 @@ export async function createOrganisation(
 }
 
 /**
- * An org's type on its own. Cheaper than listMyOrganisations() for UI gating
- * (Business Information is company-only) because it skips the Stripe lookup.
- * Returns null when the org doesn't exist or the caller can't see it.
+ * An org's type, without the Stripe lookup in listMyOrganisations(). Returns
+ * null when the org does not exist or the caller cannot see it.
  */
 export async function getOrganisationType(
   slug: string,
@@ -82,11 +78,8 @@ export async function getOrganisationType(
 }
 
 /**
- * An org's vanity booking subdomain (the label only, e.g. 'acme-couriers' —
- * not the full URL; pair with `tenantUrl()` from `lib/subdomain.ts` for
- * that). NULL for personal orgs and any company org whose name has no
- * sluggable characters. Set by the `set_organisation_vanity_slug` DB trigger
- * (AddOrganisationVanitySlug in hikyaku-api) — never written from here.
+ * An org's vanity booking subdomain label, e.g. 'acme-couriers'. Use
+ * `tenantUrl()` for the full URL. Null for personal orgs. A DB trigger sets it.
  */
 export async function getOrganisationVanitySlug(
   slug: string,
@@ -101,10 +94,8 @@ export async function getOrganisationVanitySlug(
 }
 
 /**
- * Org id + current logo URL, for the Business Information logo uploader
- * (needs the id to key the storage path) and for anywhere a QR code with
- * branding gets rendered (e.g. package labels). Returns null if the org
- * doesn't exist or the caller can't see it.
+ * Org id and logo URL, for the logo uploader and branded QR codes. Returns
+ * null when the org does not exist or the caller cannot see it.
  */
 export async function getOrganisationBranding(
   slug: string,
@@ -119,12 +110,7 @@ export async function getOrganisationBranding(
   return { id: data.id, logoUrl: data.logo_url }
 }
 
-/**
- * Persist the logo URL after it's been uploaded client-side to the
- * org-logos storage bucket (lib/supabase/storage.ts uploadOrganisationLogo)
- * — this action only writes the resulting URL onto the row. Pass null to
- * clear a previously-set logo.
- */
+/** Save the URL of a logo uploaded with uploadOrganisationLogo. Null removes the logo. */
 export async function updateOrganisationLogo(
   slug: string,
   logoUrl: string | null,
@@ -139,11 +125,8 @@ export async function updateOrganisationLogo(
 }
 
 /**
- * Whether the signed-in user belongs to at least one company org. OAuth
- * grants are per-user, not per-org, so features that are organisation-only
- * (issuing OAuth tokens, the Connected Apps settings page) key off this
- * rather than the org currently in the URL slug — otherwise a company-org
- * member browsing their personal org would wrongly lose access.
+ * Whether the signed-in user belongs to a company org. OAuth grants are per
+ * user, so OAuth features check this, not the org in the URL.
  */
 export async function userHasCompanyOrg(): Promise<boolean> {
   const supabase = await createClient()
@@ -161,7 +144,7 @@ export async function userHasCompanyOrg(): Promise<boolean> {
   return !!data
 }
 
-/** Organisations the signed-in user belongs to — powers the org switcher. */
+/** Organisations the signed-in user belongs to, for the org switcher. */
 export async function listMyOrganisations(): Promise<OrganisationSummary[]> {
   const supabase = await createClient()
   const { data: userData } = await supabase.auth.getUser()

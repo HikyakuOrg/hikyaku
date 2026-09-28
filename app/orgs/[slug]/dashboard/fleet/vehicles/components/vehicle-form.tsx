@@ -28,9 +28,9 @@ const vehicleSchema = z.object({
     vehicle_make: z.string().min(1, 'Make is required'),
     vehicle_model: z.string().min(1, 'Model is required'),
     vehicle_year: z.number().min(1900).max(new Date().getFullYear() + 1).optional(),
-    vehicle_type: z.string().uuid('Please select a vehicle type'),
-    vehicle_gross_limits: z.number().positive('Gross limits must be positive'),
-    warehouse_id: z.string().uuid('Please select a warehouse'),
+    vehicle_type: z.string().uuid('Select a vehicle type'),
+    vehicle_gross_limits: z.number().positive('Gross limit must be more than 0'),
+    warehouse_id: z.string().uuid('Select a warehouse'),
     skillIds: z.array(z.string().uuid()),
 })
 
@@ -100,11 +100,9 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, submitLabel }
     }, [initialData, organisationId, form])
 
     useEffect(() => {
-        // Base UI's Select/Combobox popups (HIK-132) can leave a scroll lock
-        // acquired on mount without ever releasing it, permanently setting
-        // `<body style="overflow: hidden">` even though nothing is open.
-        // Clear a stray lock once the form has settled; skip if a popup is
-        // genuinely open (`[data-open]`) so a real one is never fought.
+        // Base UI Select and Combobox popups can leave `overflow: hidden` on
+        // <body> when nothing is open. Remove it after the form loads, unless
+        // a popup is open.
         const timers = [300, 1000].map((delay) =>
             window.setTimeout(() => {
                 const popupOpen = document.querySelector('[data-open]') !== null
@@ -141,15 +139,15 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, submitLabel }
                     form.setValue('vehicle_type', vehicleTypes.find(t => t.vehicle_type === 'Van')?.id || '', { shouldDirty: true })
                 }
                 setIsAutoPopulated(true)
-                toast.success('Vehicle details auto-populated from VIN')
+                toast.success('Vehicle details filled in from the VIN.')
             } else {
                 setIsAutoPopulated(false)
-                toast.error(result.error || 'Could not decode VIN. Please enter details manually.')
+                toast.error(result.error || 'Could not read this VIN. Enter the vehicle details manually.')
             }
         } catch (error) {
             console.error('VIN Decode Error:', error)
             setIsAutoPopulated(false)
-            toast.error('Error decoding VIN. Please enter details manually.')
+            toast.error('Could not read this VIN. Enter the vehicle details manually.')
         } finally {
             setIsDecoding(false)
         }
@@ -166,9 +164,9 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, submitLabel }
                 .remove([`${initialData.id}/${imageName}`])
             if (error) throw error
             setExistingImages(prev => prev.filter(img => img.name !== imageName))
-            toast.success('Image removed')
+            toast.success('Photo removed.')
         } catch (error) {
-            toast.error(getErrorMessage(error) || 'Failed to remove image')
+            toast.error(getErrorMessage(error) || 'Could not remove the photo.')
         } finally {
             setIsRemovingImage(null)
         }
@@ -180,7 +178,7 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, submitLabel }
             <Card className="border-none shadow-premium bg-card/50 backdrop-blur-sm">
                 <CardHeader>
                     <CardTitle>Vehicle Identity</CardTitle>
-                    <CardDescription>Enter the VIN first to auto-populate technical specifications.</CardDescription>
+                    <CardDescription>Enter the VIN first. The vehicle details fill in automatically.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -329,7 +327,7 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, submitLabel }
                 <CardHeader>
                     <CardTitle>Capabilities</CardTitle>
                     <CardDescription>
-                        Skills this vehicle holds. A package can only route onto a vehicle holding every skill it requires.
+                        Skills this vehicle has. A package goes only on a vehicle that has all the skills it needs.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -346,8 +344,8 @@ export function VehicleForm({ initialData, onSubmit, isSubmitting, submitLabel }
 
             <Card className="border-none shadow-premium bg-card/50 backdrop-blur-sm">
                 <CardHeader>
-                    <CardTitle>Vehicle Images</CardTitle>
-                    <CardDescription>Manage your vehicle photos.</CardDescription>
+                    <CardTitle>Vehicle Photos</CardTitle>
+                    <CardDescription>Add or remove photos of this vehicle.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     {existingImages.length > 0 && (

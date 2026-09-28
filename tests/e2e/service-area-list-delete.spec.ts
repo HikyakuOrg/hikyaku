@@ -1,11 +1,7 @@
 import { expect, test, type Page } from "@playwright/test"
 import { d } from "./helpers/org-url"
 
-/**
- * The same GeoJSON upload the add spec uses. Uploading a fixed polygon rather
- * than drawing one keeps the created area at known coordinates, so the map on
- * the list page has something predictable to draw.
- */
+/** Upload a fixed polygon, like the add spec, so the area has known coordinates. */
 const SERVICE_AREA_GEOJSON = {
     type: "FeatureCollection",
     features: [
@@ -50,16 +46,14 @@ async function createServiceArea(page: Page, name: string) {
 }
 
 /**
- * The list shows every area in the organisation, so an area created by this run
- * can sit on any page of it. Walk forward until the row shows up. Returns false
- * when it is on none of them, which is what the post-delete assertion wants.
+ * The new area can be on any page of the list. Go forward until the row shows.
+ * Returns false when no page has it.
  */
 async function openListPageContaining(page: Page, name: string): Promise<boolean> {
     const table = page.getByTestId("service-areas-table")
     const emptyPanel = page.getByTestId("service-areas-empty")
 
-    // Deleting the last area in an organisation replaces the whole explorer with
-    // the empty state, which is also an answer to "is this area listed".
+    // With no areas left, the empty state replaces the list. The area is not listed.
     await expect(table.or(emptyPanel)).toBeVisible()
 
     if (await emptyPanel.count() > 0) {
@@ -68,8 +62,7 @@ async function openListPageContaining(page: Page, name: string): Promise<boolean
 
     const nextButton = table.getByRole("button", { name: "Next" })
 
-    // Bounded rather than while(true): a pager that stops advancing should fail
-    // the test, not hang it.
+    // Bounded, so a stuck pager fails the test instead of hanging it.
     for (let visitedPages = 0; visitedPages < 50; visitedPages += 1) {
         if (await page.getByRole("cell", { name, exact: true }).count() > 0) {
             return true
@@ -93,26 +86,21 @@ test.describe("Service Area List And Delete", () => {
 
         await page.goto(d('/service/areas'))
 
-        // The list is the point of this page: an area is reachable from it
-        // whether or not the map happens to be panned over the area.
+        // The list shows the area wherever the map is.
         expect(await openListPageContaining(page, serviceAreaName)).toBe(true)
 
-        // The map opens fitted to the whole organisation, so a newly drawn area
-        // is inside the first viewport it fetches.
+        // The map opens on the whole organisation, so the new area is in view.
         await expect(page.getByTestId("service-areas-map-summary")).toContainText(serviceAreaName)
 
-        // Picking the row is what focuses the map on that area, so the row has to
-        // register as selected rather than navigate away.
+        // Clicking the row selects it and moves the map to it. It does not open a page.
         const row = page.getByTestId("service-areas-table").locator("tr", { hasText: serviceAreaName })
         await row.getByRole("checkbox").click()
         await expect(row).toHaveAttribute("data-state", "selected")
 
-        // Delete acts on the ticked rows from one button above the list, not
-        // from a control on each row.
+        // One delete button above the list deletes the ticked rows.
         await page.getByTestId("service-areas-delete-selected").click()
 
-        // Naming the area in the confirmation is the whole safeguard: the row was
-        // reached by paging a list, not by looking at the polygon.
+        // The confirmation names the area, because the user may not see it on the map.
         await expect(page.getByTestId("service-area-delete-confirmation-title")).toContainText(serviceAreaName)
         await expect(page.getByTestId("service-area-delete-confirmation-description")).toContainText(serviceAreaName)
 
@@ -120,26 +108,23 @@ test.describe("Service Area List And Delete", () => {
 
         await expect(page.getByTestId("service-area-delete-confirmation-title")).toHaveCount(0)
 
-        // Gone from the map, which re-reads its viewport after the delete...
+        // Gone from the map
         await expect(page.getByTestId("service-areas-map-summary")).not.toContainText(serviceAreaName)
 
-        // ...and gone from every page of the list, not just the one on screen.
+        // and from every page of the list.
         await expect(page.getByRole("cell", { name: serviceAreaName, exact: true })).toHaveCount(0)
         expect(await openListPageContaining(page, serviceAreaName)).toBe(false)
 
-        // And still gone after a fresh server read, which is what proves the row
-        // was actually retired rather than only dropped from local state.
+        // Still gone after a reload, so the row was deleted.
         await page.reload()
         expect(await openListPageContaining(page, serviceAreaName)).toBe(false)
     })
 
     test("keeps several rows ticked at once", async ({ page }) => {
-        // Two areas to create and two to delete, each a round trip.
+        // Creates and deletes two areas.
         test.setTimeout(120_000)
 
-        // One shared stamp so the two names sort next to each other, and the
-        // list, which is ordered by name, walks forward from the first to the
-        // second.
+        // One timestamp, so the names sort next to each other in the list.
         const stamp = Date.now()
         const names = [`Multi Select Area ${stamp} A`, `Multi Select Area ${stamp} B`]
 
@@ -158,15 +143,15 @@ test.describe("Service Area List And Delete", () => {
             await expect(rowFor(name)).toHaveAttribute("data-state", "selected")
         }
 
-        // Ticking the second must not untick the first. The two can straddle a
-        // page break, so step back until the first is listed again.
+        // Ticking the second must not untick the first. They can be on different
+        // pages, so go back until the first shows.
         const previousButton = table.getByRole("button", { name: "Previous" })
         for (let steps = 0; await rowFor(names[0]).count() === 0 && steps < 50; steps += 1) {
             await previousButton.click()
         }
         await expect(rowFor(names[0])).toHaveAttribute("data-state", "selected")
 
-        // Both ticked rows go in one delete, including one on another page.
+        // One delete removes both, even across pages.
         const deleteSelected = page.getByTestId("service-areas-delete-selected")
         await expect(deleteSelected).toHaveText(/\(2\)/)
         await deleteSelected.click()

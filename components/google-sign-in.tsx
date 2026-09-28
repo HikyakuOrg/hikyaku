@@ -10,9 +10,8 @@ import { resolveAuthenticatedDestination } from '@/lib/auth/verify-flow'
 
 const GSI_SRC = 'https://accounts.google.com/gsi/client'
 
-// Personalisation (showing the signed-in Google account's name and photo on the
-// button) is suppressed by Google below 200px, or at any size other than
-// type=standard/size=large. See
+// Google shows the account name and photo only on standard, large buttons at
+// 200px or wider. See
 // https://developers.google.com/identity/gsi/web/guides/personalized-button
 const MIN_PERSONALISED_WIDTH = 200
 const MAX_BUTTON_WIDTH = 400
@@ -85,10 +84,7 @@ function loadGsiScript(): Promise<void> {
   return loaded
 }
 
-/**
- * Google wants the SHA-256 hash of the nonce, Supabase wants the raw value, and
- * it compares the two to prove the ID token was minted for this page load.
- */
+/** Google needs the SHA-256 of the nonce; Supabase needs the raw value to check the ID token. */
 async function createNoncePair(): Promise<{ raw: string; hashed: string }> {
   const raw = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))))
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw))
@@ -98,11 +94,7 @@ async function createNoncePair(): Promise<{ raw: string; hashed: string }> {
   return { raw, hashed }
 }
 
-/**
- * Whether Google sign-in is configured. Next inlines NEXT_PUBLIC_* at build
- * time, so this is a static boolean. Forms use it to drop their "or" divider
- * along with the button rather than leaving a divider with nothing above it.
- */
+/** Whether Google sign-in is configured. Forms hide the "or" divider when it is not. */
 export const isGoogleSignInEnabled = Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID)
 
 type GoogleSignInProps = {
@@ -118,13 +110,11 @@ type GoogleSignInProps = {
 }
 
 /**
- * Sign in with Google via Google Identity Services, exchanging the returned ID
- * token for a Supabase session. Renders nothing until NEXT_PUBLIC_GOOGLE_CLIENT_ID
- * is set, so the auth pages stay usable before the credentials are configured.
+ * Google sign-in. Exchanges the Google ID token for a Supabase session.
+ * Renders nothing without NEXT_PUBLIC_GOOGLE_CLIENT_ID.
  *
- * The same client ID must also be registered in the Supabase dashboard under
- * Authentication > Providers > Google, in the "Authorized Client IDs" field,
- * otherwise signInWithIdToken rejects the token.
+ * Also add the client id in Supabase under Authentication > Providers > Google
+ * > Authorized Client IDs, or Supabase rejects the token.
  */
 export function GoogleSignIn({
   context = 'signin',
@@ -162,15 +152,13 @@ export function GoogleSignIn({
     [onError, redirectTo, router]
   )
 
-  // GSI captures the callback once at initialize() time, so route it through a
-  // ref to keep it current without re-initialising (which would burn the nonce).
+  // GSI keeps the first callback, so use a ref. Initialising again uses a new nonce.
   const handlerRef = useRef(handleCredential)
   useEffect(() => {
     handlerRef.current = handleCredential
   }, [handleCredential])
 
-  // Track the column width so the rendered button matches it. The button is an
-  // iframe with a fixed pixel width, so it has to be re-rendered on resize.
+  // The button is an iframe with a fixed width, so render it again on resize.
   useEffect(() => {
     const element = containerRef.current
     if (!element) return
@@ -200,8 +188,7 @@ export function GoogleSignIn({
           context,
           itp_support: true,
           ux_mode: 'popup',
-          // Keeps One Tap and button personalisation working now that browsers
-          // are dropping third-party cookies.
+          // Needed now that browsers block third-party cookies.
           use_fedcm_for_prompt: true,
           use_fedcm_for_button: true,
         })
@@ -218,7 +205,7 @@ export function GoogleSignIn({
       cancelled = true
       window.google?.accounts.id.cancel()
     }
-    // Deliberately one-shot: re-running would mint a new nonce and re-prompt.
+    // Once only: running again creates a new nonce and prompts again.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId])
 

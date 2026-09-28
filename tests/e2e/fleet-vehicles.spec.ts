@@ -1,24 +1,20 @@
 import { test, expect, type Page, type Response } from "@playwright/test";
 import { d } from "./helpers/org-url";
 
-/** A VIN the decoder resolves to a real make/model/year/type, used across specs in this file. */
+/** A VIN that decodes to a make, model, year and type. */
 const VALID_VIN = "1G6DG5EY8B0199944";
 
 test.describe("Fleet Vehicles Add Flow", () => {
     test("Valid and invalid VIN autofill", async ({ page }) => {
         test.setTimeout(120000);
 
-        // Navigate to Add Vehicle page directly (assuming user is already authenticated via storageState)
         await page.goto(d('/fleet/vehicles/add'));
-
-        // Should navigate to /dashboard/fleet/vehicles/add
         await expect(page).toHaveURL(d('/fleet/vehicles/add'));
 
         const vinInput = page.getByLabel(/vin/i);
 
-        // Valid VIN test
+        // A valid VIN fills make, model and year.
         await vinInput.pressSequentially(VALID_VIN);
-        // Make, Model, Year should be autofilled (wait for server action to complete)
         await expect(page.locator("#make")).toHaveValue("Cadillac", { timeout: 30000 });
         await expect(page.locator("#model")).toHaveValue("CTS", { timeout: 10000 });
         await expect(page.locator("#year")).toHaveValue("2011", { timeout: 10000 });
@@ -26,9 +22,8 @@ test.describe("Fleet Vehicles Add Flow", () => {
         
         await page.reload();
 
-        // Invalid VIN test
+        // An invalid VIN fills nothing.
         await vinInput.pressSequentially("JTNAB0AEX0A002410", { delay: 30 });
-        // Make, Model, Year should NOT be autofilled
         await expect(page.locator("#make")).not.toHaveValue("Cadillac", { timeout: 90000 });
         await expect(page.locator("#model")).not.toHaveValue("CTS", { timeout: 90000 });
         await expect(page.locator("#year")).not.toHaveValue("2011", { timeout: 90000 });
@@ -51,13 +46,11 @@ test.describe("Fleet Vehicles Add Flow", () => {
 test.describe("Fleet Vehicles Skills", () => {
     test("creates a skill inline from the Capabilities picker and it persists on the vehicle", async ({ page }) => {
         test.setTimeout(120000);
-        // Needs an existing warehouse to complete the form — not guaranteed in CI.
-        test.skip(!!process.env.CI, "Requires a seeded warehouse — skipped in CI");
+        test.skip(!!process.env.CI, "Needs a seeded warehouse. Skipped in CI.");
 
         await page.goto(d('/fleet/vehicles/add'));
 
-        // Valid VIN autofills make/model/year/type, so only plate, warehouse and
-        // skills are left to fill in.
+        // The VIN fills make, model, year and type. Fill plate, warehouse and skills.
         await page.getByLabel(/vin/i).pressSequentially(VALID_VIN);
         await expect(page.locator("#make")).toHaveValue("Cadillac", { timeout: 30000 });
 
@@ -77,11 +70,10 @@ test.describe("Fleet Vehicles Skills", () => {
         await createButton.click();
         await expect(createButton).toHaveCount(0, { timeout: 15000 });
         await expect(skillsPicker.getByText(skillName)).toBeVisible({ timeout: 15000 });
-        // Close the picker's popup so it cannot overlay the submit button below.
+        // Close the picker so it does not cover the save button.
         await page.keyboard.press("Escape");
 
-        // This VIN decodes with no GVWR, so gross limits stays at 0, which
-        // fails the form's `positive()` check and silently blocks submission.
+        // This VIN has no GVWR. Gross must be above 0 or the form does not save.
         await page.locator("#gross").fill("1500");
 
         const [vehicleInsertResponse] = await Promise.all([
@@ -92,8 +84,7 @@ test.describe("Fleet Vehicles Skills", () => {
 
         await expect(page).toHaveURL(d('/fleet/vehicles'), { timeout: 20000 });
 
-        // Reopen the vehicle's edit form directly and confirm the skill assignment
-        // survived the round trip through `setVehicleSkills`.
+        // The edit form still shows the skill, so `setVehicleSkills` saved it.
         await page.goto(d(`/fleet/vehicles/${createdVehicle.id}/edit`));
         await expect(page.getByTestId("vehicle-skills-picker").getByText(skillName)).toBeVisible({ timeout: 15000 });
     });
@@ -112,8 +103,7 @@ test.describe("Fleet Vehicles Skills", () => {
         await expect(page.getByRole("option").first()).toBeVisible({ timeout: 10000 });
         await page.getByRole("option").first().click();
 
-        // Create the skill first so an option from this org's catalog is
-        // guaranteed, then drop its chip and pick it again from the list.
+        // Create a skill so the list has one, remove its chip, then pick it from the list.
         const skillName = `E2E Skill ${Date.now()}`;
         const skillsPicker = page.getByTestId("vehicle-skills-picker");
         const skillsInput = skillsPicker.locator("input");
@@ -130,8 +120,7 @@ test.describe("Fleet Vehicles Skills", () => {
         await skillsInput.fill(skillName);
         await page.getByRole("option", { name: skillName, exact: true }).click();
 
-        // The first Escape closes the list; the second lands on a closed picker,
-        // which is where Base UI used to clear every selected chip.
+        // The first Escape closes the list. The second must not clear the chips.
         await page.keyboard.press("Escape");
         await page.keyboard.press("Escape");
         await expect(skillsPicker.getByText(skillName, { exact: true })).toBeVisible();
@@ -153,7 +142,7 @@ test.describe("Fleet Vehicles Skills", () => {
 });
 
 test.describe("Fleet Vehicles saves are all or nothing", () => {
-    /** Fill every required field plus one freshly created skill; returns the plate. */
+    /** Fill the required fields and one new skill. Returns the plate. */
     async function fillAddForm(page: Page) {
         await page.goto(d('/fleet/vehicles/add'));
         await page.getByLabel(/vin/i).pressSequentially(VALID_VIN);
@@ -181,7 +170,7 @@ test.describe("Fleet Vehicles saves are all or nothing", () => {
         return { plate, skillName };
     }
 
-    /** Reject the next vehicle_skills write the way the composite org FK does. */
+    /** Fail the next vehicle_skills write with the org foreign key error. */
     async function failNextSkillWrite(page: Page) {
         let failed = false;
         await page.route("**/rest/v1/vehicle_skills*", async (route) => {
@@ -217,12 +206,11 @@ test.describe("Fleet Vehicles saves are all or nothing", () => {
             saveButton.click(),
         ]);
         expect(await discard.json()).toHaveLength(1);
-        await expect(page.getByText("Couldn't save the vehicle's skills, so it was not added.")).toBeVisible();
+        await expect(page.getByText("Could not save the vehicle's skills. The vehicle was not added.")).toBeVisible();
         await expect(page.getByText(/vehicle_skills_skill_org_fkey/)).toBeVisible();
         await expect(page).toHaveURL(d('/fleet/vehicles/add'));
 
-        // Same form, same plate: a fresh insert must go through, which it could
-        // not if the first row were still holding the unique plate.
+        // Save again with the same plate. This works only if the first row was removed.
         const [retryInsert] = await Promise.all([
             page.waitForResponse(isVehicleWrite("POST")),
             saveButton.click(),
@@ -241,7 +229,7 @@ test.describe("Fleet Vehicles saves are all or nothing", () => {
 
         const { skillName } = await fillAddForm(page);
         await failNextSkillWrite(page);
-        // A role with vehicles.add but not vehicles.delete: RLS deletes nothing.
+        // A role with vehicles.add but not vehicles.delete. RLS deletes nothing.
         await page.route("**/rest/v1/vehicles*", async (route) => {
             if (route.request().method() !== "DELETE") return route.fallback();
             await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
@@ -253,7 +241,7 @@ test.describe("Fleet Vehicles saves are all or nothing", () => {
             saveButton.click(),
         ]);
         const strandedVehicle = await insert.json();
-        await expect(page.getByText(/saving again will finish it/i)).toBeVisible({ timeout: 15000 });
+        await expect(page.getByText(/save again to finish adding/i)).toBeVisible({ timeout: 15000 });
 
         let insertedAgain = false;
         page.on("request", (req) => {
@@ -286,7 +274,7 @@ test.describe("Fleet Vehicles saves are all or nothing", () => {
         await expect(page.locator("#gross")).toHaveValue("1500", { timeout: 15000 });
         await page.locator("#gross").fill("2500");
 
-        // Add a second skill so the save has a skill insert to fail on.
+        // Add a second skill, so there is a skill insert to fail.
         const skillsPicker = page.getByTestId("vehicle-skills-picker");
         await skillsPicker.click();
         await skillsPicker.locator("input").fill(`E2E Extra ${Date.now()}`);

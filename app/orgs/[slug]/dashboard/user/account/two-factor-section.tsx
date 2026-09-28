@@ -41,10 +41,7 @@ export function TwoFactorSection() {
     const [pendingRemoval, setPendingRemoval] = useState<FactorRow | null>(null)
     const [isRemoving, setIsRemoving] = useState(false)
 
-    // Pure fetch + transform, no setState — kept separate so the mount effect
-    // below can set state from its own inline .then() (what react-hooks/
-    // set-state-in-effect wants) while refresh() below stays reusable for
-    // event handlers, which aren't subject to that rule.
+    // Fetches only, with no setState, so the mount effect and refresh() can share it.
     async function fetchTwoFactorState(): Promise<{ rows: FactorRow[]; aal: Aal | null }> {
         const supabase = createClient()
         const [{ data: factorsData }, { data: aalData }] = await Promise.all([
@@ -83,8 +80,7 @@ export function TwoFactorSection() {
             setRows(rows)
             setAal(aal)
         })
-        // Runs once on mount; refresh() (used by event handlers below) is what
-        // re-fetches after a mutation.
+        // Runs on mount. refresh() fetches again after a change.
     }, [])
 
     function handleRemoveClick(row: FactorRow) {
@@ -96,7 +92,7 @@ export function TwoFactorSection() {
 
     function handleStepUpOpenChange(next: boolean) {
         setShowStepUpDialog(next)
-        // Closed without completing the challenge — abandon the removal too.
+        // Closed without verifying: cancel the removal too.
         if (!next) setPendingRemoval(null)
     }
 
@@ -114,13 +110,12 @@ export function TwoFactorSection() {
         setIsRemoving(false)
 
         if (error) {
-            // Most likely the session wasn't actually at aal2 (a stale local read) —
-            // Supabase enforces this server-side regardless of what we believe here.
+            // Probably the session is not aal2 yet, so ask for verification.
             setShowStepUpDialog(true)
             return
         }
 
-        toast.success(`Removed ${pendingRemoval.friendlyName}`)
+        toast.success(`Removed ${pendingRemoval.friendlyName}.`)
         setPendingRemoval(null)
         refresh()
     }
@@ -134,8 +129,8 @@ export function TwoFactorSection() {
                 <CardHeader>
                     <CardTitle>Two-Factor Authentication</CardTitle>
                     <CardDescription>
-                        Add a security key or an authenticator app for a second step at sign-in.
-                        Optional — nothing changes until you add one.
+                        Add a security key or an authenticator app as a second sign-in step. This
+                        is optional.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -216,8 +211,7 @@ export function TwoFactorSection() {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Remove {pendingRemoval?.friendlyName}?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            You&apos;ll no longer be asked for this method at sign-in. You can add it again
-                            later.
+                            You will no longer need this method to sign in. You can add it again later.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

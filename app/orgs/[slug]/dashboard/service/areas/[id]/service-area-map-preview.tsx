@@ -14,27 +14,16 @@ const OUTLINE_LAYER_ID = "service-area-outline"
 
 type ServiceAreaMapPreviewProps = {
     areaName: string
-    /** This one area's geometry, already resolved server-side. */
+    /** The area geometry, loaded on the server. */
     featureCollection: ServiceAreaFeatureCollection
     bounds: ServiceAreaBounds | null
 }
 
-/**
- * The one polygon this page is about.
- *
- * Deliberately not the explorer's map. That one fetches whatever is inside the
- * viewport and lets a dispatcher pick between polygons, which is the wrong job
- * here: this page has already resolved a single area server-side, so the map
- * takes the geometry as a prop, draws it, fits to it, and has nothing to select.
- */
+/** The map for one area. Unlike the explorer map, it fetches nothing and has nothing to select. */
 export function ServiceAreaMapPreview({ areaName, featureCollection, bounds }: ServiceAreaMapPreviewProps) {
     const mapContainerRef = useRef<HTMLDivElement | null>(null)
 
-    // The geometry is a prop rather than something this map fetches, so it is an
-    // ordinary dependency: if a re-render ever hands over a different area, the
-    // map is rebuilt around it instead of quietly keeping the old polygon. The
-    // props are server-rendered and stable for the life of the page, so in
-    // practice this runs once.
+    // Rebuild the map if the area changes. In practice this runs once.
     useEffect(() => {
         const container = mapContainerRef.current
 
@@ -107,13 +96,13 @@ export function ServiceAreaMapPreview({ areaName, featureCollection, bounds }: S
             {/* The canvas says nothing to a screen reader. */}
             <p className="sr-only" data-testid="service-area-detail-map-summary">
                 {hasGeometry
-                    ? `Map showing the coverage area for ${areaName}.`
-                    : `No coverage polygon could be drawn for ${areaName}.`}
+                    ? `Map of the service area ${areaName}.`
+                    : `Cannot show ${areaName} on the map.`}
             </p>
 
             {hasGeometry ? null : (
                 <div className="pointer-events-none absolute left-4 top-4 rounded-md border bg-background/95 px-3 py-2 text-sm shadow-sm backdrop-blur">
-                    This area has no polygon that can be drawn.
+                    Cannot show this area on the map.
                 </div>
             )}
         </div>

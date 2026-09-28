@@ -18,7 +18,7 @@ import {
 import { ORGANISATION_EDIT, describeWriteError, permissionRequiredMessage } from "@/lib/permissions"
 import { setOrganisationDrivingLimitDefault } from "@/lib/supabase/db"
 
-/** The Select's value for "no default". Profile ids are uuids, so it cannot collide. */
+/** Select value for "no default". It cannot match a uuid. */
 const NO_DEFAULT = "none"
 
 const DIMENSION_COLUMNS: { dimension: LimitDimension; column: keyof DrivingLimitValues }[] = [
@@ -39,7 +39,7 @@ export function OrganisationDrivingLimitDefaultForm({
     organisationId: string
     profiles: DrivingLimitProfile[]
     defaultProfileId: string | null
-    /** Whether the signed-in user holds `organisation.edit`. UI gating only; RLS refuses the write regardless. */
+    /** Whether the user has `organisation.edit`. For the UI only; RLS enforces it. */
     canEdit: boolean
 }) {
     const router = useRouter()
@@ -64,7 +64,7 @@ export function OrganisationDrivingLimitDefaultForm({
             router.refresh()
         } catch (error) {
             console.error(error)
-            toast.error(describeWriteError(error, ORGANISATION_EDIT, "Failed to save the organisation default."))
+            toast.error(describeWriteError(error, ORGANISATION_EDIT, "Could not save the organisation default."))
         } finally {
             setIsSaving(false)
         }
@@ -75,15 +75,14 @@ export function OrganisationDrivingLimitDefaultForm({
             <CardHeader>
                 <CardTitle>Organisation default</CardTitle>
                 <CardDescription>
-                    Hikyaku never picks a default for you. With none set, a driver without a profile of their own
-                    has no driving limits, which is how planning worked before profiles existed. A change applies the
-                    next time each shift is planned.
+                    With no default, drivers without a profile of their own have no driving limits. Changes apply
+                    the next time a shift is planned.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                 {profiles.length === 0 ? (
                     <p className="text-sm text-muted-foreground" data-testid="organisation-driving-limit-no-profiles">
-                        There are no profiles to choose from yet.{" "}
+                        There are no profiles yet.{" "}
                         <Link
                             href={`/orgs/${slug}/dashboard/fleet/driving-limits/add`}
                             className="underline underline-offset-2 hover:text-foreground"

@@ -23,9 +23,8 @@ function emptyStatus(isLoading: boolean): DriverPresenceStatus {
 }
 
 export function useDriverPresenceStatus(driverId: string) {
-    // Keyed by `driverId` so presence for a previous driver is never reported as this
-    // one's, which lets the "no driver"/"connecting" states be derived during render
-    // rather than reset synchronously inside the subscription effect.
+    // Keyed by `driverId`, so an old driver's presence never shows. The states are
+    // derived during render.
     const [presence, setPresence] = useState<{ driverId: string; status: DriverPresenceStatus } | null>(null)
 
     const status = !driverId

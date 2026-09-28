@@ -2,25 +2,19 @@ import { expect, test, type Page } from "@playwright/test"
 import { d } from "./helpers/org-url"
 
 /**
- * Driving limit profiles: the create path (with the unit round trip the form
- * exists to get right), assigning a driver, and the organisation default.
+ * Driving limit profiles: create (with unit conversion), assign to a driver,
+ * and set the organisation default.
  *
- * Every profile made here is deleted again, and the ones pointed at a driver or
- * set as the organisation default have every limit blank, so a run against a
- * shared organisation never changes how anybody is planned, even for the
- * seconds the assignment exists.
+ * Each test deletes its profiles. Profiles given to a driver or set as the
+ * default have no limits, so a shared organisation's planning never changes.
  */
 
-/**
- * Long enough for a route the dev server has not compiled yet, which is the
- * first navigation to each of these pages on a fresh server.
- */
+/** Long enough for the dev server to compile a page on first visit. */
 const NAVIGATION_TIMEOUT = 45000
 
 /**
- * A page this app navigated away from stays mounted but hidden, so a test id
- * can match both the live form and the one from the previous screen. Only the
- * visible one is ever the one under test.
+ * The previous page stays mounted but hidden, so a test id can match two
+ * elements. Use only the visible one.
  */
 function visible(page: Page, testId: string) {
     return page.getByTestId(testId).filter({ visible: true })
@@ -33,7 +27,7 @@ function profileRow(page: Page, name: string) {
 async function createBlankProfile(page: Page, name: string) {
     await page.goto(d("/fleet/driving-limits/add"))
     await visible(page, "driving-limit-name-input").fill(name)
-    // A profile with nothing filled in is legal, and says what it means.
+    // An empty profile is allowed, and a note explains it.
     await expect(visible(page, "driving-limit-all-blank-note")).toBeVisible()
     await visible(page, "driving-limit-submit").click()
     await expect(page).toHaveURL(d("/fleet/driving-limits"), { timeout: NAVIGATION_TIMEOUT })
@@ -55,13 +49,12 @@ async function chooseOption(page: Page, triggerTestId: string, optionName: strin
 }
 
 /**
- * Open the first team member with a driver record in this organisation. The
- * team list does not say who has one, so each member is opened until the
- * driving limits card offers a picker rather than its "no driver record" note.
+ * Open the first team member who is a driver. The list does not show this, so
+ * open each member until the driving limits card shows a picker.
  */
 async function openFirstDriver(page: Page): Promise<boolean> {
     await page.goto(d("/fleet/team-members"))
-    // Rows with an email are real members; the loading skeleton has none.
+    // Skeleton rows have no email.
     const memberRows = () => visible(page, "team-members-table").locator("tbody tr", { hasText: /@/ })
     await expect(memberRows().first()).toBeVisible({ timeout: NAVIGATION_TIMEOUT })
     const memberCount = Math.min(await memberRows().count(), 10)
@@ -97,7 +90,7 @@ test.describe("Driving limit profiles", () => {
         await page.getByRole("link", { name: "Add Profile" }).click()
         await expect(page).toHaveURL(d("/fleet/driving-limits/add"), { timeout: NAVIGATION_TIMEOUT })
 
-        // A template only fills the form in.
+        // A template only fills the form.
         await visible(page, "driving-limit-template-standard-metro").click()
         await expect(visible(page, "driving-limit-name-input")).toHaveValue("Standard metro")
         await expect(visible(page, "driving-limit-input-working")).toHaveValue("10")
@@ -105,8 +98,7 @@ test.describe("Driving limit profiles", () => {
         await expect(visible(page, "driving-limit-input-distance")).toHaveValue("250")
         await expect(visible(page, "driving-limit-input-stops")).toHaveValue("40")
 
-        // From there it is the dispatcher's own: a new name, awkward fractions,
-        // and one dimension cleared back to no limit.
+        // Then change it: a new name, fractions, and one limit cleared.
         await visible(page, "driving-limit-name-input").fill(name)
         await visible(page, "driving-limit-input-working").fill("9.75")
         await visible(page, "driving-limit-input-distance").fill("212.345")
@@ -114,7 +106,7 @@ test.describe("Driving limit profiles", () => {
         await expect(visible(page, "driving-limit-input-driving")).toHaveValue("")
         await expect(visible(page, "driving-limit-status-driving")).toContainText("No limit on driving time")
 
-        // Zero is not "no limit", and the stop ceiling is explained before any write.
+        // Zero is not "no limit". The stop limit note shows before saving.
         await visible(page, "driving-limit-input-stops").fill("0")
         await expect(visible(page, "driving-limit-status-stops")).toContainText("Leave the field blank for no limit")
         await visible(page, "driving-limit-input-stops").fill("46")
@@ -132,7 +124,7 @@ test.describe("Driving limit profiles", () => {
         await expect(row).toContainText("212.3 km")
         await expect(row).toContainText("38 stops")
 
-        // Stored as seconds and metres, shown again as exactly what was typed.
+        // Saved as seconds and metres, shown as typed.
         await row.getByRole("cell").first().click()
         await expect(page).toHaveURL(/\/fleet\/driving-limits\/[0-9a-f-]{36}$/, { timeout: NAVIGATION_TIMEOUT })
         const profileUrl = page.url()
@@ -142,7 +134,7 @@ test.describe("Driving limit profiles", () => {
         await expect(visible(page, "driving-limit-input-distance")).toHaveValue("212.345")
         await expect(visible(page, "driving-limit-input-stops")).toHaveValue("38")
 
-        // Saving it untouched moves nothing.
+        // Saving with no changes changes nothing.
         await visible(page, "driving-limit-submit").click()
         await expect(page).toHaveURL(d("/fleet/driving-limits"), { timeout: NAVIGATION_TIMEOUT })
         await page.goto(profileUrl)
@@ -168,7 +160,7 @@ test.describe("Driving limit profiles", () => {
             await expect(page.getByText(`This driver is now planned within "${name}".`)).toBeVisible()
             await expect(visible(page, "driver-driving-limit-select")).toContainText(name)
 
-            // Still assigned after a fresh read.
+            // Still assigned after a reload.
             await page.goto(driverUrl)
             await expect(visible(page, "driver-driving-limit-select")).toContainText(name, { timeout: NAVIGATION_TIMEOUT })
 
@@ -184,10 +176,8 @@ test.describe("Driving limit profiles", () => {
     })
 
     test("sets and clears the organisation default", async ({ page }) => {
-        // `authenticated` holds no UPDATE grant on
-        // organisations.default_driving_limit_profile_id yet, so PostgREST refuses
-        // the write with 42501 before RLS is consulted. Remove this once the
-        // grant is migrated.
+        // `authenticated` has no UPDATE grant on this column yet, so PostgREST
+        // returns 42501. Remove this when the grant is added.
         test.fixme(true, "organisations.default_driving_limit_profile_id is not yet updatable by authenticated users")
 
         const name = `Default Test ${Date.now()}`
@@ -197,8 +187,7 @@ test.describe("Driving limit profiles", () => {
             await page.goto(d("/user/driving-limits"))
             await chooseOption(page, "organisation-driving-limit-select", name)
             await visible(page, "organisation-driving-limit-save").click()
-            // The toast, not the button: the button is also disabled while the
-            // write is still in flight.
+            // Check the toast. The button is also disabled while saving.
             await expect(page.getByText(`Drivers without a profile of their own now follow "${name}".`)).toBeVisible()
 
             await page.reload()

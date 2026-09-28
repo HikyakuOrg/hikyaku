@@ -168,7 +168,7 @@ export function PackagesRouteStep({
                     setRouteList(restored)
                 }
             })
-            .catch(() => setError("Failed to load packages."))
+            .catch(() => setError("Could not load packages."))
             .finally(() => setPackagesLoading(false))
     }, [warehouse.warehouseId]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -180,8 +180,7 @@ export function PackagesRouteStep({
     const totalWeight = routeList.reduce((sum, p) => sum + (p.weight_kg ?? 0), 0)
     const overCapacity = vehicleGrossLimits > 0 && totalWeight > vehicleGrossLimits
 
-    // Build route steps for the map — memoized so row-selection state changes don't
-    // recreate the array reference and trigger a full map teardown/rebuild.
+    // Memoised, so selection changes do not rebuild the map.
     const routeSteps: RouteStep[] = useMemo(() => [
         {
             coords: [warehouse.warehouseLocation[0], warehouse.warehouseLocation[1]],
@@ -220,7 +219,7 @@ export function PackagesRouteStep({
                     const route = await getRoutePreview(vehicleOrsType, coords)
                     setRoutePreview(route)
                 } catch {
-                    // Route preview failed silently — user can still submit
+                    // Ignore preview errors; the user can still continue.
                 } finally {
                     setRouteLoading(false)
                 }
@@ -262,8 +261,7 @@ export function PackagesRouteStep({
     }
 
     function handleSubmit() {
-        // A shift can be created with no packages yet (the dispatcher fills it in
-        // later). An empty route submits a trivial preview — there is no route to fetch.
+        // A shift can start with no packages. Send an empty preview.
         if (routeList.length === 0) {
             onNext({
                 orderedPackages: [],
@@ -274,12 +272,12 @@ export function PackagesRouteStep({
         const missingCoords = routeList.filter((p) => p.customer_lng == null || p.customer_lat == null)
         if (missingCoords.length > 0) {
             setError(
-                `${missingCoords.length} package(s) are missing delivery coordinates and cannot be routed.`
+                `${missingCoords.length} package(s) have no map location, so they cannot go on the route.`
             )
             return
         }
         if (!routePreview) {
-            setError("Route preview not available. Please wait for the map to load.")
+            setError("The route is not ready. Wait for the map to load.")
             return
         }
         onNext({
@@ -299,7 +297,7 @@ export function PackagesRouteStep({
             <div>
                 <h3 className="scroll-m-20 text-2xl font-semibold tracking-tight">Packages & Route</h3>
                 <p className="text-muted-foreground mt-2 leading-7">
-                    Select packages and arrange the delivery order. The map updates automatically.
+                    Select packages and put them in delivery order. The map updates automatically.
                 </p>
             </div>
 
@@ -323,7 +321,7 @@ export function PackagesRouteStep({
                     </div>
                 ) : availablePackages.length === 0 ? (
                     <div className="rounded-md border border-dashed py-8 text-center text-sm text-muted-foreground">
-                        No unassigned packages available for this warehouse.
+                        No unassigned packages at this warehouse.
                     </div>
                 ) : (
                     <TableLayout
@@ -350,14 +348,14 @@ export function PackagesRouteStep({
                     >
                         {totalWeight.toFixed(1)} kg
                         {vehicleGrossLimits > 0 && ` / ${vehicleGrossLimits} kg`}
-                        {overCapacity && " — Over capacity!"}
+                        {overCapacity && " · Over capacity!"}
                     </span>
                 </div>
 
                 {routeList.length === 0 ? (
                     <div className="rounded-md border border-dashed py-6 text-center text-sm text-muted-foreground">
-                        No packages in route. Select packages above and click &quot;Add to Route&quot;,
-                        or continue to create an empty shift and add packages later.
+                        No packages on the route. Select packages and click &quot;Add to Route&quot;,
+                        or continue to create an empty shift.
                     </div>
                 ) : (
                     <DndContext

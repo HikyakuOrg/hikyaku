@@ -57,12 +57,10 @@ export function WarehouseVehicleCard({ warehouseId }: { warehouseId: string }) {
                     <WarehouseVehicleSheet 
                         warehouseId={warehouseId} 
                         onVehicleAdded={(vehicleIds) => {
-                            // Race conditions will happen IF another user is also updating the same warehouse's vehicles
-                            // But for now this is fine. This is an extreme edge case.
-                            // An alternative would be to call the DB again but that would incur a network cost
+                            // Can race with another user editing this warehouse. Rare, so no refetch.
                             getVehiclesById(vehicleIds).then((data) => {
                                 setVehicles((prev) => [...prev, ...data])
-                                // Refresh to show count in warehouse-overview updated in real time
+                                // Refresh the warehouse counts
                                 router.refresh() 
                             })
                         }} 

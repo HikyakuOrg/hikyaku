@@ -55,7 +55,7 @@ export function AddCustomerDialog({ open, onOpenChange, onCustomerAdded }: AddCu
 
             const customer = await createPreparedCustomer(prepared)
             onCustomerAdded(customer)
-            toast.success("Customer created successfully")
+            toast.success("Customer created.")
             onOpenChange(false)
         } catch (e) {
             toast.error(getErrorMessage(e))
@@ -76,10 +76,10 @@ export function AddCustomerDialog({ open, onOpenChange, onCustomerAdded }: AddCu
             setShowOutsideServiceAreaDialog(false)
             setPendingCreation(null)
             onCustomerAdded(customer)
-            toast.success("Customer created successfully")
+            toast.success("Customer created.")
             onOpenChange(false)
         } catch (error) {
-            toast.error(getErrorMessage(error) || "Failed to create customer")
+            toast.error(getErrorMessage(error) || "Could not create the customer.")
         } finally {
             setIsLoading(false)
         }
@@ -103,7 +103,7 @@ export function AddCustomerDialog({ open, onOpenChange, onCustomerAdded }: AddCu
                     <DialogHeader>
                         <DialogTitle>Create Customer</DialogTitle>
                         <DialogDescription>
-                            Create a new customer and add them to your customer list
+                            Add a new customer to your customer list.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -145,7 +145,7 @@ export function AddCustomerDialog({ open, onOpenChange, onCustomerAdded }: AddCu
                         </AlertDialogMedia>
                         <AlertDialogTitle>Customer outside service area</AlertDialogTitle>
                         <AlertDialogDescription>
-                            The address you entered is outside the current service area coverage. You can still create the customer if you want to keep the record.
+                            No service area covers this address. You can still create the customer.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
 

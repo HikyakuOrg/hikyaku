@@ -44,8 +44,7 @@ export function DriverDetailClient({
     const { location } = useDriverLocationUpdates(driverId ?? "")
     const { isOnline, isLoading: isPresenceLoading } = useDriverPresenceStatus(driverId ?? "")
 
-    // `loadedDriverId` marks which driver the current `driver` belongs to, so the
-    // loading flag is derived instead of being reset synchronously inside the effect.
+    // Derive loading from the loaded driver id, not from a flag set in the effect.
     const [loadedDriverId, setLoadedDriverId] = useState<string | null>(null)
     const loading = loadedDriverId !== driverId
 
@@ -209,7 +208,7 @@ export function DriverDetailClient({
                 <div>
                     <h2 className="font-medium">Assigned Shifts</h2>
                     <p className="text-sm text-muted-foreground">
-                        Weekly shift calendar for this driver. Select a shift to open its route details.
+                        This driver&apos;s shifts by week. Select a shift to see its route.
                     </p>
                 </div>
 

@@ -14,12 +14,8 @@ interface PackageLabelProps {
 
 export function PackageLabel({ packageId, trackingNumber, receiver, canvasRef, logoUrl }: PackageLabelProps) {
     const qrRef = useRef<HTMLDivElement>(null);
-    // Preloaded separately from qrcode.react's own <img>, so the print-canvas
-    // draw effect below never races an async image load — by the time this
-    // state is set the browser already has the bytes decoded and cached.
-    // Keyed by the url it was loaded for, so a logoUrl change (or removal)
-    // can't momentarily draw a stale/mismatched image while the new one is
-    // still loading — logoImg below just derives to null until it matches.
+    // Load the logo separately, so the canvas draw never waits for it. Keyed by
+    // URL, so a new logoUrl never draws the old image.
     const [loadedLogo, setLoadedLogo] = useState<{ url: string; img: HTMLImageElement } | null>(null);
     const logoImg = loadedLogo !== null && loadedLogo.url === logoUrl ? loadedLogo.img : null;
 
@@ -31,7 +27,7 @@ export function PackageLabel({ packageId, trackingNumber, receiver, canvasRef, l
         img.src = logoUrl;
         img.decode()
             .then(() => { if (!cancelled) setLoadedLogo({ url: logoUrl, img }); })
-            .catch(() => { /* leave logoImg derived to null — label prints without the logo */ });
+            .catch(() => { /* the label prints without the logo */ });
         return () => { cancelled = true; };
     }, [logoUrl]);
 
@@ -72,9 +68,7 @@ export function PackageLabel({ packageId, trackingNumber, receiver, canvasRef, l
         ctx.font = '24px sans-serif';
         ctx.fillText(receiver.customer_phone, 40, 270);
 
-        // Fixed line height below the phone; the unit (when present) pushes
-        // every line after it down by one, so a label with no unit renders at
-        // exactly the same offsets as before this line existed.
+        // Fixed line height. A unit line moves the lines after it down by one.
         const lineHeight = 40;
         let y = 270 + lineHeight;
         if (receiver.customer_unit?.trim()) {
@@ -96,9 +90,7 @@ export function PackageLabel({ packageId, trackingNumber, receiver, canvasRef, l
             ctx.drawImage(qrCanvasElement, qrX, qrY, qrSize, qrSize);
 
             if (logoImg) {
-                // Knock out a square behind the logo so it doesn't sit on top of
-                // (and obscure) QR modules — level H on the hidden canvas below
-                // has enough redundancy to tolerate this.
+                // Clear a square behind the logo. Level H error correction allows this.
                 const logoSize = qrSize * 0.26;
                 const cx = qrX + qrSize / 2;
                 const cy = qrY + qrSize / 2;

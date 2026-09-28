@@ -19,8 +19,7 @@ export interface CreateUserError {
 export async function createUser(
     payload: CreateUserPayload
 ): Promise<CreateUserResult | CreateUserError> {
-    // The new member joins the active organisation, which the API resolves
-    // from the X-Organisation-Slug header set by buildApiContext.
+    // The new member joins the active organisation (X-Organisation-Slug).
     const ctx = await buildApiContext()
     if ("error" in ctx) return ctx
 

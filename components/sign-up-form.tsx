@@ -47,9 +47,8 @@ export function SignUpForm({
       })
       if (signUpError) throw signUpError
 
-      // Email confirmation is required, so no session exists yet. Remember the
-      // email and hand off to the dedicated verify route, which rehydrates from
-      // storage so the OTP screen survives a refresh or navigating away.
+      // Email confirmation is required, so there is no session yet. Go to the
+      // verify screen, which reads the email from storage.
       setPendingVerification(email, 'signup')
       router.push('/auth/verify')
     } catch (error: unknown) {

@@ -56,7 +56,7 @@ export function WebauthnEnrollDialog({
             return
         }
 
-        toast.success("Security key added")
+        toast.success("Security key added.")
         setFriendlyName("")
         setIsRegistering(false)
         onOpenChange(false)

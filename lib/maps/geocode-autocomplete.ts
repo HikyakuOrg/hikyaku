@@ -1,7 +1,6 @@
 import type { FeatureCollection, Point } from "geojson"
 
-// Photon (https://photon.komoot.io) feature properties. Address components are
-// split across dedicated fields rather than a single label.
+// Photon (https://photon.komoot.io) feature properties.
 interface PhotonProperties {
     name?: string
     housenumber?: string
@@ -29,17 +28,17 @@ export interface AddressSuggestion {
     postcode: string
     lat: number
     lon: number
-    // OSM provenance (Photon) — stored for routing-quality and stable re-lookup.
+    // OSM source, kept for routing quality and later lookups.
     gid?: string
     confidence?: number
-    // OSM tag and footprint bbox, used by isLikelyBuilding() to detect a building match.
+    // OSM tag and bounding box, for isLikelyBuilding().
     osmKey?: string
     osmValue?: string
     extent?: number[]
     raw: unknown
 }
 
-/** Maps a Photon GeoJSON feature collection (as returned by hikyaku-api's geocode endpoints) onto our suggestion shape. */
+/** Photon GeoJSON from the geocode endpoints, as address suggestions. */
 export function parsePhotonFeatureCollection(
     data: FeatureCollection<Point, PhotonProperties>
 ): AddressSuggestion[] {
@@ -72,11 +71,9 @@ export function parsePhotonFeatureCollection(
 }
 
 /**
- * Whether a suggestion is likely a building (an apartment block, office tower,
- * or house) rather than a street or locality match, used to escalate the
- * unit/business-name prompt, never to gate it. Tuned for recall over
- * precision: OSM building tagging is inconsistent, so a false positive here
- * only costs the user one dismissal.
+ * Whether a suggestion is probably a building, not a street or locality. Makes
+ * the unit prompt more visible. OSM tags are inconsistent, so this prefers
+ * false positives.
  */
 export function isLikelyBuilding(suggestion: AddressSuggestion): boolean {
     const { osmKey, osmValue, extent } = suggestion

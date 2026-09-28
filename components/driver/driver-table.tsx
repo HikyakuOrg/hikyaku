@@ -2,12 +2,7 @@ import { ColumnDef, RowSelectionState } from "@tanstack/react-table"
 import { ListDriverDto } from "@/lib/api"
 import { DataTable } from "@/components/data-table"
 
-/**
- * Generic over the row type so a caller carrying extra columns (a warehouse, a
- * vehicle) can read its own fields in `additionalColumns` without casting
- * `row.original`. Call sites passing plain `ListDriverDto[]` infer that and are
- * unaffected.
- */
+/** Generic over the row type, so extra columns can read their own fields without casts. */
 interface DriverTableProps<TDriver extends ListDriverDto> {
     data: TDriver[]
     loading: boolean

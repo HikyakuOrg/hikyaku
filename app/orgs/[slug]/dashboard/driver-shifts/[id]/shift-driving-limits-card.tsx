@@ -13,14 +13,13 @@ import {
 import { cn } from "@/lib/utils"
 
 const ESTIMATE_NOTES: Partial<Record<LimitDimension, string>> = {
-    driving: "Working time less the 15 minutes booked at each stop, not a measured travel time.",
-    distance: "Planned on straight-line distances. It will change when the route is re-solved on the road network.",
+    driving: "Working time minus 15 minutes at each stop. Not measured.",
+    distance: "Based on straight-line distances. It changes when the route is planned on roads.",
 }
 
 function figureText(row: DimensionAssessment): string {
     if (row.used == null) {
-        // A plan written before distance was recorded has no distance, which is
-        // not the same as a zero-kilometre route.
+        // An old plan with no distance. Not the same as 0 km.
         return row.dimension === "distance" ? "Not recorded" : "Not planned yet"
     }
     return row.limit == null
@@ -30,7 +29,7 @@ function figureText(row: DimensionAssessment): string {
 
 type ShiftDrivingLimitsCardProps = {
     assessments: DimensionAssessment[]
-    /** False when the driver's limits could not be read, so no row may claim to be within one. */
+    /** False when the driver's limits could not be loaded. */
     limitsAvailable: boolean
     hasLimits: boolean
     /** Whether automatic assignment is applying driving limits. Null when that is not known. */
@@ -39,11 +38,7 @@ type ShiftDrivingLimitsCardProps = {
     driverHref: string | null
 }
 
-/**
- * The shift's planned working time, driving time, distance and stops against
- * the driver's limits. Values arrive in seconds and metres and are converted
- * here, at the render, and nowhere earlier.
- */
+/** The shift's planned working time, driving time, distance and stops against the driver's limits. */
 export function ShiftDrivingLimitsCard({
     assessments,
     limitsAvailable,
@@ -57,12 +52,12 @@ export function ShiftDrivingLimitsCard({
                 <CardTitle className="text-lg">Driving Limits</CardTitle>
                 <CardDescription>
                     {!limitsAvailable ? (
-                        "This driver's limits could not be loaded, so these are the plan's figures alone."
+                        "Could not load this driver's limits. These are the plan's values only."
                     ) : hasLimits ? (
-                        "What this plan uses against the driver's limits."
+                        "This plan compared with the driver's limits."
                     ) : (
                         <>
-                            No driving limits apply to this driver, so these are the plan&apos;s figures alone.
+                            This driver has no driving limits. These are the plan&apos;s values only.
                             {driverHref && (
                                 <>
                                     {" "}

@@ -44,8 +44,7 @@ import { SHIFTS_REFRESH_EVENT } from "./shift-events"
 function useTickingNow(): Date | null {
     const [now, setNow] = useState<Date | null>(null)
     useEffect(() => {
-        // First value on the next macrotask so we never setState synchronously
-        // inside the effect body; the interval keeps it ticking each second.
+        // Set the first value on the next tick, not in the effect body.
         const first = setTimeout(() => setNow(new Date()), 0)
         const id = setInterval(() => setNow(new Date()), 1000)
         return () => {
@@ -135,8 +134,7 @@ export function OptimiseRoutesButton() {
         if (s === "completed") {
             toast.success("Routes re-optimised.")
             router.refresh()
-            // The calendar fetches its shifts client-side, so router.refresh()
-            // (server components only) won't surface the new shift — signal it directly.
+            // The calendar loads shifts on the client, so tell it to reload.
             window.dispatchEvent(new Event(SHIFTS_REFRESH_EVENT))
         } else if (s === "skipped") {
             toast.message("No pending packages to optimise.")
@@ -176,10 +174,10 @@ export function OptimiseRoutesButton() {
                 toast.error(res.error)
                 return
             }
-            toast.success("Re-optimisation started. Updated routes will appear shortly.")
+            toast.success("Re-optimisation started. The routes will update soon.")
             setOpen(false)
             setSetOffByVehicle({})
-            // Optimistic in-flight state so polling + cooldown start immediately.
+            // Show the run as queued now, so polling and the cooldown start.
             setRun({
                 id: res.runId,
                 status: "queued",
@@ -224,10 +222,10 @@ export function OptimiseRoutesButton() {
                     <DialogHeader>
                         <DialogTitle>Re-optimise routes</DialogTitle>
                         <DialogDescription>
-                            Re-plan today&apos;s shifts at this warehouse and pick up anything still
-                            queued. Existing shifts are rewritten in place, so this never opens a new
-                            shift and never counts against your allowance. Vehicles already out keep
-                            their current trip. Optionally set a custom set-off time per vehicle.
+                            Plan today&apos;s shifts at this warehouse again, including waiting
+                            packages. This changes existing shifts only, so it does not use your shift
+                            allowance. Vehicles that are already out keep their current trip. You can
+                            set a departure time for each vehicle.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -258,7 +256,7 @@ export function OptimiseRoutesButton() {
                     )}
 
                     <div className="space-y-2">
-                        <Label>Set-off times (optional)</Label>
+                        <Label>Departure times (optional)</Label>
                         <div className="max-h-72 space-y-2 overflow-y-auto rounded-md border p-2">
                             {loadingVehicles ? (
                                 <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
@@ -266,7 +264,7 @@ export function OptimiseRoutesButton() {
                                 </div>
                             ) : vehicles.length === 0 ? (
                                 <div className="py-6 text-center text-sm text-muted-foreground">
-                                    No driver–vehicle pairs in this warehouse.
+                                    No drivers with vehicles at this warehouse.
                                 </div>
                             ) : (
                                 vehicles.map((v) => (

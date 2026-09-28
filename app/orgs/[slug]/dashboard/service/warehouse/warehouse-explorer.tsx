@@ -64,22 +64,20 @@ export function WarehouseExplorer({ initialPins, initialItems, initialTotal }: W
         }
     }, [])
 
-    // Pin click → select; remember to scroll the card into view once it loads.
+    // Pin click: select, and scroll to the card when it loads.
     const handleSelectFromPin = useCallback((id: string) => {
         setSelectedWarehouseId(id)
         setPendingScrollId(id)
     }, [])
 
-    // Card click → select and focus the matching pin on the map.
+    // Card click: select, and move the map to the pin.
     const handleSelectFromCard = useCallback((id: string) => {
         setSelectedWarehouseId(id)
         setPendingScrollId(null)
         setFocusRequest({ id, token: Date.now() })
     }, [])
 
-    // If a pin was clicked for a warehouse not yet in the list, keep loading
-    // pages until it appears (bounded by hasMore). The list scrolls to it via
-    // its own selection effect once present.
+    // A clicked pin may not be in the list yet. Load pages until it is.
     useEffect(() => {
         if (!pendingScrollId) {
             return

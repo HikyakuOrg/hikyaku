@@ -7,10 +7,8 @@ import { getServiceCatalog } from "@/lib/api/services"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export default function BookingPage() {
-    // The booking route has no dynamic segment, so Next prerenders it at build
-    // time. Reading the request `x-org-slug` header and fetching the catalog are
-    // request-time work, so they must live inside a <Suspense> boundary
-    // (cacheComponents requirement) — the static shell streams in the content.
+    // Next prerenders this route. Reading the header and the catalog is
+    // request-time work, so it must be inside <Suspense> (cacheComponents).
     return (
         <Suspense fallback={<BookingSkeleton />}>
             <BookingContent />
@@ -19,23 +17,16 @@ export default function BookingPage() {
 }
 
 async function BookingContent() {
-    // The active tenant is resolved by middleware from the subdomain
-    // (<slug>.hikyaku.org) and exposed as the x-org-slug request header. Booking
-    // is per-organisation only — without a slug (e.g. the apex domain) there is
-    // no store to book with.
+    // Middleware sets x-org-slug from the subdomain. Without a slug (the apex
+    // domain) there is nothing to book.
     const slug = (await headers()).get("x-org-slug")
     if (!slug) notFound()
 
     const organisation = await getOrganisationBySlug(slug)
     if (!organisation) notFound()
 
-    // Price/currency live in Stripe, so the catalog comes from whendan-api
-    // (cached, 60s TTL) rather than supabase-js. Uses the resolved canonical
-    // slug, not the raw host label: on a vanity host `slug` above is the
-    // vanity value, which hikyaku-api's ServicesPublicController does not
-    // resolve (it only matches the opaque slug) — passing it straight
-    // through would silently render the empty "not accepting any services"
-    // state on every vanity host.
+    // Use the organisation slug, not the host label. On a vanity host the label
+    // is the vanity slug, which the catalog endpoint does not accept.
     const { services } = await getServiceCatalog(organisation.slug)
     const orgName = organisation.name ?? "This store"
 
@@ -43,7 +34,7 @@ async function BookingContent() {
         return (
             <div className="flex min-h-[70svh] flex-col items-center justify-center px-4 text-center">
                 <h1 className="scroll-m-20 text-2xl font-semibold tracking-tight text-balance">
-                    {orgName} is not accepting any services now
+                    {orgName} is not taking bookings right now
                 </h1>
             </div>
         )

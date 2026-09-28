@@ -1,18 +1,9 @@
-// Converts EWKT (SRID=4326;POLYGON...) to GeoJSON Polygon feature
 import type { Feature, FeatureCollection, Geometry, MultiPolygon, Polygon, Position } from "geojson"
 
 /**
- * Converts a GeoJSON Polygon feature to the EWKT `service_areas.geometry`
- * accepts.
- *
- * The column is `geometry(MultiPolygon,4326)`, so this emits a MULTIPOLYGON
- * with exactly one member rather than a bare POLYGON. PostGIS enforces the
- * column's type during the assignment cast, before any trigger runs, so a
- * POLYGON is rejected outright with "Geometry type (Polygon) does not match
- * column type (MultiPolygon)". Wrapping happens here because the drawing tool
- * produces one polygon per area and there is no multi-part drawing UI, so every
- * write from this app is single-member. Rings within that member (an outer ring
- * plus any holes) are untouched, only nested one level deeper.
+ * A GeoJSON Polygon as EWKT for `service_areas.geometry`. The column is a
+ * MultiPolygon and PostGIS rejects a POLYGON, so this writes a MULTIPOLYGON
+ * with one member.
  */
 export function polygonFeatureToEwkt(feature: Feature<Polygon>) {
     const rings = feature.geometry.coordinates.map(ring => {
@@ -27,18 +18,13 @@ export function polygonFeatureToEwkt(feature: Feature<Polygon>) {
     return `SRID=4326;MULTIPOLYGON((${rings.join(", ")}))`
 }
 
-/** The single-polygon feature the drawing tool round-trips through. */
+/** The single polygon the drawing tool edits. */
 export type EditableServiceAreaPolygon = Feature<Polygon, { mode: "polygon" }>
 
 /**
- * Outcome of preparing a stored service area for the single-polygon editor.
- *
- * `service_areas.geometry` is a MultiPolygon, so a stored area may legitimately
- * hold several disjoint parts: a suburb plus the island off it, or a zone cut in
- * two by a river. The editor here draws exactly one polygon, so a multi-part
- * area is refused rather than reduced. Reducing it to the largest part (what
- * this used to do) meant that opening such an area and saving it wrote that one
- * part over all of them, with nothing on screen to say the others had gone.
+ * A stored service area, prepared for the single-polygon editor. An area can
+ * have several parts (for example a suburb and an island). The editor cannot
+ * edit those, because a save would delete the other parts.
  */
 export type EditableServiceAreaGeometry =
     | { status: "editable"; feature: EditableServiceAreaPolygon }
@@ -56,10 +42,7 @@ export function getEditableServiceAreaPolygonFeature(geometry: unknown): Editabl
         return { status: "editable", feature: toEditablePolygonFeature(normalizedGeometry.coordinates) }
     }
 
-    // Only the member count matters. Rings inside one member are its outer
-    // boundary and its holes, not separate parts, so a polygon with holes is
-    // still editable. A single-member MultiPolygon is what every write from this
-    // app produces, and it unwraps back to the polygon that was drawn.
+    // Count members, not rings: holes are rings of the same part.
     if (normalizedGeometry.coordinates.length === 1) {
         return { status: "editable", feature: toEditablePolygonFeature(normalizedGeometry.coordinates[0]) }
     }
@@ -389,14 +372,8 @@ function isGeometryOfType<TGeometry extends Geometry>(value: unknown, type: TGeo
 }
 
 /**
- * The bounding box around a list of areas, used to point the map somewhere
- * useful on first paint or onto the areas just picked. Null when there is
- * nothing to frame.
- *
- * Built from the rows getServiceAreas() already read rather than from the
- * get_service_area_extent RPC, which takes no organisation and so framed every
- * organisation the caller belongs to. Reading the list also means the box only
- * covers live areas, where the RPC included retired ones.
+ * The bounding box around a list of areas, to position the map. Null when
+ * there is nothing to show.
  */
 export function getServiceAreaListBounds(areas: { bounds: ServiceAreaBounds | null }[]): ServiceAreaBounds | null {
     const boxes = areas.flatMap((area) => (area.bounds ? [area.bounds] : []))

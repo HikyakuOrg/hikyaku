@@ -41,9 +41,7 @@ export default function LocationHistoryMap({ points, currentIndex }: Props) {
         }
     }, [])
 
-    // Read by the redraw effect below to place the marker. Held in a ref because the
-    // route must not be rebuilt every time the scrubber moves; the effect at the end
-    // of this component is what tracks `currentIndex`.
+    // A ref, so moving the slider does not redraw the route.
     const currentIndexRef = useRef(currentIndex)
     useEffect(() => {
         currentIndexRef.current = currentIndex

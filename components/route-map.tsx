@@ -87,9 +87,8 @@ export function RouteMap({
     const markersRef = useRef<{ element: HTMLElement; marker: maplibregl.Marker; type: "start" | "end" | "job" }[]>([])
     const driverMarkerRef = useRef<maplibregl.Marker | null>(null)
 
-    // Both values are only read when a marker is first created. Held in refs so a
-    // moving driver never rebuilds the map and a toggle never resubscribes; the
-    // layer-visibility effect further down is what reacts to `showDriver`.
+    // Read only when a marker is created. Refs, so a moving driver does not
+    // rebuild the map. The visibility effect below handles `showDriver`.
     const driverLocationRef = useRef(driverLocation)
     const showDriverRef = useRef(showDriver)
     useEffect(() => {
@@ -386,7 +385,7 @@ export function RouteMap({
                         </div>
                         <div className="flex items-center space-x-2">
                             <Checkbox id="showJobs" checked={showJobs} onCheckedChange={(v) => setShowJobs(!!v)} />
-                            <Label htmlFor="showJobs" className="text-xs font-medium cursor-pointer">Job Markers</Label>
+                            <Label htmlFor="showJobs" className="text-xs font-medium cursor-pointer">Stop Markers</Label>
                         </div>
                         <div className="flex items-center space-x-2">
                             <Checkbox id="showDriver" checked={showDriver} onCheckedChange={(v) => setShowDriver(!!v)} />

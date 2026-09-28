@@ -5,7 +5,7 @@ import { d } from "./helpers/org-url"
 
 test.describe("Customer create", () => {
     for (const fixture of CUSTOMER_ADDRESS_FIXTURES) {
-        test(`happy path — create customer at ${fixture.address}, ${fixture.suburb}`, async ({ page }) => {
+        test(`happy path: create customer at ${fixture.address}, ${fixture.suburb}`, async ({ page }) => {
             const customer = randomCustomer(fixture)
 
             await page.goto(d('/customers'))
@@ -17,8 +17,7 @@ test.describe("Customer create", () => {
             await page.locator("#customer-name").fill(customer.name)
             await page.locator("#customer-phone").fill(customer.phone)
 
-            // The address field is an autocomplete: typing fetches suggestions from
-            // Pelias and selecting one populates suburb/state/country/postcode/lat/lon.
+            // Picking a Pelias suggestion fills suburb, state, country, postcode and coordinates.
             await page.locator("#customer-address").fill(
                 `${customer.address}, ${customer.suburb}`
             )
@@ -31,8 +30,7 @@ test.describe("Customer create", () => {
 
             await page.getByRole("button", { name: /create customer/i }).click()
 
-            // Service-area dialog may appear if the address falls outside coverage —
-            // dismiss it by proceeding anyway so the test is robust to seed data.
+            // The service area dialog shows when no area covers the address. Continue past it.
             const createAnyway = page.getByRole("button", { name: /create anyway/i })
             if (await createAnyway.isVisible().catch(() => false)) {
                 await createAnyway.click()

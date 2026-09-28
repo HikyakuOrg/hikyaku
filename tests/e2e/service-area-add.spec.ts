@@ -3,23 +3,16 @@ import { d } from "./helpers/org-url"
 
 test.describe("Service Area Add Flow", () => {
     /**
-     * Positive branch of the `service_areas.edit` gate.
+     * A user with `service_areas.edit` can add an area.
      *
-     * The negative branch is not reachable from this harness: every identity it
-     * can produce is an org creator, and handle_new_organisation() grants the
-     * creator every seeded permission in the org it just made. Reaching a member
-     * WITHOUT `service_areas.edit` needs a restricted invitation issued through
-     * hikyaku-api plus a second inbox to accept it, which no helper here does
-     * yet. What this test does guard is the dangerous regression in the other
-     * direction: hasOrgPermission() wrongly returning false and locking a
-     * legitimate admin out of their own service areas.
+     * The test user creates the org, so it has every permission. Testing a user
+     * without the permission needs an invitation and a second inbox, which no
+     * helper does yet. This test stops hasOrgPermission() from locking out admins.
      */
     test("a member holding service_areas.edit gets a live add entry point", async ({ page }) => {
         await page.goto(d('/service/areas'))
 
-        // Only the permitted variant renders as a link. Without the permission it
-        // is a disabled button carrying the reason in a tooltip, so matching the
-        // link role is itself the assertion that the gate opened.
+        // With the permission it is a link. Without it, it is a disabled button.
         const addLink = page.getByRole("link", { name: "Add Service Area" })
         await expect(addLink).toBeVisible()
 
@@ -91,14 +84,8 @@ test.describe("Service Area Add Flow", () => {
     })
 
     /**
-     * `service_areas.name` is unique per organisation rather than globally, so a
-     * second area by the same name inside this org is a 23505 the dispatcher can
-     * fix without leaving the form. It has to land on the name field, not in a
-     * toast that disappears before it can be read.
-     *
-     * Submitting twice without touching the form in between is the cheapest way
-     * to provoke it: a successful save leaves the name and the polygon in place,
-     * so the second click sends the identical insert.
+     * Area names are unique in an organisation. A duplicate (23505) must show on
+     * the name field, not in a toast. Saving twice sends the same insert.
      */
     test("reports a duplicate service area name on the name field", async ({ page }) => {
         const serviceAreaName = `Duplicate Area ${Date.now()}`
@@ -120,8 +107,7 @@ test.describe("Service Area Add Flow", () => {
         const submitButton = page.getByTestId("service-area-submit-button")
         await expect(submitButton).toBeEnabled()
 
-        // First save succeeds, which is also the assertion that a drawn polygon
-        // still reaches the database at all now that the column is a MultiPolygon.
+        // The first save works, so a drawn polygon still saves as a MultiPolygon.
         await submitButton.click()
         await expect(page.getByTestId("service-area-last-submission")).toContainText(serviceAreaName)
 
@@ -135,7 +121,7 @@ test.describe("Service Area Add Flow", () => {
         await expect(nameError).toContainText(serviceAreaName)
         await expect(page.getByTestId("service-area-name-input")).toHaveAttribute("aria-invalid", "true")
 
-        // Editing the name clears the conflict so the dispatcher can retry.
+        // Editing the name clears the error.
         await page.getByTestId("service-area-name-input").fill(`${serviceAreaName} B`)
         await expect(page.getByTestId("service-area-name-error")).toHaveCount(0)
     })

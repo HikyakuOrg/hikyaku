@@ -17,19 +17,14 @@ export type CreateServiceInput = CreateServiceDto
 export type CreateAddonInput = CreateAddonDto
 
 /**
- * Edit a service/add-on. Only the supplied fields change; currency is fixed.
- * Services and add-ons take the same patch body upstream (`UpdateServiceDto`
- * and `UpdateAddonDto` are identical), so one type covers both forms.
+ * Changes to a service or add-on. Only the given fields change; the currency
+ * cannot change. Services and add-ons use the same body.
  */
 export type UpdateCatalogItemInput = UpdateServiceDto
 
 type ActionOk<T> = { success: true; data: T }
 
-/**
- * Invalidate the catalog cache + dashboard page after a mutation. `updateTag`
- * (Next 16) is the Server-Action variant — 1 arg, with read-your-own-writes so
- * the dashboard refetch immediately reflects the change.
- */
+/** Refresh the catalog cache and page after a change. `updateTag` shows the change on the next read. */
 function revalidateCatalog(slug: string) {
     updateTag(`catalog:${slug}`)
     revalidatePath(`/orgs/${slug}/dashboard/service-rates`)
@@ -56,7 +51,7 @@ async function mutate<T>(
 
     if (!res.ok) return { success: false, error: await parseApiError(res) }
     revalidateCatalog(ctx.slug)
-    // The archive routes answer 200 with an empty body; the rest return a ServiceRefDto.
+    // Archive routes return an empty body; the others return a ServiceRefDto.
     const data = method === "DELETE" ? null : await res.json().catch(() => null)
     return { success: true, data: data as T }
 }

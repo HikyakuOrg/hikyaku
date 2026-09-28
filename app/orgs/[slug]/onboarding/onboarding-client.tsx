@@ -128,11 +128,11 @@ export function OnboardingClient({ slug }: { slug: string }) {
                 }
                 const s = result.data
                 if (s.country) setCountry(s.country)
-                // Account exists but onboarding unfinished — resume embedded flow.
+                // Account exists but setup is not finished: resume.
                 if (s.accountId && !s.detailsSubmitted) {
                     beginOnboarding(s.country ?? "US")
                 }
-                // Already done — skip straight to dashboard.
+                // Already done: go to the dashboard.
                 if (s.detailsSubmitted) {
                     router.replace(orgPath(slug, "/dashboard"))
                 }
@@ -167,8 +167,8 @@ export function OnboardingClient({ slug }: { slug: string }) {
                 <CardHeader>
                     <CardTitle>Finish your payments setup</CardTitle>
                     <CardDescription>
-                        Complete the steps below to activate your Stripe account.
-                        You can issue fuel cards once your account is verified.
+                        Complete these steps to activate your Stripe account. After
+                        Stripe verifies it, you can issue fuel cards.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -185,8 +185,8 @@ export function OnboardingClient({ slug }: { slug: string }) {
             <CardHeader>
                 <CardTitle>Set up payments</CardTitle>
                 <CardDescription>
-                    Select your country to create a Stripe account. This enables card
-                    payments and, where available, fuel card issuing.
+                    Select your country to create a Stripe account. You can then take card
+                    payments and, where available, issue fuel cards.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

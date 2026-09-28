@@ -1,16 +1,7 @@
 /**
- * Display mapping for `package_assignment.coverage_outcome`.
- *
- * Not a generated API shape: this is a plain Postgres column (see
- * AddAssignmentCoverageOutcome1788829200000 in hikyaku-api), read directly
- * through Supabase rather than through a documented endpoint, so there is no
- * OpenAPI DTO to alias. Kept in one place because three surfaces show it
- * (package detail, the packages list, shift detail) and they must describe the
- * same value the same way.
- *
- * The five values mirror hikyaku-api's COVERAGE_OUTCOMES in
- * src/dispatch/coverage.ts exactly; that file is the source of truth for what
- * the assignment engine can write here.
+ * Labels for `package_assignment.coverage_outcome`, shared by the package
+ * detail, package list and shift detail pages. Keep the values in sync with
+ * COVERAGE_OUTCOMES in hikyaku-api (src/dispatch/coverage.ts).
  */
 export const COVERAGE_OUTCOMES = [
     "covered",
@@ -42,52 +33,47 @@ export interface CoverageOutcomePresentation {
 }
 
 /**
- * `null` is not an error state: it means automatic assignment did not write
- * this row (a replan, a dispatcher's manual edit, or a package placed before
- * this column existed). Rendering it as "Not recorded" rather than as
- * "Covered" is a named acceptance criterion of HIK-19 — the alternative would
- * quietly claim coverage explains placements it had nothing to do with.
+ * `null` means automatic assignment did not write this row (a replan, a manual
+ * change, or an older package). Show "Not recorded", not "Covered".
  *
- * Fallback outcomes deliberately do not use a destructive/red treatment.
- * Parent R13: a fallback is the designed behaviour for a partially-drawn map,
- * not a failure, and styling it as an alert trains dispatchers to ignore it.
+ * Fallbacks are normal behaviour, not errors, so they are not shown in red.
  */
 export function describeCoverageOutcome(outcome: string | null | undefined): CoverageOutcomePresentation {
     switch (outcome) {
         case "covered":
             return {
                 label: "Covered",
-                description: "Assigned to a driver whose territory covers this address.",
+                description: "Assigned to a driver whose service area includes this address.",
                 badgeVariant: "default",
             }
         case "floater":
             return {
                 label: "Floater match",
-                description: "Assigned to a driver with no territories of their own, who is offered work anywhere.",
+                description: "Assigned to a driver with no service areas. These drivers can get work anywhere.",
                 badgeVariant: "secondary",
             }
         case "fallback_no_covering_capacity":
             return {
                 label: "Fallback: no capacity",
-                description: "A driver covers this address, but none had room or an idle van, so it went to any available driver instead.",
+                description: "Drivers cover this address, but none had space or a free vehicle. It went to another available driver.",
                 badgeVariant: "outline",
             }
         case "fallback_no_covering_driver":
             return {
                 label: "Fallback: no coverage",
-                description: "No driver covers this address, so it went to any available driver instead. Draw or staff a territory here to change that.",
+                description: "No driver covers this address, so it went to another available driver. To change this, add a service area here and add drivers to it.",
                 badgeVariant: "outline",
             }
         case "disabled":
             return {
                 label: "Coverage off",
-                description: "Territory matching was switched off when this package was assigned, so every driver was treated as covering everywhere.",
+                description: "Service area matching was off when this package was assigned. Any driver could get it.",
                 badgeVariant: "secondary",
             }
         default:
             return {
                 label: "Not recorded",
-                description: "This package predates coverage tracking, or was placed by a replan or a manual edit rather than automatic assignment.",
+                description: "A replan or a manual change placed this package, or it is older than coverage tracking.",
                 badgeVariant: "outline",
             }
     }

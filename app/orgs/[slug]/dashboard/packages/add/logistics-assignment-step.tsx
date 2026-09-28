@@ -40,8 +40,7 @@ export function LogisticsAssignmentStep({ onNext, onPrev, defaultValues }: {
         defaultValues: defaultValues ?? { warehouseId: "", trackingNumber: "", deliveryNotes: "", scheduledArrival: undefined },
     });
 
-    // The picked date and time are read in the browser's zone, then stored as a
-    // UTC instant; every screen that shows it formats it back in local time.
+    // The date and time are local. They are stored in UTC and shown in local time.
     const [timeZoneLabel] = useState(() =>
         new Intl.DateTimeFormat(undefined, { timeZoneName: "shortOffset" })
             .formatToParts(new Date())
@@ -127,7 +126,7 @@ export function LogisticsAssignmentStep({ onNext, onPrev, defaultValues }: {
                             Logistics Assignment
                         </h3>
                         <p className="text-muted-foreground mt-2 leading-7">
-                            Assign a specific warehouse and scheduled arrival time for this shipment
+                            Choose the warehouse and the delivery deadline.
                         </p>
                     </div>
                     <div className="grid w-full gap-6">
@@ -169,8 +168,7 @@ export function LogisticsAssignmentStep({ onNext, onPrev, defaultValues }: {
                                             <FieldLabel htmlFor="scheduledArrivalDate">Date</FieldLabel>
 
                                             <Popover open={open} onOpenChange={setOpen}>
-                                                {/* Render prop so the trigger is the Button itself,
-                                                    not a <button> wrapping another <button>. */}
+                                                {/* render prop avoids a nested <button> */}
                                                 <PopoverTrigger
                                                     render={
                                                         <Button
@@ -223,7 +221,7 @@ export function LogisticsAssignmentStep({ onNext, onPrev, defaultValues }: {
                                             )}
                                             <div className="flex items-center justify-between gap-2">
                                                 <FieldDescription className="text-xs">
-                                                    Optional. Leave empty for no delivery deadline. Without a time, it defaults to 23:59:59.
+                                                    Optional. Leave empty for no deadline. With no time, the deadline is 23:59:59.
                                                     Times are in your local time zone ({timeZoneLabel}).
                                                 </FieldDescription>
                                                 {(date || time) && (
@@ -251,7 +249,7 @@ export function LogisticsAssignmentStep({ onNext, onPrev, defaultValues }: {
                                         className="w-full"
                                     />
                                     <FieldDescription className="text-xs">
-                                        Optional. Generated automatically if not set.
+                                        Optional. If empty, one is created automatically.
                                     </FieldDescription>
                                 </Field>
                             )}

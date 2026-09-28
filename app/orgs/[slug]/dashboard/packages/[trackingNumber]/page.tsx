@@ -22,9 +22,7 @@ import PackageTimeline from "./package-timeline"
 import { Separator } from "@/components/ui/separator"
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from "@/components/ui/breadcrumb"
 
-// PostgREST's "no (or multiple) rows returned" from `.single()`. For a tracking
-// number lookup it means there is no package to show, as opposed to a request
-// that failed on its way to the database.
+// PostgREST "no rows" from `.single()`: no package has this tracking number.
 function isNoRowsError(error: unknown): boolean {
     return (
         typeof error === "object" &&
@@ -42,8 +40,8 @@ export default function PackageDetails() {
     const [packageId, setPackageId] = useState<string | null>(null)
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const [driver, setDriver] = useState<ListDriverDto | null>(null)
-    // undefined: no package_assignment row exists yet (not assigned). null: a
-    // row exists but automatic assignment did not write an outcome onto it.
+    // undefined: not assigned yet. null: assigned, but automatic assignment
+    // wrote no outcome.
     const [coverageOutcome, setCoverageOutcome] = useState<string | null | undefined>(undefined)
     const [requiredSkills, setRequiredSkills] = useState<Skill[]>([])
     const [fromCustomer, setFromCustomer] = useState<Customer | null>(null)
@@ -55,11 +53,7 @@ export default function PackageDetails() {
     const [warehouse, setWarehouse] = useState<Tables<"warehouse"> | null>(null)
     const [packageFailure, setPackageFailure] = useState<Tables<"package_failure"> | null>(null)
     const [logoUrl, setLogoUrl] = useState<string | null>(null)
-    // Null while the load is in flight. "not-found" means the tracking number
-    // matched nothing; "load-failed" means a required fetch rejected or came
-    // back incomplete. Without this, any such failure left the page on the
-    // spinner forever, because the render gate can only open once every
-    // piece of state has been set.
+    // Null while loading. Without it, a failed load shows the spinner forever.
     const [loadError, setLoadError] = useState<"not-found" | "load-failed" | null>(null)
 
     useEffect(() => {
@@ -76,9 +70,7 @@ export default function PackageDetails() {
         let cancelled = false
 
         async function fetchAll() {
-            // A client-side navigation between packages would otherwise keep
-            // showing the previous package's rows (or its error panel) while
-            // the new ones load.
+            // Clear the previous package while the new one loads.
             setLoadError(null)
             setPackageId(null)
             setPackageData(null)
@@ -129,11 +121,8 @@ export default function PackageDetails() {
 
             if (cancelled) return
 
-            // The render gate cannot open without the package row, its
-            // dimensions and its delivery window, so a rejection in any of
-            // those three has to end the load. Timeline and assignment
-            // failures are survivable: the page just renders an empty
-            // timeline and no assigned driver.
+            // The page needs the package, its dimensions and its delivery
+            // window. Timeline and assignment errors are not fatal.
             if (
                 packageResult.status === "rejected" ||
                 dimensionResult.status === "rejected" ||
@@ -187,11 +176,8 @@ export default function PackageDetails() {
                 const data = packageResult.value
                 setPackageData(data)
 
-                // The by-ids lookup skips unknown ids and still answers 200,
-                // and the sender/receiver pair is required by the render gate,
-                // so an empty or partial customer list is a dead end the same
-                // way a thrown request is — it would otherwise leave the page
-                // waiting on customers that are never coming.
+                // The by-ids lookup skips unknown ids and still returns 200.
+                // The page needs both customers, so a missing one is an error.
                 const fromId = data.from_customer
                 const toId = data.to_customer
                 const customerIds = [fromId, toId].filter(Boolean) as string[]
@@ -243,10 +229,7 @@ export default function PackageDetails() {
     }, [trackingNumber])
 
     if (loadError) {
-        // A wrong tracking number and a failed read get different panels, the
-        // same split the service area detail page makes: a dispatcher told a
-        // package is gone because the database is unreachable goes looking
-        // for a problem that does not exist.
+        // A wrong tracking number and a failed read show different messages.
         const isMissing = loadError === "not-found"
         return (
             <div className="space-y-6 p-6">
@@ -261,12 +244,12 @@ export default function PackageDetails() {
                 >
                     <div className="space-y-2">
                         <h1 className="text-lg font-semibold">
-                            {isMissing ? "Package not found" : "Package could not be loaded"}
+                            {isMissing ? "Package not found" : "Could not load the package"}
                         </h1>
                         <p className="text-sm text-muted-foreground">
                             {isMissing
                                 ? "Check the tracking number, or the package may belong to another organisation."
-                                : "This is a problem reading its details, not a deleted package. Reload the page, and contact support if it keeps happening."}
+                                : "Reload the page. If the problem continues, contact support."}
                         </p>
                     </div>
                 </div>
@@ -325,7 +308,7 @@ export default function PackageDetails() {
                                 </div>
                                 <div>
                                     <h3 className="font-semibold text-lg">Departure Warehouse</h3>
-                                    <p className="text-sm text-muted-foreground">Original service center</p>
+                                    <p className="text-sm text-muted-foreground">Where the package leaves from</p>
                                 </div>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

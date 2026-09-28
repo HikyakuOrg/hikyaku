@@ -72,7 +72,7 @@ export default function VehicleOverviewPage() {
                 setImages(urls)
             }
         } catch {
-            toast.error('Failed to load vehicle details')
+            toast.error('Could not load the vehicle.')
             router.push(`/orgs/${slug}/dashboard/fleet/vehicles`)
         } finally {
             setIsLoading(false)
@@ -85,7 +85,7 @@ export default function VehicleOverviewPage() {
             const result = await getVehicleDeliveries(id, page, deliveriesPageSize)
             setDeliveriesData(result)
         } catch {
-            toast.error('Failed to load deliveries')
+            toast.error('Could not load the deliveries.')
         } finally {
             setIsLoadingDeliveries(false)
         }
@@ -104,15 +104,15 @@ export default function VehicleOverviewPage() {
     }, [id, deliveriesPage, loadDeliveries])
 
     const handleDelete = async () => {
-        if (!confirm('Are you sure you want to delete this vehicle?')) return
+        if (!confirm('Delete this vehicle?')) return
         
         setIsDeleting(true)
         try {
             await deleteVehicle(id)
-            toast.success('Vehicle deleted successfully')
+            toast.success('Vehicle deleted.')
             router.push(`/orgs/${slug}/dashboard/fleet/vehicles`)
         } catch (error) {
-            toast.error(getErrorMessage(error) || 'Failed to delete vehicle')
+            toast.error(getErrorMessage(error) || 'Could not delete the vehicle.')
             setIsDeleting(false)
         }
     }
@@ -220,7 +220,7 @@ export default function VehicleOverviewPage() {
                             ) : (
                                 <div className="flex-1 border-2 border-dashed rounded-lg flex flex-col items-center justify-center text-muted-foreground p-8 text-center">
                                     <Truck className="w-12 h-12 mb-2 opacity-20" />
-                                    <p className="text-xs">No images available for this vehicle.</p>
+                                    <p className="text-xs">No photos for this vehicle.</p>
                                 </div>
                             )}
                         </div>
@@ -231,7 +231,7 @@ export default function VehicleOverviewPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-lg">Assigned Driver</CardTitle>
-                        <CardDescription>Current primary operator</CardDescription>
+                        <CardDescription>The driver of this vehicle.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         {currentDriver ? (
@@ -284,7 +284,7 @@ export default function VehicleOverviewPage() {
                 <CardHeader className="flex flex-row items-center justify-between">
                     <div>
                         <CardTitle>Recent Deliveries</CardTitle>
-                        <CardDescription>Historical and active packages assigned to this vehicle.</CardDescription>
+                        <CardDescription>Past and current packages on this vehicle.</CardDescription>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -348,7 +348,7 @@ export default function VehicleOverviewPage() {
                         <div className="py-20 flex flex-col items-center justify-center text-center text-muted-foreground border-2 border-dashed rounded-lg">
                             <Package className="w-12 h-12 mb-3 opacity-20" />
                             <h4 className="font-medium text-foreground">No Deliveries Found</h4>
-                            <p className="text-sm max-w-[250px]">This vehicle has not been used for any deliveries yet.</p>
+                            <p className="text-sm max-w-[250px]">This vehicle has no deliveries yet.</p>
                         </div>
                     )}
                 </CardContent>
@@ -417,7 +417,7 @@ export default function VehicleOverviewPage() {
                         <div className="py-20 flex flex-col items-center justify-center text-center text-muted-foreground border-2 border-dashed rounded-lg">
                             <Wrench className="w-12 h-12 mb-3 opacity-20" />
                             <h4 className="font-medium text-foreground">No Maintenance Records</h4>
-                            <p className="text-sm max-w-[250px]">No service history has been logged for this vehicle yet.</p>
+                            <p className="text-sm max-w-[250px]">This vehicle has no service records yet.</p>
                         </div>
                     )}
                 </CardContent>

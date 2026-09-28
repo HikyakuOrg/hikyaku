@@ -83,7 +83,7 @@ export function CustomerInfo({ onNext, onPrev, defaultValues }: {
                                 Customer Information
                             </h3>
                             <p className="text-muted-foreground mt-2 leading-7">
-                                Identify the sender and receiver for this shipment from your existing customers
+                                Choose the sender and receiver from your customers, or create new ones.
                             </p>
                         </div>
                         <div className="grid w-full gap-6">

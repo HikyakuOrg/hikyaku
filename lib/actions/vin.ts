@@ -13,9 +13,8 @@ export type DecodedVin = {
 }
 
 /**
- * GVWR comes back as a class label, e.g. "Class 2H: 9,001 - 10,000 lb
- * (4,082 - 4,536 kg)". Take the upper kg bound so the gross limit never
- * understates what the vehicle can legally carry.
+ * GVWR is a class label, e.g. "Class 2H: 9,001 - 10,000 lb (4,082 - 4,536 kg)".
+ * Use the upper kg value so the gross limit is never too low.
  */
 function parseGvwrKg(gvwr: string | undefined): number | null {
     const match = gvwr?.match(/([\d,]+)\s*kg\)/i)
@@ -30,7 +29,7 @@ function parseGvwrKg(gvwr: string | undefined): number | null {
  */
 export async function decodeVin(vin: string): Promise<DecodedVin | ActionError> {
     if (!vin || vin.length !== 17) {
-        return { success: false, error: "Invalid VIN length" }
+        return { success: false, error: "A VIN has 17 characters." }
     }
 
     const auth = await getAccessToken()
@@ -47,10 +46,10 @@ export async function decodeVin(vin: string): Promise<DecodedVin | ActionError> 
         const result: VinDecodeResultDto = await res.json()
         const { vehicle, wmi } = result.components
         if (!result.valid || !vehicle || !wmi) {
-            return { success: false, error: result.errors[0]?.message || "Could not decode VIN" }
+            return { success: false, error: result.errors[0]?.message || "Could not read this VIN." }
         }
         return { success: true, vehicle, wmi, gvwrKg: parseGvwrKg(vehicle.gvwr) }
     } catch {
-        return { success: false, error: "Could not reach the VIN decoder. Please enter details manually." }
+        return { success: false, error: "Could not look up this VIN. Enter the vehicle details manually." }
     }
 }

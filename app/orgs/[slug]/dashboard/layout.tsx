@@ -46,12 +46,9 @@ async function AuthenticatedShell({ children, params }: DashboardLayoutProps) {
   const [organisations, pendingInvitations, trial, shiftUsage] = await Promise.all([
     listMyOrganisations(),
     listPendingInvitations(),
-    // Resolved for the org in the URL, which middleware forwards as x-org-slug.
-    // Returns null rather than throwing if the API is unreachable, so a backend
-    // blip degrades to "no countdown" instead of an unrenderable dashboard.
+    // Null when the API does not answer, so the dashboard still renders.
     getTrialStatus(),
-    // Same fail-open-to-null shape, same reason: a sidebar indicator, not the
-    // enforcement point (see AddShiftUsageMetering in hikyaku-api).
+    // Also null on error. The database enforces the allowance.
     getShiftUsage(),
   ])
 
@@ -64,15 +61,12 @@ async function AuthenticatedShell({ children, params }: DashboardLayoutProps) {
     redirect('/orgs')
   }
 
-  // Company orgs can use the dashboard immediately; Stripe Connect setup is
-  // now opt-in via the Business Information page in the user dropdown.
+  // Stripe Connect setup is optional (Business Information).
   const cardIssuingActive = currentOrg.cardIssuingStatus === 'active'
-  // "Service Rates" (the unit-priced catalog) only makes sense once the org can
-  // actually accept payments.
+  // Service Rates needs payments.
   const serviceRatesActive = currentOrg.chargesEnabled
-  // Only `expired` blocks. `none` covers personal orgs and orgs that predate
-  // trials — they are unrestricted, not lapsed — and a null trial means the API
-  // did not answer, which must not lock anyone out on its own.
+  // Only `expired` blocks. `none` means no trial. Null means the API did not
+  // answer, which must not lock anyone out.
   const trialEnded = trial?.state === 'expired'
 
   return (
@@ -99,11 +93,8 @@ async function AuthenticatedShell({ children, params }: DashboardLayoutProps) {
         {pendingInvitations.length > 0 ? (
           <PendingInvitationsDialog invitations={pendingInvitations} />
         ) : (
-          // Only one at a time. Both dialogs are non-dismissible, so stacking
-          // them would leave the user with no way out of the top one. Invitations
-          // win because accepting one navigates to a different organisation,
-          // which resolves the expired trial as a side effect — whereas the
-          // trial dialog offers no route to the invitation.
+          // One dialog only: neither can be closed. Invitations come first,
+          // because accepting one opens another organisation.
           trialEnded && trial && <TrialEndedDialog trial={trial} />
         )}
         <OrganisationProvider organisationId={currentOrg.id}>{children}</OrganisationProvider>

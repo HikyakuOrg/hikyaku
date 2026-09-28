@@ -108,10 +108,7 @@ export async function getIssuingBalance(): Promise<
     return { success: true, data: await res.json() }
 }
 
-/**
- * Issuing-status flags for all orgs the caller belongs to.
- * Used by the org switcher — no active-org context needed, only a valid JWT.
- */
+/** Issuing status for every org the caller belongs to, for the org switcher. Needs no active org. */
 export async function getIssuingStatuses(): Promise<OrgIssuingStatus[]> {
     const auth = await getAccessToken()
     if ("error" in auth) return []

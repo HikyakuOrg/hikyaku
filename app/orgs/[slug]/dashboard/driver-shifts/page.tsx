@@ -16,7 +16,7 @@ export default async function DriverShiftsPage({ params }: { params: Promise<{ s
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight mb-2">Driver Shifts</h1>
                     <p className="text-muted-foreground">
-                        Monitor driver&apos;s shift and optimization results.
+                        See driver shifts and their routes.
                     </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -31,10 +31,9 @@ export default async function DriverShiftsPage({ params }: { params: Promise<{ s
                                 <Info className="h-4 w-4 text-muted-foreground cursor-help" />
                             </TooltipTrigger>
                             <TooltipContent side="left" className="max-w-xs text-sm">
-                                Shifts are typically created automatically: a new package joins an
-                                open shift the moment it is added, and opens one when nothing has
-                                room. Create a shift by hand to reserve a driver and van ahead of
-                                time, or to override the planned route.
+                                Shifts are usually created automatically: a new package goes on an
+                                open shift, or starts a new one when no shift has space. Add a shift
+                                yourself to book a driver and vehicle early, or to change the route.
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>

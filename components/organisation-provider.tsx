@@ -5,12 +5,8 @@ import { createContext, useContext, type ReactNode } from 'react'
 const OrganisationIdContext = createContext<string | null>(null)
 
 /**
- * Makes the dashboard's organisation id available to client components.
- *
- * The browser reads in `lib/supabase/db.ts` filter on `organisation_id`
- * explicitly, because RLS admits every organisation the caller belongs to. The
- * dashboard layout already resolved the organisation from the URL slug, so it
- * hands the id down here instead of every picker looking it up again.
+ * Gives client components the dashboard's organisation id. Browser reads
+ * filter by it, because RLS shows every organisation the user belongs to.
  */
 export function OrganisationProvider({
   organisationId,

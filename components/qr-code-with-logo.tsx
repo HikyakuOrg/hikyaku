@@ -10,11 +10,8 @@ interface QrCodeWithLogoProps {
 }
 
 /**
- * QR code that embeds an organisation's logo in the centre, wherever a
- * customer- or driver-facing QR gets rendered. Error correction bumps to
- * "H" only when a logo is present — qrcode.react's `excavate` then clears
- * the modules the logo overlaps, and level H's ~30% redundancy budget is
- * what keeps the code scannable despite the hole.
+ * QR code with the organisation logo in the centre. With a logo, error
+ * correction is H (about 30%), so the code still scans.
  */
 export function QrCodeWithLogo({ value, logoUrl, size = 256 }: QrCodeWithLogoProps) {
     const logoSize = Math.round(size * 0.22);

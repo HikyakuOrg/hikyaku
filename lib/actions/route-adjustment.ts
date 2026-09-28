@@ -7,14 +7,14 @@ import { getShiftMeta } from "@/lib/supabase/db-server"
 import { getOrgSlug } from "./api-client"
 import { removePackageFromShift } from "./shift"
 
-/** Statuses that are immovable/undeletable */
+/** Packages with these statuses cannot be moved or removed. */
 const LOCKED_STATUSES = ["DELIVERED", "IN_TRANSIT"] as const
 
 export interface AdjustRouteParams {
     routeId: string
-    /** Full ordered list of step IDs representing the desired order after adjustment (must include start, all remaining jobs, and end). */
+    /** All step IDs in the new order: start, remaining jobs, end. */
     orderedStepIds: number[]
-    /** Step IDs to delete (only PENDING/FAILED jobs below the lock boundary). */
+    /** Step IDs to remove (PENDING or FAILED jobs after the last locked job). */
     deletedStepIds: number[]
 }
 
@@ -26,12 +26,12 @@ export async function adjustRoute(params: AdjustRouteParams): Promise<AdjustRout
     // 1. Authenticate
     const { data: claimsData, error: claimsError } = await getSupabaseServerClaims()
     if (claimsError || !claimsData?.claims?.sub) {
-        return { success: false, error: "Not authenticated" }
+        return { success: false, error: "You are not signed in." }
     }
 
     const { routeId, orderedStepIds, deletedStepIds } = params
 
-    // 2. Fetch current route steps (authenticated client – respects read RLS)
+    // 2. Fetch current route steps (RLS applies)
     const supabase = await createClient()
     const { data: currentSteps, error: fetchError } = await supabase
         .from("vrp_route_step")
@@ -51,13 +51,13 @@ export async function adjustRoute(params: AdjustRouteParams): Promise<AdjustRout
         .order("step_index", { ascending: true })
 
     if (fetchError) {
-        return { success: false, error: `Failed to fetch route steps: ${fetchError.message}` }
+        return { success: false, error: `Could not load the route stops: ${fetchError.message}` }
     }
     if (!currentSteps || currentSteps.length === 0) {
-        return { success: false, error: "Route not found" }
+        return { success: false, error: "Could not find this route." }
     }
 
-    // 3. Compute the lock boundary: highest step_index of any JOB with a locked status
+    // 3. Lock boundary: the highest step_index of a job with a locked status
     const lockBoundaryStepIndex = (() => {
         const locked = currentSteps.filter(s => {
             const status = s.package_assignment?.package?.current_status as string | undefined
@@ -77,16 +77,16 @@ export async function adjustRoute(params: AdjustRouteParams): Promise<AdjustRout
             return { success: false, error: `Step ${stepId} not found in this route` }
         }
         if (step.type !== "job") {
-            return { success: false, error: "Cannot delete start or end steps" }
+            return { success: false, error: "You cannot remove the start or end of the route." }
         }
         const status = statusOf(step)
         if (status && LOCKED_STATUSES.includes(status as never)) {
-            return { success: false, error: `Cannot delete a package with status ${status}` }
+            return { success: false, error: `You cannot remove a stop with status ${status}.` }
         }
         if (step.step_index <= lockBoundaryStepIndex) {
             return {
                 success: false,
-                error: "Cannot delete a package that is above the current delivery position",
+                error: "You cannot remove a stop before the driver's current position.",
             }
         }
     }
@@ -99,7 +99,7 @@ export async function adjustRoute(params: AdjustRouteParams): Promise<AdjustRout
         currentSteps.filter(s => !deletedStepIds.includes(s.id)).map(s => s.id)
     )
     if (orderedStepIds.length !== expectedIds.size) {
-        return { success: false, error: "Ordered step list has wrong length" }
+        return { success: false, error: "The stops changed. Reload the page and try again." }
     }
     for (const id of orderedStepIds) {
         if (!expectedIds.has(id)) {
@@ -111,10 +111,10 @@ export async function adjustRoute(params: AdjustRouteParams): Promise<AdjustRout
     const startStep = currentSteps.find(s => s.type === "start")
     const endStep = currentSteps.find(s => s.type === "end")
     if (startStep && orderedStepIds[0] !== startStep.id) {
-        return { success: false, error: "Start step must remain first" }
+        return { success: false, error: "The start must stay first." }
     }
     if (endStep && orderedStepIds[orderedStepIds.length - 1] !== endStep.id) {
-        return { success: false, error: "End step must remain last" }
+        return { success: false, error: "The end must stay last." }
     }
 
     // Validate that the relative order of locked steps is unchanged
@@ -126,11 +126,10 @@ export async function adjustRoute(params: AdjustRouteParams): Promise<AdjustRout
         return s?.type === "job" && LOCKED_STATUSES.includes(statusOf(s) as never)
     })
     if (JSON.stringify(originalLockedJobOrder) !== JSON.stringify(newLockedJobOrder)) {
-        return { success: false, error: "Cannot reorder delivered or in-transit packages" }
+        return { success: false, error: "You cannot move delivered or in-transit stops." }
     }
 
-    // Validate no editable step appears before the lock boundary position
-    // Find the position of the last locked job in orderedStepIds
+    // No editable job can come before the last locked job
     let lastLockedPosition = -1
     for (let i = 0; i < orderedStepIds.length; i++) {
         const s = stepMap.get(orderedStepIds[i])
@@ -144,19 +143,14 @@ export async function adjustRoute(params: AdjustRouteParams): Promise<AdjustRout
         if (s.type === "job" && !LOCKED_STATUSES.includes(statusOf(s) as never)) {
             return {
                 success: false,
-                error: "Cannot move a pending/failed package above a delivered or in-transit position",
+                error: "You cannot move a stop before a delivered or in-transit stop.",
             }
         }
     }
 
     // 6. Execute the changes.
     try {
-        // 6a. Removals go to the API, which drops the assignment, rewrites the
-        // route's steps without the package and puts it back to PENDING — all in
-        // one transaction. Doing that from here took three round trips per
-        // package with nothing holding them together, and its PENDING write was
-        // silently swallowed by the timeline's unique constraint (dropped in
-        // AllowStatusRevisits), so a removed package showed ASSIGNED forever.
+        // 6a. The API removes each package in one transaction.
         if (deletedStepIds.length > 0) {
             const shift = await getShiftMeta(routeId)
             if (!shift) {
@@ -165,25 +159,18 @@ export async function adjustRoute(params: AdjustRouteParams): Promise<AdjustRout
 
             for (const stepId of deletedStepIds) {
                 const step = currentSteps.find(s => s.id === stepId)
-                // Validation above already rejected non-job steps, and every job
-                // step carries a package.
+                // Only job steps get here, and each has a package.
                 if (!step?.package_id) continue
 
                 const removal = await removePackageFromShift(shift.optimisation_id, step.package_id)
                 if (!removal.success) {
-                    throw new Error(`Failed to remove package ${step.package_id}: ${removal.error}`)
+                    throw new Error(`Could not remove a package from the route: ${removal.error}`)
                 }
             }
         }
 
-        // 6b. Reorder whatever is left.
-        //
-        // There is no reorder endpoint — the API rewrites step order as a result
-        // of adding or removing a package, not as an operation of its own — so
-        // this stays a direct write. Removal already compacted the indexes, so
-        // it runs only when the dispatcher actually dragged something, which is
-        // also why the step ids have to be re-read: the API deletes and
-        // re-inserts the surviving steps, giving them new ids.
+        // 6b. Reorder the rest. The API has no reorder endpoint, so write
+        // directly. Re-read the steps first: removal gives them new ids.
         const desiredPackageOrder = orderedStepIds
             .map(id => stepMap.get(id))
             .filter(s => s?.type === "job")
@@ -197,7 +184,7 @@ export async function adjustRoute(params: AdjustRouteParams): Promise<AdjustRout
             .order("step_index", { ascending: true })
 
         if (reloadError) {
-            throw new Error(`Failed to re-read route steps: ${reloadError.message}`)
+            throw new Error(`Could not reload the route stops: ${reloadError.message}`)
         }
 
         const liveJobsByPackage = new Map(
@@ -218,16 +205,15 @@ export async function adjustRoute(params: AdjustRouteParams): Promise<AdjustRout
 
         const alreadyOrdered = target.every((step, index) => step.step_index === index)
         if (!alreadyOrdered) {
-            // Two phases, because UNIQUE(route_id, step_index) rejects any
-            // intermediate state where two steps share an index. Negating by id
-            // parks every row somewhere no positive index can collide with.
+            // Two passes, because UNIQUE(route_id, step_index) rejects two
+            // steps with the same index. First move each step to -id.
             for (const step of target) {
                 const { error } = await supabase
                     .from("vrp_route_step")
                     .update({ step_index: -step.id })
                     .eq("id", step.id)
                 if (error) {
-                    throw new Error(`Failed to negate step_index for step ${step.id}: ${error.message}`)
+                    throw new Error(`Could not save the new stop order: ${error.message}`)
                 }
             }
 
@@ -238,12 +224,12 @@ export async function adjustRoute(params: AdjustRouteParams): Promise<AdjustRout
                     .update({ step_index: newIndex })
                     .eq("id", step.id)
                 if (error) {
-                    throw new Error(`Failed to update step_index for step ${step.id}: ${error.message}`)
+                    throw new Error(`Could not save the new stop order: ${error.message}`)
                 }
             }
         }
     } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : "Unexpected error during route adjustment"
+        const message = err instanceof Error ? err.message : "Could not change the route. Try again."
         return { success: false, error: message }
     }
 

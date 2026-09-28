@@ -12,8 +12,8 @@ export default function BookingCancelPage() {
                     Payment cancelled
                 </h1>
                 <p className="text-muted-foreground leading-7">
-                    No charge was made and your booking was not created. You can
-                    return and try again whenever you&apos;re ready.
+                    You were not charged, and no booking was made. You can try
+                    again at any time.
                 </p>
             </div>
             <Link href="/booking" className={cn(buttonVariants())}>

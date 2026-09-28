@@ -273,9 +273,8 @@ function ComboboxChipsInput({
       )}
       onKeyDown={(event) => {
         onKeyDown?.(event)
-        // Base UI clears the whole selection when Escape reaches the input while
-        // the list is closed, which silently drops every chip. Escape should
-        // only ever close the list, so skip that handler here.
+        // With the list closed, Base UI clears every chip on Escape. Escape
+        // should only close the list, so skip that handler.
         if (
           event.key === "Escape" &&
           event.currentTarget.getAttribute("aria-expanded") !== "true"

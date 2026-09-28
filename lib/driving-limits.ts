@@ -1,20 +1,13 @@
 import type { DrivingLimitsDto } from "@/lib/api"
 
 /**
- * Driving limits: the plain logic the profile pages and the shift pages share.
+ * Driving limit logic for the profile pages and the shift pages.
  *
- * Seconds and metres everywhere, which is what `driving_limit_profile` stores,
- * what hikyaku-api resolves and what the solver consumes. Hours and kilometres
- * exist at exactly two edges, the profile form and the shift display, and the
- * helpers for those edges are the only conversions in this file. Nothing here
- * hands a kilometre to anything but a render.
+ * Values are in seconds and metres. Only the profile form and the shift display
+ * use hours and kilometres.
  */
 
-/**
- * A driver's effective limits, in storage units. Null on a dimension means no
- * limit on it. The shape `ShiftDto.drivingLimits` carries, aliased rather than
- * redeclared so the two cannot drift.
- */
+/** A driver's limits in seconds and metres. Null means no limit. */
 export type DrivingLimits = DrivingLimitsDto
 
 export const NO_DRIVING_LIMITS: DrivingLimits = {
@@ -38,20 +31,12 @@ export type DrivingLimitProfile = DrivingLimitValues & {
     name: string
 }
 
-/**
- * The most stops the planner will ever put on one shift (`MAX_STOPS` in
- * hikyaku-api's insertion scan). `driving_limit_profile_max_stops_chk` refuses
- * anything above it, because a profile may only tighten that ceiling.
- */
+/** The most stops the planner puts on one shift (`MAX_STOPS` in hikyaku-api). A profile cannot go above it. */
 export const MAX_STOPS_CEILING = 45
 
-/**
- * Shown beside a driver's limits while `ShiftDto.drivingLimitsEnabled` is
- * false: the API still returns the configured limits so they can be compared
- * to the plan, but automatic assignment did not apply them.
- */
+/** Shown while `ShiftDto.drivingLimitsEnabled` is false. */
 export const LIMITS_NOT_ENFORCED_NOTE =
-    "Automatic assignment is not applying driving limits yet, so this shift was planned without them."
+    "Automatic assignment does not use driving limits yet. This shift was planned without them."
 
 export function hasAnyDrivingLimit(limits: DrivingLimits): boolean {
     return (
@@ -62,7 +47,7 @@ export function hasAnyDrivingLimit(limits: DrivingLimits): boolean {
     )
 }
 
-// ── Form edge: what a dispatcher types, to what is stored ───────────────────
+// ── Form: typed values to stored values ─────────────────────────────────────
 
 const SECONDS_PER_HOUR = 3600
 const METRES_PER_KILOMETRE = 1000
@@ -80,26 +65,23 @@ function trimTrailingZeros(text: string): string {
 }
 
 /**
- * A stored value as the text the hours input shows, blank for no limit.
- *
- * Four decimals of an hour is 0.36 seconds, so `hoursToSeconds` of this text
- * always rounds back to exactly the stored integer. Opening a saved profile and
- * saving it untouched never moves a limit.
+ * A stored value as hours input text, blank for no limit. Four decimals round
+ * back to the same seconds, so saving an unchanged profile changes nothing.
  */
 export function secondsToHoursInput(seconds: number | null): string {
     if (seconds == null) return ""
     return trimTrailingZeros((seconds / SECONDS_PER_HOUR).toFixed(4))
 }
 
-/** A stored value as the text the kilometres input shows, blank for no limit. Exact to the metre. */
+/** A stored value as kilometres input text, blank for no limit. */
 export function metresToKilometresInput(metres: number | null): string {
     if (metres == null) return ""
     return trimTrailingZeros((metres / METRES_PER_KILOMETRE).toFixed(3))
 }
 
-// ── Display edge ─────────────────────────────────────────────────────────────
+// ── Display ──────────────────────────────────────────────────────────────────
 
-/** A fixed locale, so a server render and its hydration print the same digits. */
+/** Fixed locale, so server and client render the same text. */
 function formatNumber(value: number, maximumFractionDigits: number): string {
     return new Intl.NumberFormat("en", { maximumFractionDigits }).format(value)
 }
@@ -139,29 +121,25 @@ export function formatDimensionValue(dimension: LimitDimension, value: number): 
     }
 }
 
-/** "8.2 h of 10 h", "182 km of 250 km", and "31 of 40 stops" rather than "31 stops of 40 stops". */
+/** "8.2 h of 10 h", "182 km of 250 km", "31 of 40 stops". */
 export function formatUsageAgainstLimit(dimension: LimitDimension, used: number, limit: number): string {
     const usedText = dimension === "stops" ? String(used) : formatDimensionValue(dimension, used)
     return `${usedText} of ${formatDimensionValue(dimension, limit)}`
 }
 
-/**
- * Service time the planner books at every stop (`TIME_PER_STOP` in
- * hikyaku-api), used to recover driving time from working time the same way
- * the API's driving-limits diagnostics do.
- */
+/** Service time per stop (`TIME_PER_STOP` in hikyaku-api), to estimate driving time. */
 const SERVICE_SECONDS_PER_STOP = 15 * 60
 
-/** What a planned shift uses, in storage units, with how much of it is a guess. */
+/** What a planned shift uses, and which values are estimates. */
 export type ShiftUsage = {
     /** Depot to depot, service included. Null when the plan has no timings. */
     workingSeconds: number | null
     drivingSeconds: number | null
-    /** True when driving time is working time less service time, not a measured travel figure. */
+    /** True when driving time is working time minus service time. */
     drivingIsEstimate: boolean
-    /** Null for a plan written before distance was recorded, which is not the same as zero. */
+    /** Null for an old plan with no distance. Not the same as zero. */
     distanceM: number | null
-    /** True unless the route says its distance was measured on the road network. */
+    /** False only when the route distance was measured on roads. */
     distanceIsEstimate: boolean
     stops: number
 }
@@ -171,7 +149,7 @@ export function shiftUsage(input: {
     startArrival: number | null
     /** `arrival` of the plan's end step, in seconds. */
     endArrival: number | null
-    /** Cumulative travel `duration` on the end step, which only a full solve writes. */
+    /** Total travel `duration` on the end step. Only a full solve writes it. */
     endTravelSeconds: number | null
     stops: number
     distanceM: number | null
@@ -193,20 +171,19 @@ export function shiftUsage(input: {
         drivingSeconds,
         drivingIsEstimate: measuredDriving == null,
         distanceM: input.distanceM,
-        // A distance with no stated source is treated as an estimate: calling a
-        // straight-line guess measured is the one mistake to avoid here.
+        // No source means estimate.
         distanceIsEstimate: input.distanceSource !== "measured",
         stops: input.stops,
     }
 }
 
 /**
- * `unlimited`: no limit on this dimension. `unknown`: a limit exists but the
- * plan has no figure to compare. `near`: at or past NEAR_LIMIT_RATIO of it.
+ * `unlimited`: no limit. `unknown`: a limit but no plan value. `near`: at or
+ * above NEAR_LIMIT_RATIO of the limit.
  */
 export type LimitStatus = "unlimited" | "unknown" | "within" | "near" | "over"
 
-/** From this share of a limit upward, a shift reads as close to it. */
+/** At this share of a limit, a shift is near it. */
 export const NEAR_LIMIT_RATIO = 0.9
 
 export function limitStatus(used: number | null, limit: number | null): LimitStatus {
@@ -235,7 +212,7 @@ export function assessShift(usage: ShiftUsage, limits: DrivingLimits): Dimension
     return rows.map((row) => ({ ...row, status: limitStatus(row.used, row.limit) }))
 }
 
-/** The dimensions a shift is over, or failing that near, its limit on. Empty when neither. */
+/** The dimensions over the limit or, if none, near it. */
 export function flaggedDimensions(assessments: DimensionAssessment[]): {
     status: "over" | "near" | null
     dimensions: DimensionAssessment[]

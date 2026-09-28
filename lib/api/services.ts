@@ -2,7 +2,7 @@ import type { CatalogAddonDto, CatalogServiceDto, ServiceCatalogDto } from "./ge
 
 const API_URL = process.env.NEXT_PUBLIC_HIKYAKU_API_URL ?? "http://localhost:3002"
 
-/** A priced add-on, with price/currency read live from Stripe by hikyaku-api. */
+/** A priced add-on. The price comes from Stripe. */
 export type CatalogAddon = CatalogAddonDto
 
 /** A service plus its selectable add-ons. */
@@ -11,13 +11,9 @@ export type CatalogService = CatalogServiceDto
 export type ServiceCatalog = ServiceCatalogDto
 
 /**
- * The org's service catalog. Price/currency live in Stripe, so this reads from
- * whendan-api (which fetches Stripe live + caches) rather than supabase-js.
- *
- * Cached with a 60s TTL and a per-org tag so the public booking page never
- * hammers Stripe; admin mutations call `revalidateTag('catalog:<slug>')` to push
- * edits through immediately. Returns an empty catalog on any failure (e.g. the
- * org hasn't enabled payments) so callers can render the empty state.
+ * The org's service catalog, with prices from Stripe. Cached for 60s with the
+ * tag `catalog:<slug>`, which edits refresh. Returns an empty catalog on any
+ * error, for example when the org has no payments.
  */
 export async function getServiceCatalog(slug: string): Promise<ServiceCatalog> {
     try {

@@ -23,14 +23,8 @@ type LookupState =
     }
 
 /**
- * "Which drivers cover this address" (HIK-17), on the areas page next to the
- * list a dispatcher is already looking at.
- *
- * Calls the same coverage diagnostic the assignment engine's own containment
- * query answers from (`getCoverageForPoint`, one shared function with the
- * customer-creation warning), rather than re-testing points against
- * `service_areas` in the browser. Two implementations of "covered" is how a
- * debugging tool ends up disagreeing with the engine it exists to explain.
+ * Shows which service areas and drivers cover an address. Uses
+ * `getCoverageForPoint`, the same check that assignment uses.
  */
 export function CoverageDebugger({ slug }: { slug: string }) {
     const [address, setAddress] = useState("")
@@ -42,7 +36,7 @@ export function CoverageDebugger({ slug }: { slug: string }) {
         const result = await getCoverageForPoint(suggestion.lon, suggestion.lat)
 
         if (result.status === "no-warehouse") {
-            setState({ status: "error", message: "Add a warehouse before checking coverage — there is nothing to resolve drivers against yet." })
+            setState({ status: "error", message: "Add a warehouse before you check coverage." })
             return
         }
 
@@ -58,10 +52,7 @@ export function CoverageDebugger({ slug }: { slug: string }) {
             const drivers = await Promise.all(areaIds.map((id) => getDriversByServiceArea(id)))
             areaIds.forEach((id, index) => driversByArea.set(id, drivers[index]))
         } catch (error) {
-            // The coverage answer itself is still good even if naming the
-            // drivers on each area fails a beat later; fall back to the
-            // driverCount the diagnostic already carries rather than losing
-            // the whole result.
+            // Keep the result. The diagnostic already has driverCount.
             console.error(error)
         }
 
@@ -71,10 +62,10 @@ export function CoverageDebugger({ slug }: { slug: string }) {
     return (
         <Card data-testid="coverage-debugger">
             <CardHeader>
-                <CardTitle className="text-lg">Coverage debugger</CardTitle>
+                <CardTitle className="text-lg">Coverage check</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                    Enter an address to see which territories cover it and which drivers are attached
-                    to each — the same check dispatch runs when a package is created.
+                    Enter an address to see which service areas and drivers cover it. Dispatch uses
+                    the same check for new packages.
                 </p>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -111,9 +102,8 @@ export function CoverageDebugger({ slug }: { slug: string }) {
                                 className="rounded-md border bg-muted/30 px-4 py-3 text-sm"
                                 data-testid="coverage-debugger-uncovered"
                             >
-                                No area covers this point. Assignment will fall back to any available
-                                driver at the warehouse — nothing is stranded, but nobody has claimed
-                                this address either.
+                                No service area covers this address. Packages here go to any available
+                                driver at the warehouse.
                             </div>
                         ) : (
                             <ul className="space-y-3">
@@ -136,8 +126,7 @@ export function CoverageDebugger({ slug }: { slug: string }) {
 
                                             {area.driverCount === 0 ? (
                                                 <p className="text-sm text-muted-foreground">
-                                                    This territory covers the point, but no driver is attached to
-                                                    it — the practical effect is the same as no coverage at all.
+                                                    This area has no drivers, so the address has no coverage.
                                                 </p>
                                             ) : drivers ? (
                                                 <p className="text-sm text-muted-foreground">
@@ -152,9 +141,8 @@ export function CoverageDebugger({ slug }: { slug: string }) {
 
                         <div className="flex items-start gap-2 text-xs text-muted-foreground">
                             <MapPinCheck className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                            Tested at {state.diagnostic.point?.lat.toFixed(5)}, {state.diagnostic.point?.lon.toFixed(5)}.
-                            This reflects the map as drawn right now, not necessarily what a package
-                            placed earlier saw — see a package&apos;s own detail page for that.
+                            Checked at {state.diagnostic.point?.lat.toFixed(5)}, {state.diagnostic.point?.lon.toFixed(5)}.
+                            This uses the current map. For an existing package, see its detail page.
                         </div>
                     </div>
                 )}

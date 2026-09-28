@@ -32,8 +32,7 @@ export default function OAuthConsentPage({
   return (
     <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
       <div className="w-full max-w-sm">
-        {/* Request-time work (cookies, Supabase calls) must sit inside a
-            Suspense boundary — see app/orgs/page.tsx for the same pattern. */}
+        {/* Request-time work must be inside Suspense. */}
         <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
           <ConsentContent searchParams={searchParams} />
         </Suspense>
@@ -50,15 +49,14 @@ async function ConsentContent({ searchParams }: { searchParams: ConsentSearchPar
       <Alert variant="destructive">
         <AlertTitle>Missing authorization request</AlertTitle>
         <AlertDescription>
-          This page must be reached from a third-party application&apos;s sign-in link.
+          Open this page from the other app&apos;s sign-in link.
         </AlertDescription>
       </Alert>
     )
   }
 
-  // Middleware already redirects anonymous traffic to /auth/login, but every
-  // protected route in this app re-checks claims server-side too (see
-  // app/orgs/[slug]/dashboard/layout.tsx) rather than trusting middleware alone.
+  // Middleware already redirects anonymous users. Check again here, like every
+  // protected route.
   const { data: claimsData, error: claimsError } = await getSupabaseServerClaims()
   if (claimsError || !claimsData?.claims?.sub) {
     const destination = `/oauth/consent?${new URLSearchParams({ authorization_id: authorizationId })}`
@@ -80,14 +78,12 @@ async function ConsentContent({ searchParams }: { searchParams: ConsentSearchPar
     )
   }
 
-  // Already consented to these scopes — Supabase hands back a redirect_url
-  // directly rather than authorization details, so send them straight back.
+  // Already approved: Supabase returns a redirect_url, so go there.
   if (!('authorization_id' in data)) {
     redirect(data.redirect_url)
   }
 
-  // OAuth token issuance is gated to organisation accounts — personal
-  // accounts can view the request but can only deny it.
+  // Only organisation accounts can approve. Personal accounts can only deny.
   const hasCompanyOrg = await userHasCompanyOrg()
 
   const scopes = data.scope?.trim() ? data.scope.trim().split(/\s+/) : []
@@ -100,8 +96,7 @@ async function ConsentContent({ searchParams }: { searchParams: ConsentSearchPar
           <Alert variant="destructive">
             <AlertTitle>Organisation account required</AlertTitle>
             <AlertDescription>
-              {data.client.name} can only be connected from an organisation account.
-              Personal accounts can&apos;t issue access tokens.
+              {data.client.name} can connect only to an organisation account.
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -141,7 +136,7 @@ async function ConsentContent({ searchParams }: { searchParams: ConsentSearchPar
           </div>
         )}
         <p className="text-xs text-muted-foreground">
-          You&apos;ll be redirected to {data.redirect_uri}
+          You will go to {data.redirect_uri}
         </p>
       </CardContent>
       <CardFooter>

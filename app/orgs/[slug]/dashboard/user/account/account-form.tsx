@@ -68,7 +68,7 @@ export function AccountForm() {
         }
 
         form.reset({ ...values, password: "", confirmPassword: "" })
-        toast.success("Account updated")
+        toast.success("Account updated.")
     }
 
     return (

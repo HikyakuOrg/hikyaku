@@ -29,7 +29,7 @@ export type PackageListItem = {
     status: string
     driverId: string
     driverName: string
-    /** Omitted entirely by callers that do not track coverage (e.g. a customer's own package list). */
+    /** Not set by lists without coverage, such as a customer's packages. */
     coverageOutcome?: string | null
 }
 
@@ -46,7 +46,7 @@ type PackageListTableProps = {
     addPackageHref?: string
     addPackageLabel?: string
     pageSize?: number
-    /** Adds the Coverage column and its filter. Off by default: only the main packages list tracks it today. */
+    /** Adds the Coverage column and filter. Only the main package list uses it. */
     showCoverageFilter?: boolean
 }
 
@@ -135,7 +135,7 @@ export function PackageListTable({
 
                         <DropdownMenuContent align="start" className="w-44">
                             <DropdownMenuGroup>
-                                <DropdownMenuLabel>Filter Status</DropdownMenuLabel>
+                                <DropdownMenuLabel>Filter by status</DropdownMenuLabel>
                             </DropdownMenuGroup>
                             <DropdownMenuSeparator />
 
@@ -210,7 +210,7 @@ export function PackageListTable({
 
                         <DropdownMenuContent align="start" className="w-56">
                             <DropdownMenuGroup>
-                                <DropdownMenuLabel>Filter Coverage</DropdownMenuLabel>
+                                <DropdownMenuLabel>Filter by coverage</DropdownMenuLabel>
                             </DropdownMenuGroup>
                             <DropdownMenuSeparator />
 

@@ -30,8 +30,7 @@ export function OrgSwitcher({
   const current =
     organisations.find((o) => o.slug === currentSlug) ?? organisations[0] ?? null
 
-  // Personal orgs have no display name — they're stored with name=NULL and
-  // surfaced as "Personal" everywhere they appear.
+  // Personal orgs have no name. Show "Personal".
   const display = (o: OrganisationSummary) => o.name ?? 'Personal'
 
   return (

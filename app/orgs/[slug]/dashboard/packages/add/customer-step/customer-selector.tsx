@@ -25,10 +25,8 @@ export function CustomerSelector<T extends FieldValues = FieldValues>({ name, co
     const [results, setResults] = useState<Customer[]>([])
     const [isLoading, setIsLoading] = useState(false)
 
-    // The parent owns the selected customer (it receives every pick via
-    // `customerSelected` and feeds it back as `initialSelectedCustomer`).
-    // `clearedSelection` records the value the user has typed over, so the input stays
-    // editable without mirroring the parent's state into a second source of truth.
+    // The parent holds the selection. `clearedSelection` is the customer the user
+    // typed over, so the input stays editable.
     const [clearedSelection, setClearedSelection] = useState<Customer | null>(null)
     const selected = initialSelectedCustomer && initialSelectedCustomer !== clearedSelection
         ? initialSelectedCustomer

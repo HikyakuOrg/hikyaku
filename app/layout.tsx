@@ -17,7 +17,7 @@ const fontDisplay = Bricolage_Grotesque({
 
 export const metadata: Metadata = {
   title: "Hikyaku",
-  description: "Open Source Logistics OS — 飛脚",
+  description: "Open Source Logistics OS · 飛脚",
 };
 
 export default function RootLayout({

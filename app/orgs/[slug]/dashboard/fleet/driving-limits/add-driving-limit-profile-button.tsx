@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DRIVERS_UPDATE, permissionRequiredMessage } from "@/lib/permissions"
 
-/** `canEdit` is resolved server-side on the page; never re-checked from the browser. */
+/** `canEdit` comes from the server. */
 export function AddDrivingLimitProfileButton({ slug, canEdit }: { slug: string; canEdit: boolean }) {
     if (!canEdit) {
         return (

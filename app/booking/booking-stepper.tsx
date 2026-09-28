@@ -233,7 +233,7 @@ export function BookingStepper({
                                                 toast.error(
                                                     err instanceof Error
                                                         ? err.message
-                                                        : "Failed to calculate service fee"
+                                                        : "Could not calculate the price."
                                                 )
                                             } finally {
                                                 setIsCalculatingFee(false)
@@ -257,9 +257,8 @@ export function BookingStepper({
                                                         formData,
                                                         orgSlug
                                                     )
-                                                // Redirect to Stripe-hosted
-                                                // Checkout. Fulfillment happens
-                                                // via the webhook, not here.
+                                                // Go to Stripe Checkout. The
+                                                // webhook creates the booking.
                                                 window.location.assign(
                                                     checkoutUrl
                                                 )
@@ -267,7 +266,7 @@ export function BookingStepper({
                                                 toast.error(
                                                     err instanceof Error
                                                         ? err.message
-                                                        : "Failed to start payment"
+                                                        : "Could not start the payment."
                                                 )
                                                 setIsSubmitting(false)
                                             }

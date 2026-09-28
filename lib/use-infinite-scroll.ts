@@ -4,20 +4,16 @@ import { useEffect, useRef } from "react"
 
 type UseInfiniteScrollOptions = {
     onLoadMore: () => void
-    /** Stop observing while loading or when there's nothing left to load. */
+    /** Stop while loading or when there is nothing more to load. */
     disabled?: boolean
     /** Prefetch margin around the root (default 200px). */
     rootMargin?: string
 }
 
 /**
- * Returns a ref to attach to a sentinel element at the end of a list. When that
- * sentinel scrolls into view, `onLoadMore` fires. The callback is held in a ref
- * so the observer is not recreated on every render; only `disabled`/`rootMargin`
- * changes rebuild it. The observer disconnects on cleanup.
- *
- * Uses the default (viewport) root, so the scroll container must sit within the
- * viewport — see warehouse-list-panel.tsx (plain overflow-y-auto, bounded height).
+ * A ref for an element at the end of a list. `onLoadMore` runs when that
+ * element scrolls into view. The root is the viewport, so the scroll container
+ * must be inside it (see warehouse-list-panel.tsx).
  */
 export function useInfiniteScroll<T extends HTMLElement = HTMLDivElement>({
     onLoadMore,
@@ -27,8 +23,7 @@ export function useInfiniteScroll<T extends HTMLElement = HTMLDivElement>({
     const sentinelRef = useRef<T | null>(null)
     const onLoadMoreRef = useRef(onLoadMore)
 
-    // Refs may only be written outside render. The observer reads `.current` when the
-    // sentinel intersects, which is always after a commit, so this stays current.
+    // Write the ref outside render. The observer reads it after commit.
     useEffect(() => {
         onLoadMoreRef.current = onLoadMore
     })

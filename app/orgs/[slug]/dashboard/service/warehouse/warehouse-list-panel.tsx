@@ -30,7 +30,7 @@ export function WarehouseListPanel({
         disabled: isLoading || !hasMore,
     })
 
-    // Bring the selected card into view (e.g. when a map pin is clicked).
+    // Scroll to the selected card, for example after a pin click.
     useEffect(() => {
         if (!selectedWarehouseId) {
             return

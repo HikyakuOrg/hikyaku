@@ -39,21 +39,15 @@ export function EditServiceAreaForm({ canEdit }: { canEdit: boolean }) {
                 const data = await getServiceAreaById(id)
                 const editable = getEditableServiceAreaPolygonFeature(data.geometry)
 
-                // Refuse to open a multi-part area rather than show one of its
-                // parts. This form saves back the single polygon it is holding,
-                // so opening a two-part territory and pressing save would
-                // replace both parts with whichever one had been drawn on
-                // screen. Nothing this app writes is multi-part today, but a
-                // direct SQL insert or a later multi-part drawing feature would
-                // be, and this is the path that would quietly lose it.
+                // Do not open a multi-part area: a save would keep only one part.
                 if (editable.status === "multiple-parts") {
                     throw new Error(
-                        `"${data.name}" is made up of ${editable.partCount} separate parts, which this editor cannot open yet. Contact support, or recreate each part as its own service area.`
+                        `"${data.name}" has ${editable.partCount} separate parts. This editor can only open an area with one part. Contact support, or create each part as its own service area.`
                     )
                 }
 
                 if (editable.status === "unsupported") {
-                    throw new Error("This service area does not contain editable polygon geometry.")
+                    throw new Error("This service area has no shape that can be edited.")
                 }
 
                 if (isMounted) {
@@ -64,7 +58,7 @@ export function EditServiceAreaForm({ canEdit }: { canEdit: boolean }) {
                     })
                 }
             } catch (error) {
-                const message = error instanceof Error ? error.message : "Failed to load the service area."
+                const message = error instanceof Error ? error.message : "Could not load the service area."
                 toast.error(message)
                 router.push(`/orgs/${slug}/dashboard/service/areas`)
             } finally {
@@ -83,7 +77,7 @@ export function EditServiceAreaForm({ canEdit }: { canEdit: boolean }) {
 
     const handleSubmit = async ({ name, polygon }: ServiceAreaFormValues) => {
         if (!serviceArea) {
-            throw new Error("Service area data is not loaded yet.")
+            throw new Error("The service area is not loaded yet.")
         }
 
         await updateServiceArea(serviceArea.id, name, polygonFeatureToEwkt(polygon))
@@ -115,8 +109,8 @@ export function EditServiceAreaForm({ canEdit }: { canEdit: boolean }) {
                     </h1>
                     <p className="text-muted-foreground">
                         {canEdit
-                            ? `Update the service area name and coverage polygon for ${serviceArea.name}.`
-                            : `View the coverage polygon for ${serviceArea.name}.`}
+                            ? `Change the name or the shape of ${serviceArea.name}.`
+                            : `The shape of ${serviceArea.name}.`}
                     </p>
                 </div>
             </div>

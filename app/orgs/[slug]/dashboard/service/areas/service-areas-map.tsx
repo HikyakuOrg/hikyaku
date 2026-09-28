@@ -26,15 +26,11 @@ type ServiceAreasMapProps = {
     /** The areas highlighted in both the list and the map. */
     selectedAreaIds: string[]
     focusRequest: ServiceAreaFocusRequest | null
-    /** A polygon click adds that area to the picked set, which ticks its row in the list. */
+    /** A polygon click selects the area and ticks its row. */
     onSelectArea: (id: string) => void
     /** Clicking an already-picked polygon opens it. */
     onOpenArea: (id: string) => void
-    /**
-     * Bumped when the set of areas changes (a delete). The viewport fetch skips
-     * bounds it has already loaded, so without this the deleted polygon would
-     * stay drawn until the dispatcher panned somewhere new.
-     */
+    /** Increases after a delete, so the map reloads the current view. */
     refreshToken: number
 }
 
@@ -74,9 +70,8 @@ export function ServiceAreasMap({
     const [hasError, setHasError] = useState(false)
     const [visibleAreaNames, setVisibleAreaNames] = useState<string[]>([])
 
-    // Latest props read from the one-time mount effect without re-running it.
-    // Rebuilding the MapLibre instance whenever the page re-renders would throw
-    // away the dispatcher's pan and zoom mid-task.
+    // Latest props for the mount effect, so a re-render does not rebuild the
+    // map and lose the user's pan and zoom.
     const initialBoundsRef = useRef(initialBounds)
     initialBoundsRef.current = initialBounds
     const selectedAreaIdsRef = useRef(selectedAreaIds)
@@ -86,9 +81,7 @@ export function ServiceAreasMap({
     const onOpenAreaRef = useRef(onOpenArea)
     onOpenAreaRef.current = onOpenArea
 
-    // Highlight the picked polygons. Never moves the camera: camera moves come
-    // from the list (focusRequest), so picking an area on the map leaves the
-    // view alone.
+    // Highlight the selected polygons. Only focusRequest moves the camera.
     const applySelection = useCallback((ids: string[]) => {
         const map = mapRef.current
         if (!map || !layersReadyRef.current) {
@@ -147,8 +140,7 @@ export function ServiceAreasMap({
                 source.setData(nextFeatureCollection)
             }
 
-            // Replacing the source data drops the feature state that carries the
-            // highlight, so put it back for whichever areas are still selected.
+            // New source data clears the highlight, so apply it again.
             appliedSelectionRef.current = []
             applySelection(selectedAreaIdsRef.current)
 
@@ -200,9 +192,7 @@ export function ServiceAreasMap({
             map.addSource(SOURCE_ID, {
                 type: "geojson",
                 data: emptyServiceAreaFeatureCollection,
-                // Feature state is keyed by feature id, and GeoJSON features
-                // carry theirs in properties, so promote it to drive the
-                // selected-area paint below.
+                // Use properties.id as the feature id for feature state.
                 promoteId: "id",
             })
 
@@ -249,7 +239,7 @@ export function ServiceAreasMap({
                 })
             }
 
-            // setText, not setHTML: the label is an organisation-supplied name.
+            // setText, not setHTML: the name comes from users.
             const describeHoveredFeature = (feature: maplibregl.MapGeoJSONFeature | undefined) => {
                 const serviceAreaName = typeof feature?.properties?.name === "string"
                     ? feature.properties.name
@@ -270,8 +260,7 @@ export function ServiceAreasMap({
                     .addTo(map)
             })
 
-            // Kept in the move handler as well so the hint follows a selection
-            // made while the cursor is still over the polygon.
+            // Update the hint after a click while the cursor stays on the polygon.
             map.on("mousemove", FILL_LAYER_ID, (event) => {
                 popup
                     .setLngLat(event.lngLat)
@@ -291,11 +280,8 @@ export function ServiceAreasMap({
                     return
                 }
 
-                // Overlapping areas hide each other here: a click resolves to
-                // whichever feature the layer happens to return first. So the
-                // first click only picks the area, which ticks its row in the
-                // list and says which one was hit; clicking a picked one again
-                // is what opens it.
+                // Areas can overlap, so the first click selects and shows which
+                // area it hit. A second click opens it.
                 if (selectedAreaIdsRef.current.includes(id)) {
                     onOpenAreaRef.current(id)
                     return
@@ -336,8 +322,7 @@ export function ServiceAreasMap({
             return
         }
 
-        // fitBounds ends in a moveend, which schedules the fetch for the new
-        // viewport, so an area outside the current view arrives drawn.
+        // fitBounds triggers moveend, which loads the new view.
         mapRef.current?.fitBounds(focusRequest.bounds, {
             padding: 64,
             maxZoom: 13,
@@ -355,7 +340,7 @@ export function ServiceAreasMap({
     const overlayMessage = isLoading
         ? "Loading visible service areas..."
         : hasError
-            ? "Unable to load service areas for this view."
+            ? "Could not load service areas for this view."
             : hasLoaded && visibleAreaNames.length === 0
                 ? "No service areas in this view."
                 : null
@@ -370,10 +355,7 @@ export function ServiceAreasMap({
                 className="h-full w-full"
             />
 
-            {/*
-                The canvas itself says nothing to a screen reader, and it is also
-                the only place that knows which areas are currently drawn.
-            */}
+            {/* Tells screen readers which areas the map shows. */}
             <p className="sr-only" aria-live="polite" data-testid="service-areas-map-summary">
                 {!hasLoaded
                     ? "Loading the service areas in this view."

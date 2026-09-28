@@ -20,7 +20,7 @@ export function DashboardMetrics({
         {
             title: "Pending Packages",
             value: pendingPackagesCount,
-            unit: "Units",
+            unit: "Packages",
             icon: Package,
             description: "",
             color: "text-blue-500",
@@ -31,16 +31,16 @@ export function DashboardMetrics({
             value: outForDeliveryCount,
             unit: "Packages",
             icon: PackageCheck,
-            description: "Currently being delivered",
+            description: "On the way to customers",
             color: "text-teal-500",
             bg: "bg-teal-500/10"
         },
         {
-            title: "Active Drivers",
+            title: "Drivers",
             value: driversCount,
             unit: "Drivers",
             icon: Truck,
-            description: "Currently on the fleet",
+            description: "In your organisation",
             color: "text-green-500",
             bg: "bg-green-500/10"
         },
@@ -49,16 +49,16 @@ export function DashboardMetrics({
             value: fleetSize,
             unit: "Vehicles",
             icon: Truck,
-            description: "Total vehicles available",
+            description: "Vehicles in your fleet",
             color: "text-purple-500",
             bg: "bg-purple-500/10"
         },
         {
-            title: "Global Warehouses",
+            title: "Warehouses",
             value: warehousesCount,
             unit: "Warehouses",
             icon: Warehouse,
-            description: "Strategic distribution hubs",
+            description: "Where packages leave from",
             color: "text-orange-500",
             bg: "bg-orange-500/10"
         }

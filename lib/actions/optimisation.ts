@@ -36,9 +36,8 @@ export interface SetOffOverrideInput {
 }
 
 /**
- * Enqueue an on-demand optimisation for the active org's warehouse. Returns the
- * run id on success, or an error (with nextAllowedAt when rate-limited) so the
- * caller can show the countdown.
+ * Queue an optimisation for a warehouse. Returns the run id, or an error. When
+ * rate-limited, the error has nextAllowedAt for the countdown.
  */
 export async function triggerOptimisation(input: {
     warehouseId: string
@@ -67,7 +66,7 @@ export async function triggerOptimisation(input: {
     return { runId: data.runId as string }
 }
 
-/** The active org's most recent run + next-allowed time (null if never run). */
+/** The active org's latest run and next allowed time. Null if it never ran. */
 export async function getOptimisationStatus(): Promise<
     OptimisationRunInfo | null | { error: string }
 > {
@@ -91,17 +90,17 @@ export async function getOptimisationWarehouses(): Promise<
         const summaries = await getWarehouseSummaries()
         return summaries.map((w) => ({ id: w.id, warehouse_name: w.warehouse_name }))
     } catch (e) {
-        return { error: e instanceof Error ? e.message : "Failed to load warehouses." }
+        return { error: e instanceof Error ? e.message : "Could not load the warehouses." }
     }
 }
 
-/** Driver–vehicle pairs in a warehouse, for the per-vehicle set-off dialog. */
+/** Driver and vehicle pairs in a warehouse, for the departure dialog. */
 export async function getOptimisationVehicles(
     warehouseId: string,
 ): Promise<OptimisationVehicleOption[] | { error: string }> {
     try {
         return await getOptimisationVehicleOptions(warehouseId)
     } catch (e) {
-        return { error: e instanceof Error ? e.message : "Failed to load vehicles." }
+        return { error: e instanceof Error ? e.message : "Could not load the vehicles." }
     }
 }

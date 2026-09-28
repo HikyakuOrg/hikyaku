@@ -9,7 +9,7 @@ import { signUpAndConfirm } from "./helpers/signup-flow"
  *
  * Runs under the `chrome-unauthed` Playwright project (no shared storageState).
  */
-test.describe("Organisation create — duplicate from another user fails", () => {
+test.describe("Organisation create: duplicate from another user fails", () => {
     test("user B cannot reuse user A's org name", async ({ browser }) => {
         test.setTimeout(180_000)
 
@@ -23,7 +23,7 @@ test.describe("Organisation create — duplicate from another user fails", () =>
 
         await pageA.goto("/orgs/new")
         await pageA.locator("#org-name").fill(orgName)
-        await pageA.getByRole("button", { name: /create organization/i }).click()
+        await pageA.getByRole("button", { name: /create company/i }).click()
         await expect(pageA).toHaveURL(/\/orgs\/[a-z0-9-]+\/dashboard\/?$/, {
             timeout: 20_000,
         })
@@ -38,7 +38,7 @@ test.describe("Organisation create — duplicate from another user fails", () =>
 
         await pageB.goto("/orgs/new")
         await pageB.locator("#org-name").fill(orgName)
-        await pageB.getByRole("button", { name: /create organization/i }).click()
+        await pageB.getByRole("button", { name: /create company/i }).click()
 
         const errorParagraph = pageB.locator("p.text-destructive")
         await expect(errorParagraph).toBeVisible({ timeout: 10_000 })

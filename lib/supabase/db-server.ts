@@ -25,13 +25,11 @@ type ServiceAreaViewportBounds = {
 }
 
 /**
- * The id of the organisation this request is for, resolved from the slug that
- * middleware forwards as `x-org-slug` (the `/orgs/<slug>/…` path segment).
+ * The organisation id for this request, from the `x-org-slug` header that
+ * middleware sets. Cached per request.
  *
- * Every list, count and picker read below filters on it explicitly. RLS alone is
- * not enough: it admits every organisation the caller belongs to, so a member of
- * two organisations would otherwise see both organisations' rows in each one's
- * dashboard. Memoised per request, since one page runs several of these reads.
+ * Every list, count and picker read below filters on it. RLS alone admits every
+ * organisation the caller belongs to.
  */
 export const getActiveOrganisationId = cache(async (): Promise<string> => {
     const slug = (await headers()).get("x-org-slug")
@@ -93,9 +91,8 @@ export async function getWarehouseVehicleCount(warehouseId: string) {
 export async function getPackagesCount(status: PackageStatus[]) {
     const supabase = await createClient()
     const organisationId = await getActiveOrganisationId()
-    // The view carries no organisation_id, so the organisation comes from the
-    // package's warehouse. packages.warehouse_id is nullable in the schema, but
-    // package creation always sets it.
+    // The view has no organisation_id, so filter through the warehouse.
+    // Package creation always sets warehouse_id.
     const { count, error } = await supabase
         .from('packages_with_latest_status')
         .select('id, warehouse!inner(organisation_id)', { count: 'exact', head: true })
@@ -175,8 +172,7 @@ export async function getWarehousesPaginated(page: number, pageSize: number) {
 // Page size for the warehouse list (SSR first page + client endless scroll).
 export const WAREHOUSE_PAGE_SIZE = 15
 
-// Fields the warehouse list cards need — kept narrow so the load-more action
-// ships only what it renders (no PostGIS geometry over the wire).
+// Only the fields the warehouse cards show, so load-more sends no geometry.
 export type WarehouseCardData = Pick<
     Tables<'warehouse'>,
     'id' | 'warehouse_name' | 'warehouse_address'
@@ -190,9 +186,8 @@ export type WarehousePin = {
     lat: number
 }
 
-// The active organisation's warehouses, as lightweight pins for the map.
-// warehouse_location comes back as a GeoJSON Point ({ coordinates: [lng, lat] }),
-// matching how it's read elsewhere (warehouse detail page, package locations).
+// The active organisation's warehouses as map pins. warehouse_location is a
+// GeoJSON Point ({ coordinates: [lng, lat] }).
 export async function getWarehouseLocations(): Promise<WarehousePin[]> {
     const supabase = await createClient()
     const organisationId = await getActiveOrganisationId()
@@ -222,40 +217,28 @@ export async function getWarehouseLocations(): Promise<WarehousePin[]> {
     })
 }
 
-/** One row of the service area list: what the table shows, plus where to point the camera. */
+/** One row of the service area list, with bounds for the map camera. */
 export type ServiceAreaListItem = {
     id: string
     name: string
     created_at: string
     /**
-     * Bounding box of this area's geometry, so a row can drive map.fitBounds
-     * without the polygon itself crossing to the browser. Null when the stored
-     * geometry is not something we can read (nothing this app writes is, but a
-     * direct SQL insert could be), in which case the row still lists and only
-     * the focus-on-map gesture is unavailable.
+     * Bounding box for map.fitBounds, so the polygon is not sent to the
+     * browser. Null when the geometry cannot be read; the row still shows.
      */
     bounds: ServiceAreaBounds | null
 }
 
-/**
- * Reads that can legitimately come back with nothing. "No rows" and "the read
- * failed" used to be the same empty value, which let a broken backend render as
- * a healthy org that had simply never drawn an area. Callers branch on `status`
- * to tell those apart.
- */
+/** `status` tells "no areas" apart from "the read failed". */
 export type ServiceAreaListResult =
     | { status: "ok"; areas: ServiceAreaListItem[] }
     | { status: "error" }
 
 /**
- * Every service area in the active organisation, for the list on the service areas page.
+ * Every service area in the active organisation, for the service areas list.
  *
- * Deliberately unscoped by viewport: the map next to this list fetches only what
- * is on screen (a city's worth of polygons is too much to draw at once), but an
- * area drawn in the wrong place is exactly the one the dispatcher needs to find,
- * and it is never in view. There is no pagination either; the table pages
- * client-side. That is fine at the number of areas an organisation draws by
- * hand, and is a known limit rather than an oversight.
+ * Not limited to the map viewport, so a dispatcher can find an area drawn in
+ * the wrong place. The table pages on the client; organisations draw few areas.
  */
 export async function getServiceAreas(): Promise<ServiceAreaListResult> {
     const supabase = await createClient()
@@ -264,8 +247,7 @@ export async function getServiceAreas(): Promise<ServiceAreaListResult> {
         .from("service_areas")
         .select("id, name, geometry, created_at")
         .eq("organisation_id", organisationId)
-        // Soft deletes on this table are filtered here rather than in RLS, so a
-        // read without this predicate would keep showing retired territories.
+        // RLS does not filter soft deletes.
         .eq("is_deleted", false)
         .order("name", { ascending: true })
 
@@ -292,11 +274,7 @@ export type ServiceAreaDetail = {
     id: string
     name: string
     created_at: string
-    /**
-     * The area's own geometry as a one-feature collection, so the detail map can
-     * draw it without a second fetch. Empty when the stored geometry is not
-     * something we can read, which the map reports rather than rendering blank.
-     */
+    /** The area geometry as a one-feature collection. Empty when it cannot be read. */
     featureCollection: ServiceAreaFeatureCollection
     bounds: ServiceAreaBounds | null
 }
@@ -308,24 +286,18 @@ export type ServiceAreaDetailResult =
     | { status: "error" }
 
 /**
- * One service area by id, for its detail page.
+ * One service area by id, for its detail page. A failed read and a missing area
+ * are different results.
  *
- * Three outcomes rather than a nullable row, for the same reason getServiceAreas()
- * returns a status: a failed read and a retired-or-missing area are different
- * things to say to a dispatcher, and collapsing them means a broken backend
- * renders as "this area does not exist".
- *
- * "not-found" also covers an area belonging to another organisation. RLS filters
- * it out of the select rather than raising, which is the behaviour to want:
- * confirming that an id exists somewhere else would be a small tenancy leak.
+ * "not-found" also covers an area in another organisation, so the page does
+ * not confirm that the id exists.
  */
 export async function getServiceAreaDetail(id: string): Promise<ServiceAreaDetailResult> {
     const supabase = await createClient()
     const { data, error } = await supabase
         .from("service_areas")
         .select("id, name, geometry, created_at")
-        // The soft delete on this table is filtered in the query layer, never in
-        // RLS, so a retired area is only "not found" because of this line.
+        // RLS does not filter soft deletes.
         .eq("is_deleted", false)
         .eq("id", id)
         .maybeSingle()
@@ -353,20 +325,16 @@ export async function getServiceAreaDetail(id: string): Promise<ServiceAreaDetai
     }
 }
 
-// Minimal organisation shape the public booking page needs (id to scope rates,
-// name for headings/empty state, slug to forward to the payments API).
+// The organisation fields the public booking page needs.
 export type BookingOrganisation = {
     id: string
     name: string | null
     slug: string
 }
 
-// Resolve an organisation by its public slug. Used by the unauthenticated
-// booking page (<slug>.hikyaku.org/booking), so it runs under the anon client.
-// organisations has RLS with an authenticated-only SELECT policy, so anon can't
-// read the table directly; the get_booking_organisation RPC is SECURITY DEFINER
-// and granted to anon, exposing only id/name/slug. Returns null when no org
-// matches the slug.
+// Find an organisation by slug for the public booking page. Anon cannot read
+// `organisations`, so this uses the get_booking_organisation RPC, which returns
+// only id, name and slug. Returns null when no organisation matches.
 export async function getOrganisationBySlug(slug: string): Promise<BookingOrganisation | null> {
     const supabase = await createClient()
     const { data, error } = await supabase
@@ -395,8 +363,7 @@ export async function getServiceAreasInBounds(bounds: ServiceAreaViewportBounds)
         return emptyServiceAreaFeatureCollection
     }
 
-    // The RPC takes no organisation and returns every area RLS admits, but it
-    // does return each row's organisation_id, so the active one is kept here.
+    // The RPC returns areas from every organisation RLS allows. Keep the active one.
     return createServiceAreaFeatureCollection(
         (data ?? []).filter((area) => area.organisation_id === organisationId)
     )
@@ -509,7 +476,7 @@ export async function getRouteSteps(routeId: string) {
 
 /** The shift (`vrp_optimization` row) a route belongs to. */
 export interface ShiftMeta {
-    /** vrp_optimization.id — what the /api/v1/shifts endpoints are keyed on. */
+    /** vrp_optimization.id, used by the /api/v1/shifts endpoints. */
     optimisation_id: string
     driver_id: string | null
     vehicle_id: string | null
@@ -522,13 +489,9 @@ export interface ShiftMeta {
 }
 
 /**
- * The shift behind a route. A shift with no packages has no package_assignment
- * rows, so its driver/vehicle/warehouse/date can only come from here.
- *
- * These used to live in a `request->_meta` JSON blob that the web manual-shift
- * action stuffed by hand; AddShiftLifecycleColumns made them real, indexed
- * columns and backfilled the historical blobs, so this reads them directly.
- * Returns null for an unknown route.
+ * The shift of a route, or null for an unknown route. A shift with no packages
+ * has no package_assignment rows, so its driver, vehicle, warehouse and date
+ * come only from here.
  */
 export async function getShiftMeta(routeId: string): Promise<ShiftMeta | null> {
     const supabase = await createClient()
@@ -583,10 +546,7 @@ export async function getVehicleById(vehicleId: string) {
     return data
 }
 
-/**
- * A route's planned distance and where it came from. `distance_m` stays in
- * metres: the shift page converts at the render and nowhere before it.
- */
+/** A route's planned distance in metres, and its source. */
 export async function getRouteDistance(
     routeId: string,
 ): Promise<{ distance_m: number | null; distance_source: string | null } | null> {
@@ -608,11 +568,8 @@ export type DrivingLimitProfileListResult =
     | { status: "error" }
 
 /**
- * Every live driving limit profile in one organisation, by name, for the
- * profiles page and the organisation default picker. Soft deletes are filtered
- * here, never in RLS, so a retired profile only disappears because of the
- * `is_deleted` predicate. The organisation is filtered here too: RLS lets a
- * member of two organisations read both organisations' profiles.
+ * Live driving limit profiles in one organisation, by name. RLS filters
+ * neither soft deletes nor the organisation, so this does.
  */
 export async function listDrivingLimitProfiles(organisationId: string): Promise<DrivingLimitProfileListResult> {
     const supabase = await createClient()
@@ -636,10 +593,7 @@ export type DrivingLimitProfileDetailResult =
     | { status: "not-found" }
     | { status: "error" }
 
-/**
- * One live profile of this organisation. Any other organisation's profile is
- * "not-found", including one the caller could read as a member of both.
- */
+/** One live profile of this organisation. A profile from another organisation is "not-found". */
 export async function getDrivingLimitProfileDetail(
     organisationId: string,
     id: string,
@@ -665,7 +619,7 @@ export type OrganisationDrivingLimitSettingsResult =
     | { status: "ok"; organisationId: string; defaultProfileId: string | null }
     | { status: "error" }
 
-/** The organisation's default profile pointer. It can still name a retired profile, which callers treat as no default. */
+/** The organisation's default profile id. A deleted profile counts as no default. */
 export async function getOrganisationDrivingLimitSettings(slug: string): Promise<OrganisationDrivingLimitSettingsResult> {
     const supabase = await createClient()
     const { data, error } = await supabase
@@ -686,10 +640,7 @@ export type OrganisationDispatchSettingsResult =
     | { status: "ok"; organisationId: string; settings: DispatchSettings }
     | { status: "error" }
 
-/**
- * The organisation's dispatch settings, or the defaults when it has never saved
- * any: there is no row until the first save. Any member can read them.
- */
+/** The organisation's dispatch settings, or the defaults before the first save. */
 export async function getOrganisationDispatchSettings(slug: string): Promise<OrganisationDispatchSettingsResult> {
     const supabase = await createClient()
     const { data, error } = await supabase
@@ -711,9 +662,8 @@ export async function getOrganisationDispatchSettings(slug: string): Promise<Org
 }
 
 /**
- * How many drivers point at each profile, keyed by profile id. Needs
- * `drivers.view`; without it the counts come back empty rather than failing the
- * page, since they only inform the delete confirmation.
+ * Driver count per profile id, for the delete confirmation. Needs
+ * `drivers.view`; without it the result is empty.
  */
 export async function countDriversByDrivingLimitProfile(): Promise<Record<string, number>> {
     const supabase = await createClient()
@@ -737,10 +687,9 @@ export async function countDriversByDrivingLimitProfile(): Promise<Record<string
 }
 
 /**
- * Public package tracking. Backed by the `get_tracking_details` SECURITY DEFINER
- * RPC (migration 0025), scoped to the organisation slug. Returns null when the
- * tracking number doesn't belong to that org. Driver name/vehicle/location are
- * only present while the package is IN_TRANSIT.
+ * Public package tracking through the `get_tracking_details` RPC. Returns null
+ * when the tracking number is not in that organisation. Driver, vehicle and
+ * location are present only while the package is IN_TRANSIT.
  */
 export async function getTrackingDetails(
     trackingNumber: string,
@@ -833,9 +782,8 @@ export async function getAvailableDriverVehiclePairs(warehouseId: string, date: 
     const dayStart = `${date}T00:00:00`
     const dayEnd = `${date}T23:59:59`
 
-    // package_assignment has no direct FK to package_delivery_window (both relate
-    // only through packages), so PostgREST cannot embed one into the other. Resolve
-    // the busy set in two steps: which packages depart that day, then who carries them.
+    // PostgREST cannot join package_assignment to package_delivery_window, so
+    // find the packages that depart that day, then who carries them.
     const { data: scheduledWindows, error: windowsError } = await supabase
         .from("package_delivery_window")
         .select("package_id")
@@ -912,10 +860,9 @@ export interface OptimisationVehicleOption {
 }
 
 /**
- * All non-deleted driver–vehicle pairs in a warehouse, for the on-demand
- * optimisation set-off dialog. Unlike getAvailableDriverVehiclePairs this does
- * NOT drop "busy" pairs: the optimiser plans a next wave for vehicles that are
- * currently out, so the dispatcher may want to set their departure too.
+ * All driver and vehicle pairs in a warehouse, for the optimisation departure
+ * dialog. Busy pairs stay in: the optimiser can plan a next wave for vehicles
+ * that are out now.
  */
 export async function getOptimisationVehicleOptions(warehouseId: string): Promise<OptimisationVehicleOption[]> {
     const supabase = await createClient()

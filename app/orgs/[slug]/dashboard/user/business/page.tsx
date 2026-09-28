@@ -14,8 +14,7 @@ export default async function BusinessInformationPage({ params }: Props) {
     const { slug } = await params
     const orgType = await getOrganisationType(slug)
     if (!orgType) redirect('/orgs')
-    // Personal orgs have no business details — the nav hides this section, and
-    // direct navigation lands back on Account.
+    // Company orgs only. Others go back to Account.
     if (orgType !== 'company') redirect(orgPath(slug, '/dashboard/user/account'))
 
     const [vanitySlug, vanityStatus, branding] = await Promise.all([

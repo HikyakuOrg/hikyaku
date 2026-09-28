@@ -19,8 +19,7 @@ export interface DeleteTeamMembersResult {
     failed: Array<{ user_id: string; reason: string }>
 }
 
-// The active tenant is forwarded to the API as the X-Organisation-Slug header
-// (built by buildApiContext) so the operation is scoped to this organisation.
+// The API scopes this to the active organisation (X-Organisation-Slug).
 export async function updateTeamMemberRole(
     userId: string,
     roleName: string,

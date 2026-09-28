@@ -6,8 +6,7 @@ export async function addAvatar(userId: string, file: File) {
     const fileExtension = file.name.split('.').pop();
     const fileName = `${userId}.${fileExtension}`;
     const fileBuffer = await file.arrayBuffer()
-    // NB: the live bucket id is 'avatar' (singular) - 'avatars' never existed,
-    // so uploads silently targeted a nonexistent bucket.
+    // The bucket is 'avatar' (singular).
     const { error } = await supabase.storage
         .from('avatar')
         .upload(fileName, fileBuffer, {
@@ -62,13 +61,9 @@ export async function getSignedUrls(paths: string[]) {
 }
 
 /**
- * Upload (or replace) an organisation's QR/branding logo. Path is keyed by
- * organisationId, not slug — the org-logos bucket's RLS policies check
- * team_members against that folder segment, and slugs are mutable-ish while
- * the id isn't. `upsert: true` always writes to the same path so a
- * replacement doesn't leave the old file orphaned in storage; the cache-bust
- * query param is what makes the browser/CDN pick up the new image despite
- * the path staying identical.
+ * Upload or replace an organisation's logo. The path uses the organisation id,
+ * which the bucket RLS checks. The path does not change, so `?v=` makes
+ * browsers load the new image.
  */
 export async function uploadOrganisationLogo(organisationId: string, file: File) {
     const fileExtension = file.name.split('.').pop()

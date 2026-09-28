@@ -23,7 +23,7 @@ export default function EditVehiclePage() {
             getVehicle(id)
                 .then(setVehicle)
                 .catch(() => {
-                    toast.error('Failed to load vehicle data')
+                    toast.error('Could not load the vehicle.')
                     router.push(`/orgs/${slug}/dashboard/fleet/vehicles`)
                 })
                 .finally(() => setIsLoading(false))
@@ -38,8 +38,7 @@ export default function EditVehiclePage() {
             // 1. Update vehicle record
             await updateVehicle(id, vehicleFields)
 
-            // 2. Save its skill assignments. If that fails, put the fields
-            // back as they were so the edit lands whole or not at all.
+            // 2. Save the skills. If that fails, restore the old fields.
             try {
                 await setVehicleSkills(id, skillIds)
             } catch (error) {
@@ -71,10 +70,10 @@ export default function EditVehiclePage() {
                 await Promise.all(promises)
             }
 
-            toast.success('Vehicle updated successfully')
+            toast.success('Vehicle updated.')
             router.push(`/orgs/${slug}/dashboard/fleet/vehicles`)
         } catch (error) {
-            toast.error(getErrorMessage(error) || 'Failed to update vehicle')
+            toast.error(getErrorMessage(error) || 'Could not update the vehicle.')
         } finally {
             setIsSubmitting(false)
         }
@@ -98,7 +97,7 @@ export default function EditVehiclePage() {
                 </Button>
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Edit Vehicle</h1>
-                    <p className="text-muted-foreground">Update the information for vehicle {vehicle.vehicle_plate}.</p>
+                    <p className="text-muted-foreground">Change the details of {vehicle.vehicle_plate}.</p>
                 </div>
             </div>
 
@@ -107,7 +106,7 @@ export default function EditVehiclePage() {
                 onSubmit={handleSubmit}
                 isSubmitting={isSubmitting}
                 title="Edit Vehicle"
-                description={`Updating information for ${vehicle.vehicle_plate}`}
+                description={`Change the details of ${vehicle.vehicle_plate}.`}
                 submitLabel="Update Vehicle"
             />
         </div>

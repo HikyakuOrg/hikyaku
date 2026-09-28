@@ -6,29 +6,18 @@ import type { CoverageDiagnosticDto } from "@/lib/api"
 
 export type CoverageLookupResult =
     | { status: "ok"; diagnostic: CoverageDiagnosticDto }
-    // No warehouse exists yet to resolve drivers against. Distinct from an
-    // error: it is a normal state for a brand new organisation, not a failure.
+    // No warehouse yet. Normal for a new organisation.
     | { status: "no-warehouse" }
     | { status: "error"; error: string }
 
 /**
- * Which territories and drivers cover one point.
+ * Which service areas and drivers cover one point.
  *
- * This calls hikyaku-api's coverage diagnostic endpoint (`coverage.ts`'s CTE),
- * the same containment query Tier 1 assignment filters candidates with. It is
- * the one place in this app that asks "is this point covered", so the areas
- * page's coverage debugger (HIK-17) and customer creation's coverage warning
- * both call this instead of each running their own point-in-polygon check —
- * two implementations of "covered" is how a debugging tool ends up disagreeing
- * with the engine it is supposed to explain.
+ * Uses the API's coverage endpoint, the same query that assignment uses. Use
+ * this for every coverage check so the app and the engine always agree.
  *
- * The endpoint scopes its driver list to one warehouse and requires a
- * `warehouseId` whenever the organisation has more than one. `areas`,
- * `anyAreaCovers` and `organisationAreaCount` do not vary by warehouse (the
- * endpoint's own docs say the area list is "not filtered by warehouse"), so
- * defaulting to the organisation's first warehouse is safe for every field
- * this app reads today — it would only change which drivers come back, and no
- * caller here uses that list for a warehouse it did not ask for.
+ * The endpoint needs a warehouse. Without one this uses the first warehouse.
+ * That changes only the driver list; the area fields are the same.
  */
 export async function getCoverageForPoint(
     lon: number,
@@ -63,10 +52,8 @@ export async function getCoverageForPoint(
 }
 
 /**
- * Why one specific package can or cannot be covered, including the
- * skills-specific reason HIK-94 added (`diagnostic.skills`). The endpoint's
- * "package" request form: it resolves the delivery point and required skills
- * from the package itself, so no lon/lat/warehouseId is needed here.
+ * Why one package can or cannot be covered, including skills
+ * (`diagnostic.skills`). The API reads the point and skills from the package.
  */
 export async function getCoverageForPackage(packageId: string): Promise<CoverageLookupResult> {
     const ctx = await buildApiContext()

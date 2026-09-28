@@ -3,17 +3,12 @@ import { faker } from "@faker-js/faker"
 
 import { signUpAndConfirm } from "./helpers/signup-flow"
 
-/**
- * Lives under the `chrome-unauthed` Playwright project so it starts with no
- * shared storageState (the default `chrome` project would already be logged
- * in as the demo seed user, which would break a brand-new signup).
- */
-test.describe("Auth — signup + email confirm", () => {
+/** Runs in the `chrome-unauthed` project, so it starts signed out. */
+test.describe("Auth: signup + email confirm", () => {
     test("new user signs up, confirms email, lands directly on personal org dashboard", async ({ page }) => {
         test.setTimeout(120_000)
 
-        // signUpAndConfirm already asserts the landing URL is the personal
-        // org's dashboard — no "name your company" prompt in the way.
+        // signUpAndConfirm checks that the user lands on the personal org dashboard.
         await signUpAndConfirm(page)
 
         // The org switcher trigger shows "Personal" for a nameless personal org.
@@ -29,7 +24,7 @@ test.describe("Auth — signup + email confirm", () => {
         await page.goto("/orgs/new")
         const orgName = `${faker.company.name().replace(/[^a-zA-Z0-9-]/g, "-")}-${Date.now()}`
         await page.locator("#org-name").fill(orgName)
-        await page.getByRole("button", { name: /create organization/i }).click()
+        await page.getByRole("button", { name: /create company/i }).click()
 
         await expect(page).toHaveURL(/\/orgs\/[a-z0-9-]+\/dashboard\/?$/, {
             timeout: 20_000,
@@ -45,13 +40,11 @@ test.describe("Auth — signup + email confirm", () => {
 
         await signUpAndConfirm(page)
 
-        // Currently sitting on the personal org dashboard. Navigate to an
-        // external site, then back to the /orgs resolver.
+        // Go to an external site, then back to /orgs.
         await page.goto("https://google.com")
         await page.goto("http://localhost:3000/orgs")
 
-        // The /orgs resolver sees the existing personal org and lands there
-        // again — it must not bounce to /orgs/new.
+        // /orgs opens the personal org again, not /orgs/new.
         await expect(page).toHaveURL(/\/orgs\/[a-z0-9-]+\/dashboard\/?$/, { timeout: 15_000 })
     })
 })

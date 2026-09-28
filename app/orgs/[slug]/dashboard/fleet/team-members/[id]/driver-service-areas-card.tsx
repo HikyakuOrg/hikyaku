@@ -42,14 +42,7 @@ import {
     type DriverServiceArea,
 } from "@/lib/supabase/db"
 
-/**
- * "Where does this driver work" — the driver-first read of the same
- * `driver_service_area` link HIK-15's area page manages from the area side.
- * Both screens write through the same functions in `lib/supabase/db.ts`
- * (`attachServiceAreasToDriver` / `detachServiceAreaFromDriver`, sharing the
- * link table with `attachDriversToServiceArea` / `detachDriverFromServiceArea`),
- * so the two can never disagree about what got saved.
- */
+/** The service areas this driver covers. Uses the same link table as the service area page. */
 export function DriverServiceAreasCard({
     driverId,
     slug,
@@ -71,9 +64,7 @@ export function DriverServiceAreasCard({
     const [isSearching, setIsSearching] = useState(false)
     const [isAdding, setIsAdding] = useState(false)
     const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-    // Selected ids are strings (the combobox Value type), so labels for the
-    // chips and the commit toast are looked up here rather than carried on
-    // the value itself.
+    // Combobox values are ids, so keep the names here for the chips and toasts.
     const knownAreasRef = useRef(new Map<string, DriverServiceArea>())
     const anchor = useComboboxAnchor()
 
@@ -85,8 +76,7 @@ export function DriverServiceAreasCard({
             setAreas(await getServiceAreasByDriver(driverId))
         } catch (error) {
             console.error(error)
-            // A driver covering nothing and a read that failed both show as an
-            // empty list; only one of them means this driver is a floater.
+            // Show an error, not the empty (floater) state.
             setAreas([])
             setHasError(true)
         } finally {
@@ -122,9 +112,7 @@ export function DriverServiceAreasCard({
         setIsAdding(true)
 
         try {
-            // Awaited before the list or the chips clear: reporting success
-            // ahead of the write resolving would claim coverage the database
-            // never accepted.
+            // Update the list only after the write succeeds.
             await attachServiceAreasToDriver(driverId, selectedIds)
 
             const attached = selectedIds
@@ -146,7 +134,7 @@ export function DriverServiceAreasCard({
             setOptions([])
         } catch (error) {
             console.error(error)
-            toast.error(describeWriteError(error, SERVICE_AREAS_EDIT, "Failed to add the selected areas."))
+            toast.error(describeWriteError(error, SERVICE_AREAS_EDIT, "Could not add the selected areas."))
         } finally {
             setIsAdding(false)
         }
@@ -165,7 +153,7 @@ export function DriverServiceAreasCard({
             toast.success(`This driver no longer covers "${area.name}".`)
         } catch (error) {
             console.error(error)
-            toast.error(describeWriteError(error, SERVICE_AREAS_EDIT, "Failed to remove the area."))
+            toast.error(describeWriteError(error, SERVICE_AREAS_EDIT, "Could not remove the area."))
         } finally {
             setIsRemoving(false)
         }
@@ -177,8 +165,7 @@ export function DriverServiceAreasCard({
                 <div>
                     <h2 className="font-medium">Service Areas</h2>
                     <p className="text-sm text-muted-foreground max-w-2xl">
-                        The territories this driver covers. A driver can cover several areas, and
-                        adding one here does not remove any other.
+                        The areas this driver covers. A driver can cover several areas.
                     </p>
                 </div>
             </div>
@@ -257,7 +244,7 @@ export function DriverServiceAreasCard({
                     data-testid="driver-service-areas-error"
                 >
                     <div className="space-y-2">
-                        <p className="text-sm font-medium">This driver&apos;s areas could not be loaded</p>
+                        <p className="text-sm font-medium">Could not load this driver&apos;s areas</p>
                         <Button variant="outline" size="sm" onClick={() => void loadAreas()}>
                             Try again
                         </Button>
@@ -270,9 +257,8 @@ export function DriverServiceAreasCard({
                     className="w-full rounded-md border bg-muted/20 px-4 py-4 text-sm text-muted-foreground"
                     data-testid="driver-service-areas-empty"
                 >
-                    This driver is a floater: they cover no areas of their own, so they can be given
-                    work anywhere at their warehouse. Adding their first area here ends that — from
-                    then on they are only offered work inside the areas they cover.
+                    This driver is a floater: they have no service areas, so they can get work anywhere
+                    at their warehouse. After you add an area, they get work only in their areas.
                 </div>
             ) : (
                 <ul className="flex flex-wrap gap-2" data-testid="driver-service-areas-list">
@@ -315,7 +301,7 @@ export function DriverServiceAreasCard({
                             {`Remove "${pendingRemove?.name ?? ""}" from this driver?`}
                         </AlertDialogTitle>
                         <AlertDialogDescription>
-                            {`This does not move work that already exists. Coverage is decided once, when a package is created, so any stop already on this driver's route stays there — this only changes packages created from now on. ${areas.length <= 1 ? "This is their last area, so removing it makes them a floater again: they can be given work anywhere at their warehouse." : ""}`}
+                            {`This does not move work that already exists. Stops already on this driver's route stay there. Only new packages change.${areas.length <= 1 ? " This is their last area, so they become a floater again." : ""}`}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

@@ -30,8 +30,8 @@ import { cn } from "@/lib/utils"
 
 const schema = z.object({
     displayName: z.string().min(1, "Display name is required"),
-    email: z.email("Valid email is required"),
-    phone: z.string().refine(isValidPhoneNumber, "Invalid phone number"),
+    email: z.email("Enter a valid email"),
+    phone: z.string().refine(isValidPhoneNumber, "Enter a valid phone number"),
     roleId: z.number({ error: "Role is required" }),
     drivingLicense: z.string().optional(),
     licenseExpiry: z.string().optional(),
@@ -185,7 +185,7 @@ export default function AddTeamMemberForm({ roles, permissions, vehicleTypes }: 
                 return
             }
 
-            // Two-step avatar upload: PUT file directly to signed Supabase Storage URL
+            // Upload the photo to the signed storage URL
             if (avatarFile && result.avatarUploadUrl) {
                 try {
                     const uploadRes = await fetch(result.avatarUploadUrl, {
@@ -194,18 +194,18 @@ export default function AddTeamMemberForm({ roles, permissions, vehicleTypes }: 
                         headers: { "Content-Type": avatarFile.type },
                     })
                     if (!uploadRes.ok) {
-                        toast.warning("Team member added, but avatar upload failed.")
+                        toast.warning("Team member added, but the photo was not uploaded.")
                         router.push(`/orgs/${slug}/dashboard/fleet/team-members`)
                         return
                     }
                 } catch {
-                    toast.warning("Team member added, but avatar upload failed.")
+                    toast.warning("Team member added, but the photo was not uploaded.")
                     router.push(`/orgs/${slug}/dashboard/fleet/team-members`)
                     return
                 }
             }
 
-            toast.success("Team member added successfully")
+            toast.success("Team member added.")
             router.push(`/orgs/${slug}/dashboard/fleet/team-members`)
         } finally {
             setIsSubmitting(false)
@@ -345,8 +345,7 @@ export default function AddTeamMemberForm({ roles, permissions, vehicleTypes }: 
                             <div className="space-y-2">
                                 <Label htmlFor="licenseExpiry">License Expiry</Label>
                                 <Popover>
-                                    {/* Render prop lets the trigger adopt the Button itself,
-                                        avoiding an invalid nested <button><button> */}
+                                    {/* render prop avoids a nested <button> */}
                                     <PopoverTrigger
                                         render={
                                             <Button
@@ -490,7 +489,7 @@ export default function AddTeamMemberForm({ roles, permissions, vehicleTypes }: 
                     {isSubmitting ? (
                         <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Add Team Member...
+                            Adding Team Member...
                         </>
                     ) : (
                         "Add Team Member"

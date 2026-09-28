@@ -8,13 +8,8 @@ export type DrivingLimitTemplate = {
 }
 
 /**
- * Worked examples a dispatcher can start a profile from.
- *
- * Front-end content, never database rows: nothing seeds these into an
- * organisation, nothing applies one to anybody, and a profile saved from one
- * keeps no link back to it. The numbers are illustrative starting points, and
- * the copy around them must not present any of them as meeting a jurisdiction's
- * fatigue or working-time rules.
+ * Example values to start a profile from. They are not stored in the database.
+ * Do not describe them as meeting any fatigue or working-time law.
  */
 export const DRIVING_LIMIT_TEMPLATES: DrivingLimitTemplate[] = [
     {

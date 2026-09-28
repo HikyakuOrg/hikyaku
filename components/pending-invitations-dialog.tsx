@@ -42,7 +42,7 @@ export function PendingInvitationsDialog({ invitations }: PendingInvitationsDial
                 setBusyId(null)
                 return
             }
-            toast.success(`Joined ${invitation.organisation.name}`)
+            toast.success(`Joined ${invitation.organisation.name}.`)
             router.push(orgPath(invitation.organisation.slug, '/dashboard'))
         })
     }

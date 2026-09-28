@@ -16,11 +16,8 @@ type Method = 'totp' | 'webauthn'
 const CODE_LENGTH = 6
 
 /**
- * Shared "prove you have a second factor" UI: picks a method when more than
- * one is enrolled, then walks through a TOTP code or a WebAuthn ceremony.
- * Reused by the login-time challenge page and the settings step-up dialog —
- * those differ only in what happens around this (page chrome vs. a Dialog,
- * sign-out vs. close), not in the challenge itself.
+ * The second-factor challenge: choose a method, then enter a code or use a
+ * security key. Used by /auth/mfa and the settings dialog.
  */
 export function MfaChallenge({ onVerified }: { onVerified: () => void }) {
   const [factors, setFactors] = useState<Factors | null>(null)
@@ -41,8 +38,7 @@ export function MfaChallenge({ onVerified }: { onVerified: () => void }) {
       const next: Factors = { totp: data.totp, webauthn: data.webauthn }
       setFactors(next)
 
-      // Nothing left to challenge — a factor removed in another tab, a stale
-      // bookmark, etc. There's no second factor to check, so let it through.
+      // No factors left (for example, removed in another tab), so nothing to check.
       if (next.totp.length === 0 && next.webauthn.length === 0) {
         onVerified()
         return
@@ -57,8 +53,7 @@ export function MfaChallenge({ onVerified }: { onVerified: () => void }) {
       }
       // Both types enrolled: leave method unset so the picker below renders.
     })
-    // Deliberately one-shot: this loads the factor list for this challenge
-    // instance once. onVerified is expected to navigate away or close this UI.
+    // Once only. onVerified navigates away or closes this UI.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

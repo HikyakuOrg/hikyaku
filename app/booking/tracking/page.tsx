@@ -12,8 +12,8 @@ export default function TrackingPage({
 }: {
     searchParams: Promise<{ reference?: string }>
 }) {
-    // Reading the x-org-slug header and the reference query is request-time work,
-    // so it must live inside <Suspense> (cacheComponents requirement).
+    // Reading the header and the query is request-time work, so it must be
+    // inside <Suspense> (cacheComponents).
     return (
         <Suspense fallback={<TrackingSkeleton />}>
             <TrackingContent searchParams={searchParams} />
@@ -26,8 +26,7 @@ async function TrackingContent({
 }: {
     searchParams: Promise<{ reference?: string }>
 }) {
-    // The active tenant is resolved by middleware from the subdomain and exposed
-    // as x-org-slug. Tracking is per-organisation; without a slug there is no org.
+    // Middleware sets x-org-slug from the subdomain. Without it there is no organisation.
     const slug = (await headers()).get("x-org-slug")
     if (!slug) notFound()
 

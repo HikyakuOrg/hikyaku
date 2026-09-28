@@ -39,8 +39,7 @@ import { revokeConnectedApp, type ConnectedApp } from "@/lib/actions/oauth"
 import { cn } from "@/lib/utils"
 import { OFFICIAL_APPS, type OfficialApp, type OfficialAppId } from "./official-apps"
 
-// Mirrors the wording used on the consent screen (app/oauth/consent/page.tsx)
-// so the app describes the same permission the same way in both places.
+// Same wording as the consent screen (app/oauth/consent/page.tsx).
 const SCOPE_LABELS: Record<string, string> = {
     openid: "Verify your identity",
     email: "View your email address",
@@ -67,8 +66,7 @@ export function ConnectedAppsList({
     const [pendingRevoke, setPendingRevoke] = useState<ConnectedApp | null>(null)
     const [isRevoking, startRevoking] = useTransition()
 
-    // Resolved from props on every render so a revoke (which revalidates the
-    // page) flips the open sheet to its disconnected state.
+    // Read from props each render, so a revoke updates the open sheet.
     const selectedOfficial =
         selection?.kind === "official" ? OFFICIAL_APPS.find((app) => app.id === selection.id) : undefined
     const selectedOther =
@@ -85,7 +83,7 @@ export function ConnectedAppsList({
                 return
             }
             setPendingRevoke(null)
-            toast.success(`Revoked access for ${app.name}`)
+            toast.success(`Revoked access for ${app.name}.`)
         })
     }
 
@@ -153,9 +151,8 @@ export function ConnectedAppsList({
                     <AlertDialogHeader>
                         <AlertDialogTitle>Revoke access for {pendingRevoke?.name}?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This signs {pendingRevoke?.name} out of every active session and
-                            invalidates its tokens. It will need your approval again before it
-                            can access your account.
+                            {pendingRevoke?.name} will be signed out everywhere. It needs your
+                            approval again to access your account.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -358,11 +355,7 @@ function OfficialAppDetails({
     )
 }
 
-/**
- * Asks for the merchant's shop before handing off to the Shopify app's login,
- * the same field its own landing page shows. The submit button lives in the
- * sheet footer and targets this form by id.
- */
+/** Asks for the shop domain, then opens the Shopify app login. The submit button is in the sheet footer. */
 function ShopDomainForm({ loginUrl }: { loginUrl: string }) {
     const [shop, setShop] = useState("")
     const [error, setError] = useState<string | null>(null)
@@ -411,9 +404,8 @@ function ShopDomainForm({ loginUrl }: { loginUrl: string }) {
 }
 
 /**
- * Accepts what merchants tend to paste (the bare store name, a full URL or the
- * admin.shopify.com/store/<name> address) and returns the myshopify.com domain
- * Shopify's login expects, or null if it can't be one.
+ * Accepts a store name, a URL or an admin.shopify.com/store/<name> address.
+ * Returns the myshopify.com domain, or null.
  */
 function normaliseShopDomain(input: string): string | null {
     const value = input.trim().toLowerCase().replace(/^https?:\/\//, "")

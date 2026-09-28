@@ -86,17 +86,13 @@ function getStatusVariant(
 }
 
 /**
- * Current time as a client-only value. Returns `null` during SSR/prerender and
- * the first hydration render, then the live `Date` after mount. Reading the
- * current time (`new Date()`) during render is a dynamic API that isn't allowed
- * while prerendering under cacheComponents — gating it behind mount keeps the
- * "LATE" check out of the prerender while staying accurate for the viewer.
+ * The current time, set after mount. Null on the server and in the first
+ * render: cacheComponents does not allow `new Date()` while prerendering.
  */
 function useNow(): Date | null {
     const [now, setNow] = useState<Date | null>(null)
     useEffect(() => {
-        // Reading the wall clock is exactly the "sync with an external system" case the
-        // rule exempts, but it can't see that through the mount-once render gate.
+        // Reading the clock is a sync with an external system.
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setNow(new Date())
     }, [])
@@ -149,7 +145,7 @@ function SortableJobStep({
                             {pkg && (
                                 <div>
                                     <div className="text-sm font-medium text-foreground">
-                                        {pkg.to_customer?.customer_name ?? "Recipient information missing"}
+                                        {pkg.to_customer?.customer_name ?? "No recipient details"}
                                     </div>
                                     <div className="text-xs text-muted-foreground leading-tight space-y-0.5">
                                         {pkg.to_customer &&
@@ -205,7 +201,7 @@ function SortableJobStep({
     )
 }
 
-/** Static (locked) step row – used for view mode and locked steps in edit mode */
+/** A step that cannot be dragged: all steps in view mode, locked steps in edit mode */
 function StaticStepRow({
     step,
     index,
@@ -292,7 +288,7 @@ function StaticStepRow({
                                             editMode ? "text-muted-foreground" : "text-foreground"
                                         }`}
                                     >
-                                        {pkg?.to_customer?.customer_name ?? "Recipient information missing"}
+                                        {pkg?.to_customer?.customer_name ?? "No recipient details"}
                                     </div>
                                     <div className="text-xs text-muted-foreground leading-tight space-y-0.5">
                                         {pkg?.to_customer &&
@@ -399,10 +395,7 @@ export function RouteProgressionCard({
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
     )
 
-    /**
-     * Lock boundary: the highest step_index among JOB steps with DELIVERED or IN_TRANSIT status.
-     * All steps at or below this index are immovable.
-     */
+    /** The highest step_index of a delivered or in-transit job. Steps up to it cannot move. */
     const lockBoundaryStepIndex = useMemo(() => {
         const lockedJobs = routeSteps.filter(
             s => s.type === "job" && isLocked(s.package_assignment?.package?.current_status)
@@ -511,21 +504,19 @@ export function RouteProgressionCard({
                     <AlertDialogHeader>
                         <AlertDialogTitle className="flex items-center gap-2">
                             <AlertTriangle className="h-5 w-5 text-amber-500" />
-                            Manually Adjust Route
+                            Edit Route
                         </AlertDialogTitle>
                         <AlertDialogDescription>
                             <div className="space-y-2">
                                 <p>
-                                    You are about to manually edit the delivery route for an active
-                                    shift. This may affect driver navigation and delivery accuracy.
+                                    You are about to change the route of an active shift. This can
+                                    change the driver&apos;s navigation.
                                 </p>
                                 <p className="font-medium text-foreground">Rules:</p>
                                 <ul className="list-disc list-inside space-y-1 text-sm">
-                                    <li>Delivered and in-transit stops cannot be moved or removed.</li>
-                                    <li>Pending and failed stops can be reordered or removed.</li>
-                                    <li>
-                                        Stops cannot be moved above a delivered or in-transit position.
-                                    </li>
+                                    <li>You cannot move or remove delivered and in-transit stops.</li>
+                                    <li>You can move or remove pending and failed stops.</li>
+                                    <li>You cannot move a stop before a delivered or in-transit stop.</li>
                                 </ul>
                             </div>
                         </AlertDialogDescription>
@@ -634,7 +625,7 @@ export function RouteProgressionCard({
                                 </DndContext>
                             ) : (
                                 <div className="py-4 text-center text-sm text-muted-foreground">
-                                    No adjustable stops remaining.
+                                    No stops can be changed.
                                 </div>
                             )}
 

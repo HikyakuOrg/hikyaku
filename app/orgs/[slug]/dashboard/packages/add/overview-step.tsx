@@ -13,21 +13,15 @@ import { Loader2, Printer, CheckCircle2, Truck, Clock, MapPin, Info } from "luci
 import { PackageLabel, downloadLabelAsPNG } from "@/components/package-label";
 import { formatAddressLines } from "@/lib/customers/format-address";
 
-/**
- * Why a package was not put on a shift, in the dispatcher's language.
- *
- * An exhaustive Record over the generated union rather than a lookup with a
- * fallback: if the API grows a new reason, this fails the build instead of
- * silently rendering nothing.
- */
+/** Why a package is not on a shift. An exhaustive Record, so a new API reason fails the build. */
 const ASSIGNMENT_REASON_COPY: Record<AssignmentOutcomeDtoReasonEnum, string> = {
     no_capacity: "Every shift running today is already full.",
-    no_free_driver_vehicle: "No driver and van are free today.",
+    no_free_driver_vehicle: "No driver and vehicle are free today.",
     shift_allowance_exhausted:
-        "This billing period's shift allowance is used up, so no new shift could be opened.",
-    no_geocode: "The recipient's address has no map location yet, so it cannot be routed.",
+        "You used all the shifts for this billing period, so no new shift was created.",
+    no_geocode: "The recipient's address has no map location, so it cannot go on a route.",
     auto_assign_disabled: "Automatic assignment was turned off for this package.",
-    deadline_infeasible: "No shift can reach the recipient before the promised time.",
+    deadline_infeasible: "No shift can reach the recipient before the deadline.",
 };
 
 function formatEta(estimatedArrival: string | null): string | null {
@@ -39,12 +33,7 @@ function formatEta(estimatedArrival: string | null): string | null {
     }
 }
 
-/**
- * The payoff of instant assignment: what happened to the package, right now.
- *
- * Four outcomes, two shapes — assigned (which shift, which stop, what time) and
- * not assigned (why, and what happens next). Never the raw enum.
- */
+/** What happened to the package: its shift, stop and time, or why it is not on a shift. */
 function AssignmentPanel({
     assignment,
     driverName,
@@ -97,8 +86,8 @@ function AssignmentPanel({
                 )}
 
                 <p className="pl-8 text-xs text-muted-foreground">
-                    The stop order is re-optimised in the background, so the ETA may shift
-                    slightly.
+                    The stop order is optimised again in the background, so the ETA can change a
+                    little.
                 </p>
             </div>
         );
@@ -115,7 +104,7 @@ function AssignmentPanel({
                 )}
                 <div className="space-y-1">
                     <p className="font-medium leading-snug">
-                        {isDeferred ? "Queued — not on a shift yet" : "Not assigned to a shift"}
+                        {isDeferred ? "Queued, not on a shift yet" : "Not assigned to a shift"}
                     </p>
                     {reason && (
                         <p className="text-sm text-muted-foreground">
@@ -124,8 +113,8 @@ function AssignmentPanel({
                     )}
                     <p className="text-sm text-muted-foreground">
                         {isDeferred
-                            ? "It joins a shift automatically as soon as one has room, or a dispatcher can place it from Driver Shifts."
-                            : "Place it on a shift from Driver Shifts when you are ready."}
+                            ? "It goes on a shift automatically when one has space. You can also add it from Driver Shifts."
+                            : "Add it to a shift from Driver Shifts."}
                     </p>
                 </div>
             </div>
@@ -158,7 +147,7 @@ export function OverviewStep({ onPrev, formData }: {
 
     const handleSubmit = async () => {
         if (!formData.packageInfo || !formData.customerInfo || !formData.logisticsAssignment) {
-            toast.error("Missing form data. Please complete all steps.");
+            toast.error("Some steps are not complete.");
             return;
         }
 
@@ -166,10 +155,7 @@ export function OverviewStep({ onPrev, formData }: {
         const { packageInfo, customerInfo, logisticsAssignment } = formData;
 
         try {
-            // One call replaces the four non-atomic table writes this step used to
-            // make. `id` is the UUID minted back in the package-info step — it names
-            // the Storage folder the photos were dropped into, so it is sent rather
-            // than letting the server generate one.
+            // `id` is the UUID from the package step. The photos are stored under it.
             const response = await createPackage({
                 id: packageInfo.packageId,
                 warehouseId: logisticsAssignment.warehouseId,
@@ -193,8 +179,7 @@ export function OverviewStep({ onPrev, formData }: {
                 return;
             }
 
-            // Creation succeeded even when assignment did not — the outcome decides
-            // the tone of the toast, not whether this is an error.
+            // The package exists even when assignment failed.
             const { outcome } = response.result.assignment;
             if (outcome === "assigned" || outcome === "assigned_new_shift") {
                 toast.success("Package added and assigned to a shift.");
@@ -204,7 +189,7 @@ export function OverviewStep({ onPrev, formData }: {
             setSubmitted(response);
         } catch (error) {
             console.error("Submission error:", error);
-            toast.error(getErrorMessage(error) || "Failed to add package. Please try again.");
+            toast.error(getErrorMessage(error) || "Could not add the package. Try again.");
         } finally {
             setIsSubmitting(false);
         }
@@ -267,7 +252,7 @@ export function OverviewStep({ onPrev, formData }: {
                 Overview
             </h3>
             <p className="text-muted-foreground mt-2 leading-7">
-                Review your package details before submission.
+                Check the package details before you submit.
             </p>
 
             <div className="flex-1 mt-6">

@@ -19,13 +19,8 @@ import { isUniqueViolationError } from "@/lib/permissions"
 import { getErrorMessage } from "@/lib/utils"
 
 /**
- * Multi-select for the organisation's skill catalog, shared by the vehicle
- * form's Capabilities card (HIK-96) and the package wizard's required-skills
- * field (HIK-97) so the two never drift on how a skill is picked or created.
- *
- * The catalog is small by nature (a handful of named capabilities per org),
- * so it is fetched whole on mount and filtered client-side rather than
- * debounced-searched like the driver/service-area picker.
+ * Skill picker for the vehicle form and the package wizard. Organisations have
+ * few skills, so this loads all of them and filters on the client.
  */
 export function SkillsMultiSelect({
     value,
@@ -44,9 +39,7 @@ export function SkillsMultiSelect({
     const [catalog, setCatalog] = useState<Skill[]>([])
     const [query, setQuery] = useState("")
     const [isCreating, setIsCreating] = useState(false)
-    // Selected ids are strings (the combobox Value type), so chip labels are
-    // looked up here rather than carried on the value itself — same shape
-    // driver-service-areas-card uses for the same reason.
+    // Combobox values are ids, so keep the names here for the chips.
     const knownRef = useRef(new Map<string, Skill>())
     const anchor = useComboboxAnchor()
 
@@ -85,7 +78,7 @@ export function SkillsMultiSelect({
             toast.error(
                 isUniqueViolationError(error)
                     ? `A skill named "${trimmedQuery}" already exists.`
-                    : getErrorMessage(error) || "Failed to create the skill."
+                    : getErrorMessage(error) || "Could not create the skill."
             )
         } finally {
             setIsCreating(false)

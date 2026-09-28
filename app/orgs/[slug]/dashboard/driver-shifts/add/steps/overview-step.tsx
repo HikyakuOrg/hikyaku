@@ -29,13 +29,8 @@ export function OverviewStep({
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isAddingPaymentMethod, setIsAddingPaymentMethod] = useState(false)
 
-    // Pre-check only — enforce_shift_allowance() in hikyaku-api is the actual
-    // enforcement point (see AddShiftUsageMetering). This just keeps the button
-    // from offering a submission the trigger would reject, the same relationship
-    // getWarehouseAllowance() has to the warehouse-limit trigger. `usage` is
-    // null on a failed/unreachable read, which fails OPEN here (unlike the
-    // trial dialog) — a transient billing-API blip must not block shift
-    // creation on its own; the trigger is still there as the real backstop.
+    // A warning only; a DB trigger enforces the allowance. When `usage` is null
+    // (the read failed), do not block.
     const allowanceExhausted =
         !!usage &&
         usage.shiftsUsedThisPeriod >= usage.freeAllowance &&
@@ -51,7 +46,7 @@ export function OverviewStep({
             }
             window.location.href = result.url
         } catch (err) {
-            toast.error(getErrorMessage(err) || "Failed to open the billing portal")
+            toast.error(getErrorMessage(err) || "Could not open the billing portal.")
         } finally {
             setIsAddingPaymentMethod(false)
         }
@@ -62,7 +57,7 @@ export function OverviewStep({
     if (!warehouse || !date || !driverVehicle || !packagesRoute) {
         return (
             <div className="py-8 text-center text-muted-foreground">
-                Incomplete form data. Please go back and complete all steps.
+                Some steps are not complete. Go back and complete them.
             </div>
         )
     }
@@ -108,23 +103,20 @@ export function OverviewStep({
                 return
             }
 
-            toast.success("Shift created successfully!")
-            // The API decided each package's feasibility; a warning means it was
-            // placed anyway and the dispatcher should know what it costs.
+            toast.success("Shift created.")
+            // Packages the API added with a problem, or did not add.
             for (const warning of result.warnings) {
                 toast.warning(warning)
             }
 
-            // The shift detail page is keyed on the route, which a shift with no
-            // stops may not have yet — fall back to the calendar, which shows
-            // empty shifts.
+            // A shift with no stops can have no route yet, so go to the calendar.
             router.push(
                 result.routeId
                     ? `/orgs/${slug}/dashboard/driver-shifts/${result.routeId}`
                     : `/orgs/${slug}/dashboard/driver-shifts`,
             )
         } catch (err) {
-            toast.error(getErrorMessage(err) || "Failed to create shift")
+            toast.error(getErrorMessage(err) || "Could not create the shift.")
         } finally {
             setIsSubmitting(false)
         }
@@ -135,7 +127,7 @@ export function OverviewStep({
             <div>
                 <h3 className="scroll-m-20 text-2xl font-semibold tracking-tight">Review & Confirm</h3>
                 <p className="text-muted-foreground mt-2 leading-7">
-                    Review all shift details before submitting.
+                    Check the shift details before you create it.
                 </p>
             </div>
 
@@ -200,7 +192,7 @@ export function OverviewStep({
                         <>
                             <XCircle className="h-4 w-4 text-destructive shrink-0" />
                             <span className="text-destructive">
-                                Driver license expired —{" "}
+                                Driver license expired on{" "}
                                 {driverVehicle.licenseExpiry
                                     ? new Date(driverVehicle.licenseExpiry).toLocaleDateString()
                                     : "unknown"}
@@ -217,7 +209,7 @@ export function OverviewStep({
                 {driverVehicle.driverUnderProbation && (
                     <div className="flex items-center gap-2 text-sm text-amber-600">
                         <AlertTriangle className="h-4 w-4 shrink-0" />
-                        <span>Driver is under probation — supervisor approval recommended</span>
+                        <span>Driver is on probation. Get approval from a supervisor.</span>
                     </div>
                 )}
 
@@ -239,8 +231,8 @@ export function OverviewStep({
                     <div className="flex items-center gap-2 text-sm text-destructive">
                         <XCircle className="h-4 w-4 shrink-0" />
                         <span>
-                            You&apos;ve used your {usage.freeAllowance} free shifts this billing
-                            period. Add a payment method to keep creating shifts.
+                            You used your {usage.freeAllowance} free shifts for this billing
+                            period. Add a payment method to create more shifts.
                         </span>
                     </div>
                     <Button

@@ -53,22 +53,6 @@ export function PackageCard({ packageProps, onClick }: { packageProps: Packages,
                     </span>
                 </div>
             </div>
-            {/* {packageProps.driverDetails.driverName && (
-                <div className="flex items-center justify-between mt-4">
-                    <div className="flex items-center gap-2">
-                        <Avatar>
-                            <AvatarImage src={packageProps.driverDetails.driverAvatarUrl} />
-                            <AvatarFallback>
-                                {packageProps.driverDetails.driverName.charAt(0)}
-                            </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm">
-                            {packageProps.driverDetails.driverName}
-                        </span>
-                    </div>
-                </div>
-            )} */}
-
         </Card>
     )
 }

@@ -1,19 +1,14 @@
 import type { Tables, TablesInsert } from "@/lib/supabase/supabase"
 
 /**
- * Dispatch settings: how automatic assignment behaves for one organisation.
- *
- * Stored in `organisation_dispatch_settings`, at most one row per organisation,
- * written from Settings > Dispatch and read by hikyaku-api at the start of every
- * assignment (src/dispatch/dispatch-settings.ts there). They used to be the
- * API's ASSIGNMENT_MODE, LOAD_SPREAD_ENABLED and SERVICE_AREA_MATCHING
- * environment variables, which every organisation shared.
+ * Dispatch settings: how automatic assignment works for one organisation.
+ * One row in `organisation_dispatch_settings`, set in Settings > Dispatch and
+ * read by hikyaku-api for every assignment.
  */
 
 /**
- * `instant` places a package on a driver's shift as soon as it is created.
- * `manual` leaves new packages pending until a dispatcher assigns them. Mirrors
- * the CHECK constraint on `organisation_dispatch_settings.assignment_mode`.
+ * `instant` assigns a package when it is created. `manual` keeps new packages
+ * pending until a dispatcher assigns them.
  */
 export type AssignmentMode = "instant" | "manual"
 
@@ -24,11 +19,8 @@ export type DispatchSettings = {
 }
 
 /**
- * What an organisation that has never saved its settings runs on. Must match
- * the column defaults in hikyaku-api's
- * 1789693200000-create_organisation_dispatch_settings.sql and
- * DEFAULT_DISPATCH_SETTINGS in its src/dispatch/dispatch-settings.ts, or this
- * page would show one thing while the API dispatches by another.
+ * Settings before the first save. Keep in sync with the column defaults and
+ * DEFAULT_DISPATCH_SETTINGS in hikyaku-api.
  */
 export const DEFAULT_DISPATCH_SETTINGS: DispatchSettings = {
     assignmentMode: "instant",
@@ -41,10 +33,7 @@ type DispatchSettingsRow = Pick<
     "assignment_mode" | "load_spread_enabled" | "service_area_matching"
 >
 
-/**
- * A row as the page shows it; no row means the defaults. Anything but `manual`
- * reads as `instant`, the same way the API reads it.
- */
+/** A row as settings. No row means the defaults. Anything but `manual` is `instant`, as in the API. */
 export function toDispatchSettings(row: DispatchSettingsRow | null): DispatchSettings {
     if (!row) return { ...DEFAULT_DISPATCH_SETTINGS }
     return {
@@ -54,7 +43,7 @@ export function toDispatchSettings(row: DispatchSettingsRow | null): DispatchSet
     }
 }
 
-/** Every setting on every save, so a save always writes the page as shown rather than merging into the row. */
+/** All settings, so a save writes exactly what the page shows. */
 export function toDispatchSettingsRow(
     organisationId: string,
     settings: DispatchSettings,

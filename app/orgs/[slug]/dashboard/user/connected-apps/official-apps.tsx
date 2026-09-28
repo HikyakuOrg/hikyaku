@@ -3,10 +3,8 @@ import type { ComponentType, SVGProps } from "react"
 export type OfficialAppId = "n8n" | "shopify"
 
 /**
- * An integration we build and publish ourselves. Every one of these talks to
- * hikyaku through the OAuth 2.1 server, and the flow always starts inside the
- * other product (n8n's "Connect my account", the Shopify admin), so hikyaku can
- * only point the user there and then show the resulting grant.
+ * An integration we publish. It connects through OAuth, and the connection
+ * starts in the other product, so this page links there and shows the grant.
  */
 export interface OfficialApp {
     id: OfficialAppId
@@ -18,11 +16,7 @@ export interface OfficialApp {
     /** Shown in the detail sheet until the app is connected. */
     setupSteps: string[]
     setupUrl?: string
-    /**
-     * Shopify's app login (`/auth/login` in ../hikyaku-shopify). Given a `shop`
-     * query param it sends the merchant to install the app in their admin, so
-     * the sheet asks for the shop domain instead of linking out.
-     */
+    /** The Shopify app login. With a `shop` param, it installs the app in that store. */
     shopLoginUrl?: string
     availability: "available" | "coming-soon"
     logo: ComponentType<SVGProps<SVGSVGElement>>
@@ -36,7 +30,7 @@ export const OFFICIAL_APPS: OfficialApp[] = [
         name: "n8n",
         tagline: "Automate workflows from delivery status changes",
         description:
-            "Install the hikyaku community node in your n8n instance to trigger workflows the moment a package's status changes, and look up customers and packages from any workflow or AI agent.",
+            "Install the hikyaku community node in your n8n instance.",
         features: [
             "Start a workflow when a package's delivery status changes",
             "Look up customer and package details inside a workflow",
@@ -57,7 +51,7 @@ export const OFFICIAL_APPS: OfficialApp[] = [
         name: "Shopify",
         tagline: "Turn paid Shopify orders into hikyaku packages",
         description:
-            "The Hikyaku Connect app for Shopify creates packages in hikyaku as soon as an order is paid, so your store's orders flow straight into dispatch.",
+            "Install the Hikyaku Connect app in your Shopify store.",
         features: [
             "Create a package for every paid order",
             "Carry the customer's name, address and contact details across",

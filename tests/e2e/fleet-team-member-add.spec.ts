@@ -33,7 +33,7 @@ async function submitAndCleanUp(page: Page, email: string) {
     // Asserting on the toast text surfaces the API's error message on failure,
     // e.g. the "Missing X-Organisation-Slug header" this flow used to hit.
     await expect(page.locator("[data-sonner-toast]").first()).toHaveText(
-        "Team member added successfully",
+        "Team member added.",
         { timeout: 20_000 },
     )
     await expect(page).toHaveURL(d("/fleet/team-members"), { timeout: 30_000 })

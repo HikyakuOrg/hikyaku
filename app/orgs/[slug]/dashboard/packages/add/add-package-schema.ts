@@ -1,11 +1,7 @@
 import { z } from "zod/v4";
 
 
-/**
- * No `files` field: the photo dropzone in package-info-step uploads straight to
- * Supabase Storage under `<packageId>/images/received`, so the File objects
- * never need to reach this form's value or the submit step.
- */
+/** No `files` field: the photo dropzone uploads directly to `<packageId>/images/received`. */
 export const packageSchema = z.object({
     packageId: z.uuid(),
     weight: z.number().min(0.1),
@@ -17,20 +13,19 @@ export const packageSchema = z.object({
 
 
 export const customerSchema = z.object({
-    senderId: z.uuid("Invalid Sender"),
-    receiverId: z.uuid("Invalid Receiver"),
+    senderId: z.uuid("Select a sender"),
+    receiverId: z.uuid("Select a receiver"),
 })
 
 
 export const logisticsAssignmentSchema = z.object({
     trackingNumber: z.string().optional(),
-    // Optional: an empty value means "no deadline", so "" maps to undefined
-    // instead of failing the datetime check and silently blocking the step.
+    // Empty means no deadline, so "" becomes undefined.
     scheduledArrival: z
-        .union([z.iso.datetime("Invalid delivery date and time"), z.literal("").transform(() => undefined)])
+        .union([z.iso.datetime("Enter a valid date and time"), z.literal("").transform(() => undefined)])
         .optional(),
     deliveryNotes: z.string().optional(),
-    warehouseId: z.uuid("Invalid Warehouse"),
+    warehouseId: z.uuid("Select a warehouse"),
 })
 
 

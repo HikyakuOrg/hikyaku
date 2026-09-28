@@ -19,8 +19,7 @@ export default async function DrivingLimitsSettingsPage({ params }: { params: Pr
             <div>
                 <h2 className="text-xl font-semibold tracking-tight">Driving Limits</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                    The organisation default is the driving limit profile every driver without a profile of their
-                    own is planned within.
+                    The driving limit profile for drivers without a profile of their own.
                 </p>
             </div>
 
@@ -29,15 +28,15 @@ export default async function DrivingLimitsSettingsPage({ params }: { params: Pr
                     className="rounded-xl border border-destructive/40 bg-destructive/5 px-6 py-8 text-center"
                     data-testid="driving-limits-settings-read-error"
                 >
-                    <h3 className="text-lg font-semibold">Driving limit settings could not be loaded</h3>
-                    <p className="text-sm text-muted-foreground">Reload the page, and contact support if it keeps happening.</p>
+                    <h3 className="text-lg font-semibold">Could not load the driving limit settings</h3>
+                    <p className="text-sm text-muted-foreground">Reload the page. If the problem continues, contact support.</p>
                 </div>
             ) : (
                 <OrganisationDrivingLimitDefaultForm
                     slug={slug}
                     organisationId={settingsResult.organisationId}
                     profiles={profilesResult.profiles}
-                    // A default pointing at a retired profile resolves to no default.
+                    // A default that points at a deleted profile counts as none.
                     defaultProfileId={
                         profilesResult.profiles.some((profile) => profile.id === settingsResult.defaultProfileId)
                             ? settingsResult.defaultProfileId

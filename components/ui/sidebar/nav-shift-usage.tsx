@@ -4,18 +4,12 @@ import { SidebarMenu, SidebarMenuItem } from "@/components/ui/sidebar"
 import type { ShiftUsageStatus } from "@/lib/actions/billing"
 import { TruckIcon } from "@phosphor-icons/react"
 
-/** Fraction of the free allowance used before the sidebar bothers showing this. */
+/** Show this when this share of the free allowance is used. */
 const WARNING_THRESHOLD = 0.8
 
 /**
- * Shift usage indicator above the user menu, next to NavTrial.
- *
- * Renders nothing under normal use — only once an org is close to or past its
- * free allowance, the same "only show when it matters" restraint NavTrial
- * applies to the trial countdown. Not a button: unlike the trial dialog, the
- * actionable "Add payment method" affordance already lives on the shift-creation
- * flow itself (Overview step), where hitting the limit is actually blocking
- * something — this is only an early warning.
+ * Shift usage in the sidebar footer. Shown only near or over the free
+ * allowance. It is a warning only; the Add Shift wizard asks for a payment method.
  */
 export function NavShiftUsage({ usage }: { usage: ShiftUsageStatus | null }) {
   if (!usage || usage.freeAllowance <= 0) return null
@@ -44,7 +38,7 @@ export function NavShiftUsage({ usage }: { usage: ShiftUsageStatus | null }) {
             <span className="truncate text-xs">
               {exhausted
                 ? usage.hasPaymentMethod
-                  ? "Billing as overage"
+                  ? "Extra shifts are billed"
                   : "Free allowance used"
                 : "This billing period"}
             </span>

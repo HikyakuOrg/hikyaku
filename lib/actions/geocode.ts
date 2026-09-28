@@ -6,10 +6,8 @@ import { parsePhotonFeatureCollection, type AddressSuggestion } from "@/lib/maps
 export type { AddressSuggestion }
 
 /**
- * Address suggestions as the user types, via hikyaku-api's geocode/autocomplete
- * endpoint. That endpoint requires a bearer token, so this must run server-side
- * through buildApiContext() rather than fetching directly from the browser.
- * Returns [] on any auth/network failure so callers can degrade silently.
+ * Address suggestions as the user types. The API needs a token, so this runs
+ * on the server. Returns [] on any error.
  */
 export async function fetchAddressSuggestions(text: string): Promise<AddressSuggestion[]> {
     const ctx = await buildApiContext()

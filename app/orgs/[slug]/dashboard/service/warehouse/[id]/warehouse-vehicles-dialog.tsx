@@ -89,7 +89,7 @@ export function WarehouseVehiclesDialog({ warehouseId, driverId, assignedVehicle
             header: "Vehicle Type",
         },
         {
-            // Make sure there are blank space here otherwise it will not work
+            // The header must not be empty; spaces work.
             header: "  ",
             cell: ({row}) => {
                 if(row.original.id === assignedVehicleId){
@@ -136,7 +136,7 @@ export function WarehouseVehiclesDialog({ warehouseId, driverId, assignedVehicle
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Assign Vehicle To Driver</DialogTitle>
+                    <DialogTitle>Assign Vehicle to Driver</DialogTitle>
                     <DialogDescription>
                         Select an available vehicle to assign to this driver.
                     </DialogDescription>

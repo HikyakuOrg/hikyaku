@@ -20,8 +20,8 @@ export default async function BillingPage() {
                     <CardTitle>Payment method</CardTitle>
                     <CardDescription>
                         {usage?.hasPaymentMethod
-                            ? "A payment method is on file for overage billing."
-                            : "Add a payment method to keep creating shifts once your free allowance runs out."}
+                            ? "You have a payment method for shifts over your free allowance."
+                            : "Add a payment method to create shifts after you use your free allowance."}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>

@@ -16,7 +16,7 @@ const WAREHOUSE_FIXTURES: WarehouseFixture[] = [
 
 test.describe("Warehouse add", () => {
     for (const fixture of WAREHOUSE_FIXTURES) {
-        test(`happy path — add warehouse "${fixture.name}" at ${fixture.address}, ${fixture.suburb}`, async ({ page }) => {
+        test(`happy path: add warehouse "${fixture.name}" at ${fixture.address}, ${fixture.suburb}`, async ({ page }) => {
             await page.goto(d('/service/warehouse/add'))
             await expect(page).toHaveURL(/\/dashboard\/service\/warehouse\/add$/)
 

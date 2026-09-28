@@ -22,9 +22,8 @@ const OTP_LENGTH = 8
 
 export function VerifyOtpForm({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
   const router = useRouter()
-  // null means "not read yet". The distinction matters: an empty string is a
-  // real state (no pending verification on this device) with its own screen,
-  // and rendering that before the read would flash it at every visitor.
+  // null: not read yet. '' is a real state with its own screen, so do not show
+  // it before the read.
   const [email, setEmail] = useState<string | null>(null)
   const [intent, setIntent] = useState<VerificationIntent>('signup')
   const [redirectTo, setRedirectTo] = useState<string | undefined>()
@@ -33,8 +32,7 @@ export function VerifyOtpForm({ className, ...props }: React.ComponentPropsWitho
   const [resendMessage, setResendMessage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  // Rehydrate the pending record after mount (localStorage is client-only). This
-  // is what lets the screen resume after a refresh or navigating away.
+  // Read the pending record after mount (localStorage is client only).
   useEffect(() => {
     const pending = getPendingVerification()
     setEmail(pending.email)
@@ -62,11 +60,10 @@ export function VerifyOtpForm({ className, ...props }: React.ComponentPropsWitho
 
       // Verified, so the pending record is no longer needed.
       clearPendingVerification()
-      // A signup confirmation means the account was just created with a
-      // password, so that is what they will reach for next time. Only the
-      // passwordless path counts as the code method.
+      // After signup the user has a password. Only passwordless sign-in counts
+      // as the code method.
       setLastAuthMethod(intent === 'signin' ? 'email-code' : 'password')
-      // verifyOtp establishes a live session, so the org lookup is authorised.
+      // verifyOtp creates a session, so the org lookup works.
       router.push(await resolveAuthenticatedDestination(supabase, userId, redirectTo))
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An error occurred')
@@ -83,8 +80,7 @@ export function VerifyOtpForm({ className, ...props }: React.ComponentPropsWitho
     setResendMessage(null)
 
     try {
-      // A signup confirmation and a passwordless sign-in mint codes through
-      // different endpoints; resend() only covers the former.
+      // Signup and passwordless sign-in send codes through different endpoints.
       const { error: resendError } =
         intent === 'signin'
           ? await supabase.auth.signInWithOtp({ email })
@@ -96,12 +92,10 @@ export function VerifyOtpForm({ className, ...props }: React.ComponentPropsWitho
     }
   }
 
-  // Waiting on the read above. Rendering either branch now would be a guess.
+  // Wait for the read above.
   if (email === null) return null
 
-  // The code is bound to an address we were told about, so there is nothing to
-  // verify against if that record is gone (direct navigation, cleared storage).
-  // Without an editable field there is no way back from here except starting again.
+  // No pending email (direct link or cleared storage), so nothing to verify.
   if (email === '') {
     return (
       <div className={cn('flex flex-col gap-8', className)} {...props}>
@@ -110,8 +104,7 @@ export function VerifyOtpForm({ className, ...props }: React.ComponentPropsWitho
             Nothing to verify
           </h1>
           <p className="text-muted-foreground text-sm">
-            This device has no sign-in waiting on a code. Request a new one and we&apos;ll bring
-            you straight back here.
+            No sign-in on this device is waiting for a code. Sign in again to get a new code.
           </p>
         </div>
         <Link href="/auth/login" className={cn(buttonVariants({ size: 'lg' }), 'w-full')}>

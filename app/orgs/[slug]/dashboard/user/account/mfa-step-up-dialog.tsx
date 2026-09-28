@@ -9,12 +9,7 @@ import {
 } from "@/components/ui/dialog"
 import { MfaChallenge } from "@/components/mfa-challenge"
 
-/**
- * Removing an already-verified factor requires the session to be at aal2.
- * This is the same challenge UI as the login-time /auth/mfa page, just in a
- * Dialog instead of a full page — opened before a removal is allowed to go
- * through when the current session hasn't stepped up yet.
- */
+/** Removing a verified factor needs aal2. Shows the /auth/mfa challenge in a dialog. */
 export function MfaStepUpDialog({
     open,
     onOpenChange,
@@ -30,8 +25,7 @@ export function MfaStepUpDialog({
                 <DialogHeader>
                     <DialogTitle>Verify it&apos;s you</DialogTitle>
                     <DialogDescription>
-                        Confirm a two-factor method before you can manage your account&apos;s
-                        two-factor settings.
+                        Use a two-factor method to confirm it is you.
                     </DialogDescription>
                 </DialogHeader>
                 <MfaChallenge onVerified={onVerified} />

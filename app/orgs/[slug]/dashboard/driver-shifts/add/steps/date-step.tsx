@@ -25,7 +25,7 @@ export function DateStep({
 
     function handleSubmit() {
         if (!selected) {
-            setError("Please select a date to continue.")
+            setError("Select a date.")
             return
         }
         onNext({ date: format(selected, "yyyy-MM-dd") })
@@ -36,7 +36,7 @@ export function DateStep({
             <div>
                 <h3 className="scroll-m-20 text-2xl font-semibold tracking-tight">Select Shift Date</h3>
                 <p className="text-muted-foreground mt-2 leading-7">
-                    Choose the date this shift will run. The shift will start at 08:00 local time.
+                    Choose the date of the shift. It starts at 08:00 local time.
                 </p>
             </div>
 

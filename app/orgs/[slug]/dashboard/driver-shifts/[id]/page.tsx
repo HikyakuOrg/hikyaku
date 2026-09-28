@@ -23,10 +23,9 @@ export default async function DriverShiftsDetails({ params }: { params: Promise<
 
     const assignment = routeSteps.find(s => s.package_assignment?.package?.warehouse)?.package_assignment;
 
-    // A shift created with no packages has no package_assignment, so its
-    // driver/vehicle/warehouse come from the shift row itself. Fetched
-    // unconditionally: it is also the only source of the shift id the API
-    // reads driving limits by.
+    // A shift with no packages has no package_assignment, so the driver,
+    // vehicle and warehouse come from the shift. The API also needs the shift
+    // id for driving limits.
     const meta = await getShiftMeta(id);
     const warehouseInfo = assignment?.package?.warehouse
         ?? (meta?.warehouse_id ? await getWarehouse(meta.warehouse_id) : null);
@@ -49,8 +48,7 @@ export default async function DriverShiftsDetails({ params }: { params: Promise<
         routeCoords.push([routeStep.location.coordinates[0], routeStep.location.coordinates[1]])
     })
 
-    // Only the depot start/end steps exist when there are no packages — skip the routing
-    // call (its two identical points have nothing to route) and use a trivial preview.
+    // With no packages there are only the depot steps, so skip routing.
     const hasStops = routeStepArray.some((s) => s.type === "job");
     const jobSteps = routeSteps.filter((s) => s.package_assignment?.package);
     const fallbackStopCount = jobSteps.filter(
@@ -68,8 +66,7 @@ export default async function DriverShiftsDetails({ params }: { params: Promise<
     const driverProfile = driverId ? await getDriversByIds([driverId]) : [];
     const driverLocation = driverId ? await getDriverCurrentLocation(driverId) : null;
 
-    // The plan's own figures, in seconds and metres, against the driver's
-    // effective limits. A shift with no driver has no limits, as in the API.
+    // Compare the plan with the driver's limits. A shift without a driver has no limits.
     const startStep = routeSteps.find((s) => s.type === "start");
     const endStep = routeSteps.find((s) => s.type === "end");
     const [routeDistance, shiftResult] = await Promise.all([
@@ -105,7 +102,7 @@ export default async function DriverShiftsDetails({ params }: { params: Promise<
                 </div>
                 <p className="text-muted-foreground flex items-center gap-2">
                     <MapPin className="h-4 w-4" />
-                    Optimized route and step progression
+                    The route and its progress
                 </p>
             </div>
 
@@ -157,8 +154,7 @@ export default async function DriverShiftsDetails({ params }: { params: Promise<
                                     <span className="text-sm text-muted-foreground">
                                         Assigned by fallback
                                     </span>
-                                    {/* Not styled as a warning: parent R13 treats a fallback as
-                                        expected behaviour on a partially-drawn map, not a failure. */}
+                                    {/* Not a warning: fallbacks are normal. */}
                                     <span className="font-semibold">
                                         {fallbackStopCount} of {jobSteps.length}
                                     </span>

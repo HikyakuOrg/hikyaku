@@ -31,7 +31,7 @@ export function MfaChallengeForm({ className, redirectTo, ...props }: MfaChallen
           Verify it&apos;s you
         </h1>
         <p className="text-muted-foreground text-sm">
-          Your account has two-factor authentication enabled. Confirm it&apos;s you to continue.
+          Your account uses two-factor authentication. Confirm it is you to continue.
         </p>
       </div>
 

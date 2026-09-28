@@ -65,8 +65,7 @@ function DateTimePicker({
         <div className="flex flex-col gap-1.5">
             <span className="text-xs text-muted-foreground font-medium">{label}</span>
             <Popover>
-                {/* Use render prop so PopoverTrigger adopts the Button element
-                    directly — avoids an invalid nested <button><button> */}
+                {/* render prop avoids a nested <button> */}
                 <PopoverTrigger
                     render={
                         <Button
@@ -124,13 +123,13 @@ function useLocationPlayback(pointCount: number) {
         }
     }, [isPlaying, pointCount])
 
-    // Reset to 0 if already at the end so Play restarts from the beginning
+    // At the end, Play starts again from the beginning
     const play = () => {
         setCurrentIndex((prev) => (prev >= pointCount - 1 ? 0 : prev))
         setIsPlaying(true)
     }
     const pause = () => setIsPlaying(false)
-    // pause + seek — used by both slider drag and (optionally) external callers
+    // Pause and seek
     const scrub = (index: number) => {
         setIsPlaying(false)
         setCurrentIndex(index)
@@ -184,7 +183,7 @@ export default function LocationHistoryCard({ driverId }: Props) {
             setError(null)
         } catch (e) {
             console.error(e)
-            setError("Failed to fetch location history.")
+            setError("Could not load the location history.")
         } finally {
             setLoading(false)
         }
@@ -282,16 +281,9 @@ export default function LocationHistoryCard({ driverId }: Props) {
                                 max={points.length - 1}
                                 step={1}
                                 value={[currentIndex]}
-                                // onValueChange only fires on user interaction, not on
-                                // programmatic controlled-value updates, so scrub() here
-                                // is safe and won't interrupt the playback interval.
-                                //
-                                // Base UI v1.x inconsistency: pointer/mouse events call
-                                // onValueChange with a plain number (SliderControl
-                                // treats a single-thumb slider as non-range and passes
-                                // the raw computed value). Keyboard events go through
-                                // SliderRoot.handleInputChange which wraps the value in
-                                // an array. Handle both shapes at runtime.
+                                // Fires only on user input, so it does not stop playback.
+                                // Base UI v1 sends a number for pointer input and an
+                                // array for keyboard input.
                                 onValueChange={(v) =>
                                     scrub(Array.isArray(v) ? (v as number[])[0] : (v as unknown as number))
                                 }

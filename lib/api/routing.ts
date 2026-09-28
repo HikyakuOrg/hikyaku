@@ -2,12 +2,7 @@ import type { RoutePreview } from "@/app/models/route-preview"
 
 const API_URL = process.env.NEXT_PUBLIC_HIKYAKU_API_URL ?? "http://localhost:3002"
 
-/**
- * Fetches a route visiting `coords` ([lng, lat] pairs) in order for the given
- * vehicle `profile` from the whendan-api routing endpoint. The backend owns the
- * routing engine and returns a normalised RoutePreview, so the frontend never
- * has to know which engine is used. The org is identified by the x-org-slug header.
- */
+/** A route through `coords` ([lng, lat] pairs), in order, for the vehicle `profile`. */
 export async function fetchRoutePreview(
     profile: string,
     coords: [number, number][],

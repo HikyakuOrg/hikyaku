@@ -19,7 +19,7 @@ export async function fetchShift(shiftId: string): Promise<FetchShiftResult> {
             cache: "no-store",
         })
     } catch {
-        return { success: false, error: "Failed to reach the API." }
+        return { success: false, error: "Could not reach the server. Check your connection." }
     }
 
     if (!res.ok) return { success: false, error: await parseApiError(res) }
@@ -28,7 +28,7 @@ export async function fetchShift(shiftId: string): Promise<FetchShiftResult> {
 
 export type FetchShiftsInRangeResult = { success: true; shifts: ShiftDto[] } | { success: false; error: string }
 
-/** Every shift with a service day in [from, to] (inclusive, YYYY-MM-DD), for the calendar's driving-limit markers. */
+/** Shifts with a service day in [from, to] (YYYY-MM-DD), for the calendar's driving limit markers. */
 export async function fetchShiftsInRange(from: string, to: string): Promise<FetchShiftsInRangeResult> {
     const ctx = await buildApiContext()
     if ("error" in ctx) return ctx
@@ -40,7 +40,7 @@ export async function fetchShiftsInRange(from: string, to: string): Promise<Fetc
             cache: "no-store",
         })
     } catch {
-        return { success: false, error: "Failed to reach the API." }
+        return { success: false, error: "Could not reach the server. Check your connection." }
     }
 
     if (!res.ok) return { success: false, error: await parseApiError(res) }
@@ -64,10 +64,7 @@ export interface ManualShiftParams {
     date: string
     driverId: string
     vehicleId: string
-    /**
-     * Packages to put on the shift, in the dispatcher's chosen order. Optional —
-     * a shift can be opened with nothing on it and fill up by assignment.
-     */
+    /** Packages for the shift, in order. Optional: a shift can start empty. */
     orderedPackageIds?: string[]
 }
 
@@ -76,42 +73,18 @@ export type CreateManualShiftResult =
           success: true
           /** vrp_optimization.id. */
           shiftId: string
-          /**
-           * vrp_route.id, which is what the shift detail page is keyed on. Null
-           * when the shift has no route yet, in which case the caller should
-           * fall back to the shifts list.
-           */
+          /** vrp_route.id for the shift detail page. Null when there is no route yet. */
           routeId: string | null
-          /**
-           * Packages the API declined to place, or placed despite breaking a
-           * deadline or a driving limit, with the reason it gave.
-           */
+          /** Packages not added, or added over a deadline or driving limit, with the reason. */
           warnings: string[]
       }
     | { success: false; error: string }
 
 /**
- * Open a manual shift and, when the wizard picked packages, put them on it.
+ * Create a manual shift, then add the packages picked in the wizard.
  *
- * This used to be seven separate PostgREST writes from the browser —
- * vrp_optimization, vrp_solution, vrp_route, a package_assignment per package,
- * the route steps, a package_delivery_window upsert per package, and a timeline
- * row per package — with no transaction anywhere. Three specific problems went
- * with that:
- *
- *  - driver, vehicle, warehouse and date were stuffed into a `request._meta`
- *    JSON blob because the schema had nowhere to put them. They are columns now.
- *  - the delivery-window upsert overwrote `scheduled_arrival` — the customer's
- *    deadline — with a computed ETA. The planner writes `estimated_arrival`
- *    instead, and never touches the promise.
- *  - a failure partway through left a half-built shift behind.
- *
- * Two calls rather than one, because creating a shift and filling it are two
- * endpoints: POST /shifts opens an empty planned shift (this is the one place a
- * human deliberately bills a shift), POST /shifts/:id/packages is the dispatcher
- * override that places specific packages on it. Each is atomic server-side.
- *
- * RoutePreview stays client-side — it draws the map, and the API plans the route.
+ * Two calls: POST /shifts creates an empty shift (and bills it), and
+ * POST /shifts/:id/packages adds the packages. Each is atomic on the server.
  */
 export async function createManualShift(params: ManualShiftParams): Promise<CreateManualShiftResult> {
     const ctx = await buildApiContext()
@@ -122,9 +95,7 @@ export async function createManualShift(params: ManualShiftParams): Promise<Crea
         driverId: params.driverId,
         vehicleId: params.vehicleId,
         shiftDate: params.date,
-        // scheduledStart is deliberately omitted. The old action invented 08:00
-        // UTC as a departure time; the shift now simply stays open to assignment
-        // until someone dispatches it.
+        // No scheduledStart: the shift stays open until someone dispatches it.
     }
 
     let created: Response
@@ -136,7 +107,7 @@ export async function createManualShift(params: ManualShiftParams): Promise<Crea
             cache: "no-store",
         })
     } catch {
-        return { success: false, error: "Failed to reach the API." }
+        return { success: false, error: "Could not reach the server. Check your connection." }
     }
 
     if (created.status === 409) {
@@ -149,7 +120,7 @@ export async function createManualShift(params: ManualShiftParams): Promise<Crea
         return {
             success: false,
             error:
-                "This billing period's shift allowance is used up. Add a payment method to create more shifts.",
+                "You used all the shifts for this billing period. Add a payment method to create more.",
         }
     }
     if (!created.ok) return { success: false, error: await parseApiError(created) }
@@ -170,19 +141,17 @@ export async function createManualShift(params: ManualShiftParams): Promise<Crea
             cache: "no-store",
         })
     } catch {
-        // The shift exists and is empty — a real, recoverable state the
-        // dispatcher can fill from the shift page. Say so rather than implying
-        // nothing happened.
+        // The shift exists but is empty. The dispatcher can fill it from the shift page.
         return {
             success: false,
-            error: "The shift was created, but adding the packages failed. Open it and add them again.",
+            error: "The shift was created, but the packages were not added. Open the shift and add them again.",
         }
     }
 
     if (!planned.ok) {
         return {
             success: false,
-            error: `The shift was created, but adding the packages failed: ${await parseApiError(planned)}`,
+            error: `The shift was created, but the packages were not added: ${await parseApiError(planned)}`,
         }
     }
 
@@ -192,10 +161,8 @@ export async function createManualShift(params: ManualShiftParams): Promise<Crea
         .map((p) => {
             const label = `Package ${p.packageId.slice(0, 8)}`
             if (!p.added) return p.warning ?? `${label} could not be added.`
-            // The API words a breach as a clause about the package ("over this
-            // driver's 250 km distance limit", "breaks a delivery deadline on this
-            // route"), and the pin went through regardless: a limit constrains
-            // automatic assignment, not the dispatcher. Say both halves.
+            // Limits apply to automatic assignment, not to the dispatcher, so the
+            // package is on the shift. The API warning describes the breach.
             return `${label} was added anyway: ${p.warning}.`
         })
 
@@ -208,15 +175,9 @@ export async function createManualShift(params: ManualShiftParams): Promise<Crea
 }
 
 /**
- * Take one package off a shift: the assignment is dropped, the route steps are
- * rewritten without it, and the package goes back to PENDING for reassignment.
- *
- * Replaces a browser-side delete-then-renumber that could not be atomic, and
- * whose PENDING timeline write silently did nothing until AllowStatusRevisits
- * dropped the unique constraint that was swallowing it.
- *
- * The API refuses (409) a package that is already IN_TRANSIT, onboard or
- * delivered.
+ * Remove one package from a shift. The API rewrites the route and sets the
+ * package back to PENDING. It refuses (409) a package that is IN_TRANSIT,
+ * onboard or delivered.
  */
 export async function removePackageFromShift(
     shiftId: string,
@@ -233,7 +194,7 @@ export async function removePackageFromShift(
             cache: "no-store",
         })
     } catch {
-        return { success: false, error: "Failed to reach the API." }
+        return { success: false, error: "Could not reach the server. Check your connection." }
     }
 
     if (!res.ok) return { success: false, error: await parseApiError(res) }

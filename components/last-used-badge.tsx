@@ -13,25 +13,16 @@ function subscribe(onStoreChange: () => void) {
 }
 
 /**
- * Reads the last-used method from localStorage, which is client-only. The
- * server snapshot is null, so the badge is absent during SSR and first paint
- * and appears on hydration. That is why it renders absolutely positioned: it
- * must not shift the form under it when it shows up.
- *
- * The snapshot is a primitive, so returning a fresh read each render is safe.
+ * The last sign-in method, from localStorage. Null on the server, so the badge
+ * appears after hydration. It is absolutely positioned so the form does not move.
  */
 export function useLastAuthMethod(): AuthMethod | null {
   return useSyncExternalStore(subscribe, getLastAuthMethod, () => null)
 }
 
 /**
- * Corner pill marking the method this device last signed in with. Purely a
- * hint: every other method stays fully usable, since a single account can have
- * several working methods at once (a Google identity and a password, say).
- *
- * Expects a `relative` parent. `pointer-events-none` keeps it from stealing
- * clicks, which matters most over the Google button, where the real control is
- * an iframe underneath.
+ * Marks the method this device used last. Needs a `relative` parent.
+ * `pointer-events-none` lets clicks reach the Google iframe below.
  */
 export function LastUsedBadge({ className }: { className?: string }) {
   return (

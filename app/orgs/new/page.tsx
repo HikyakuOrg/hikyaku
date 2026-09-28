@@ -16,8 +16,7 @@ import {
   CardFooter,
 } from '@/components/ui/card'
 
-// Every user already has exactly one personal org, created at signup by
-// handle_new_user() — so this page only ever creates a company org.
+// Signup creates the personal org, so this page creates company orgs only.
 export default function NewOrganisationPage() {
   const router = useRouter()
   const [name, setName] = useState('')
@@ -72,7 +71,7 @@ export default function NewOrganisationPage() {
                   <p className="text-sm text-destructive">{error}</p>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    What&apos;s the name of your company? You can change this later.
+                    You can change the name later.
                   </p>
                 )}
               </div>

@@ -58,13 +58,11 @@ export function TotpEnrollDialog({
                 }
                 setEnrollment({ factorId: data.id, qrCode: data.totp.qr_code, secret: data.totp.secret })
             })
-        // Deliberately fires once per dialog open — re-running on every render
-        // would re-enroll and abandon the previous unverified factor.
+        // Once per open. Running again would create a new factor and leave the old one.
     }, [open])
 
     function handleOpenChange(next: boolean) {
-        // Closing before verifying leaves an unverified factor behind server-side.
-        // Clean it up — allowed at any aal since it was never verified.
+        // Remove the unverified factor on close. Any aal can do this.
         if (!next && enrollment) {
             const supabase = createClient()
             void supabase.auth.mfa.unenroll({ factorId: enrollment.factorId })
@@ -96,7 +94,7 @@ export function TotpEnrollDialog({
         }
 
         setIsSubmitting(false)
-        toast.success("Authenticator app added")
+        toast.success("Authenticator app added.")
         setEnrollment(null)
         setCode("")
         onOpenChange(false)
@@ -106,7 +104,7 @@ export function TotpEnrollDialog({
     async function copySecret() {
         if (!enrollment) return
         await navigator.clipboard.writeText(enrollment.secret)
-        toast.success("Copied")
+        toast.success("Copied.")
     }
 
     return (

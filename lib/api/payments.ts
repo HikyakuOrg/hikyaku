@@ -5,7 +5,7 @@ const API_URL = process.env.NEXT_PUBLIC_HIKYAKU_API_URL ?? "http://localhost:300
 
 export type CreateCheckoutResult = CheckoutResultDto
 
-/** One itemised line in a quote (name + quantity × rate + amount). */
+/** One line in a quote: name, quantity, rate and amount. */
 export type QuoteLine = QuoteLineDto
 
 export type QuoteResult = QuoteResultDto
@@ -14,11 +14,7 @@ function toKg(weight: number, unit: string): number {
     return unit === "lb" ? weight * 0.453592 : weight
 }
 
-/**
- * Build the request body shared by /quote and /pay. The org is resolved by the
- * backend from the x-org-slug header. Weight is canonicalised to kg here; the
- * backend converts to lb for per_lb items.
- */
+/** The request body for /quote and /pay. Weight is sent in kg. */
 function buildBody(formData: BookingFormData) {
     const { package: pkg, addresses, schedule } = formData
     const sender = addresses!.sender
@@ -80,10 +76,7 @@ async function postOrThrow<T>(path: string, slug: string, body: unknown): Promis
     return res.json()
 }
 
-/**
- * Itemised quote for the review step. Distance can't be computed client-side, so
- * the server measures it (Valhalla) and returns the per-line breakdown. No charge.
- */
+/** A quote for the review step. The server calculates the distance. No charge. */
 export async function getQuote(
     formData: BookingFormData,
     orgSlug: string,
@@ -92,10 +85,8 @@ export async function getQuote(
 }
 
 /**
- * Starts a Stripe-hosted Checkout for the booking on the org's connected account.
- * The backend recomputes the price (never trusts the client) and returns a hosted
- * Checkout URL — the caller redirects the browser to it. Fulfillment (customer +
- * package creation) happens server-side via the Stripe webhook, not here.
+ * Start a Stripe Checkout for the booking and return its URL. The server
+ * calculates the price. The Stripe webhook creates the customer and package.
  */
 export async function createCheckout(
     formData: BookingFormData,

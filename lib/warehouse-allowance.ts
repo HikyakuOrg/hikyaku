@@ -1,22 +1,18 @@
 import { createClient } from '@/lib/supabase/server'
 
 /**
- * Personal accounts get one warehouse; company orgs are unlimited.
- *
- * This mirrors the `warehouse_personal_org_limit` trigger in hikyaku-api
- * (migration 1786790000000). The database is the enforcement point — the app
- * writes to public.warehouse directly through PostgREST, so this module only
- * decides whether the UI offers the action. Keep the number here and the
- * `v_limit` constant in that migration in step.
+ * Personal accounts get one warehouse; company orgs have no limit. The
+ * `warehouse_personal_org_limit` trigger enforces this. Keep this number the
+ * same as `v_limit` in that trigger.
  */
 export const PERSONAL_ORG_WAREHOUSE_LIMIT = 1
 
 export type WarehouseAllowance = {
-    /** null when the org doesn't exist or the caller can't see it. */
+    /** Null when the org does not exist or the caller cannot see it. */
     orgType: 'personal' | 'company' | null
-    /** null means unlimited. */
+    /** Null means no limit. */
     limit: number | null
-    /** Only counted for capped orgs; always 0 when the limit is null. */
+    /** Counted only when there is a limit. */
     used: number
     canAdd: boolean
 }
@@ -29,11 +25,8 @@ const DENIED: WarehouseAllowance = {
 }
 
 /**
- * Whether `slug`'s org may add another warehouse, and why not if it may not.
- *
- * Counting is scoped to the org by an explicit `organisation_id` filter rather
- * than left to RLS: a company-org member viewing their personal org can see
- * warehouses from both, and an unfiltered count would mix them.
+ * Whether the org can add another warehouse. Filtered by organisation because
+ * RLS shows warehouses from every org the user belongs to.
  */
 export async function getWarehouseAllowance(
     slug: string,
@@ -58,9 +51,7 @@ export async function getWarehouseAllowance(
         .eq('organisation_id', org.id)
 
     if (error) {
-        // Fail closed. A count we couldn't read is a request that would most
-        // likely fail on insert too, and hiding the button is a better outcome
-        // than a form that 400s on submit.
+        // Fail closed: hide the button.
         console.error(error)
         return { orgType: 'personal', limit: PERSONAL_ORG_WAREHOUSE_LIMIT, used: 0, canAdd: false }
     }

@@ -110,16 +110,12 @@ export function CustomerEditorPage({ mode, customerId }: CustomerEditorPageProps
 
             const customer = await persistCustomer(prepared)
 
-            toast.success(
-                mode === "edit"
-                    ? "Customer updated successfully"
-                    : "Customer created successfully"
-            )
+            toast.success(mode === "edit" ? "Customer updated." : "Customer created.")
             router.push(`/orgs/${slug}/dashboard/customers/${customer.id}`)
         } catch (error) {
             toast.error(
                 getErrorMessage(error) ||
-                (mode === "edit" ? "Failed to update customer" : "Failed to create customer")
+                (mode === "edit" ? "Could not update the customer." : "Could not create the customer.")
             )
         } finally {
             setIsSubmitting(false)
@@ -137,16 +133,12 @@ export function CustomerEditorPage({ mode, customerId }: CustomerEditorPageProps
             const customer = await persistCustomer(pendingSubmission)
             setShowOutsideServiceAreaDialog(false)
             setPendingSubmission(null)
-            toast.success(
-                mode === "edit"
-                    ? "Customer updated successfully"
-                    : "Customer created successfully"
-            )
+            toast.success(mode === "edit" ? "Customer updated." : "Customer created.")
             router.push(`/orgs/${slug}/dashboard/customers/${customer.id}`)
         } catch (error) {
             toast.error(
                 getErrorMessage(error) ||
-                (mode === "edit" ? "Failed to update customer" : "Failed to create customer")
+                (mode === "edit" ? "Could not update the customer." : "Could not create the customer.")
             )
         } finally {
             setIsSubmitting(false)
@@ -174,8 +166,8 @@ export function CustomerEditorPage({ mode, customerId }: CustomerEditorPageProps
                     </h1>
                     <p className="text-muted-foreground">
                         {mode === "edit"
-                            ? "Update the customer record used for package intake and delivery operations."
-                            : "Create a new customer record for package intake and delivery operations."}
+                            ? "Change the details of this customer."
+                            : "Enter the details of the new customer."}
                     </p>
                 </div>
 
@@ -225,7 +217,7 @@ export function CustomerEditorPage({ mode, customerId }: CustomerEditorPageProps
                         </AlertDialogMedia>
                         <AlertDialogTitle>Customer outside service area</AlertDialogTitle>
                         <AlertDialogDescription>
-                            The address you entered is outside the current service area coverage. You can still save the customer if you want to store the record anyway.
+                            No service area covers this address. You can still save the customer.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
 

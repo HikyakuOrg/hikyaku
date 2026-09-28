@@ -1,29 +1,20 @@
-// Tenant subdomain helpers. The active organisation is identified purely by the
-// host: <slug>.<root-domain>. Root domain is environment-driven so the same
-// code works on hikyaku.org (prod) and lvh.me:3000 / *.localhost (local).
-//
-// Local testing: lvh.me and *.localhost both resolve to 127.0.0.1 with no
-// /etc/hosts edits. Set NEXT_PUBLIC_ROOT_DOMAIN=lvh.me:3000 locally.
+// Tenant subdomain helpers: <slug>.<root-domain>. NEXT_PUBLIC_ROOT_DOMAIN sets
+// the root (hikyaku.org in prod).
 
-// On Vercel preview deployments VERCEL_URL is the unique deployment hostname
-// (e.g. hikyaku-abc123-org.vercel.app). Use it as the root so the preview URL
-// is treated as the apex domain, not a tenant subdomain that would redirect away.
+// On Vercel previews, treat the deployment hostname as the root so it is not
+// read as a tenant subdomain.
 const vercelPreviewUrl =
   process.env.VERCEL_ENV === 'preview' ? process.env.VERCEL_URL : undefined
 
 export const ROOT_DOMAIN =
   vercelPreviewUrl ?? process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'hikyaku.org'
 
-// The real public root domain, ignoring the Vercel-preview override above.
-// Booking/vanity links are shared with customers and must always point at
-// the production tenant domain, never at a preview deployment's hostname.
+// The public root, without the preview override. Booking links that customers
+// see always use it.
 const PUBLIC_ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'hikyaku.org'
 
-// Hosts under the root that are NOT tenants (must mirror the API's RESERVED_SLUGS).
-// docs, send and origin are live hostnames in the hikyaku.org zone: docs is a
-// separate Vercel project, send is the SES sending domain, and origin is what the
-// tenant-proxy Worker forwards to. An org allowed to take one of those slugs
-// would get a booking URL that silently serves someone else's site.
+// Hosts under the root that are not tenants. Keep in sync with the API's
+// RESERVED_SLUGS. docs, send and origin are live hosts in the hikyaku.org zone.
 const RESERVED = new Set([
   'www',
   'app',
@@ -40,10 +31,7 @@ function stripPort(host: string): string {
   return host.split(':')[0].toLowerCase()
 }
 
-/**
- * Extracts the tenant slug from a Host header, or null when the request is for
- * the apex / www / a reserved host (signup, login, org selection live there).
- */
+/** The tenant slug from a Host header, or null for the apex, www or a reserved host. */
 export function getSlugFromHost(host: string | null | undefined): string | null {
   if (!host) return null
   const hostname = stripPort(host)
@@ -53,25 +41,19 @@ export function getSlugFromHost(host: string | null | undefined): string | null 
   if (!hostname.endsWith(`.${rootHostname}`)) return null
 
   const label = hostname.slice(0, -(rootHostname.length + 1))
-  // Only a single left-most label is a valid tenant (no nested subdomains).
+  // One label only; no nested subdomains.
   if (!label || label.includes('.')) return null
   if (RESERVED.has(label)) return null
   return label
 }
 
 /**
- * Cookie domain for the Supabase session, given the host being served (the
- * request Host on the server, location.host in the browser).
+ * Cookie domain for the Supabase session. Hosts under the public root get
+ * `.<root>` so they share the session. Other hosts (previews, localhost) get a
+ * host-only cookie.
  *
- * Hosts under the public root (app, staging, tenant subdomains) get `.<root>` so
- * the session is shared across all of them. Any other host, such as a preview's
- * own *.vercel.app URL, gets a host-only cookie, as does plain localhost (a
- * leading-dot domain attribute is invalid there).
- *
- * This deliberately ignores ROOT_DOMAIN: its VERCEL_URL override only exists on
- * the server, so a preview served on a custom domain (staging.hikyaku.org) would
- * have the middleware refresh the session with a Domain the browser silently
- * rejects, and the rotated refresh token would never be stored.
+ * Uses PUBLIC_ROOT_DOMAIN, not ROOT_DOMAIN: the preview override exists only on
+ * the server, and a mismatch makes the browser reject the refreshed token.
  */
 export function cookieDomain(host: string | null | undefined): string | undefined {
   const rootHostname = stripPort(PUBLIC_ROOT_DOMAIN)
@@ -88,12 +70,7 @@ export function orgPath(slug: string, path = '/dashboard'): string {
   return `/orgs/${slug}${path}`
 }
 
-/**
- * Absolute origin of the product app (dashboard, auth, org-select). The product
- * is served on app.<root>; marketing has its own deploy on the apex. Use this for
- * absolute links back into the app (emails, booking "manage" CTAs, etc.).
- * Falls back to app.<ROOT_DOMAIN> with a protocol matching the environment.
- */
+/** Absolute URL in the product app (app.<root>), for links from emails or booking. */
 export function appUrl(path = '/'): string {
   if (process.env.NEXT_PUBLIC_APP_URL) {
     return `${process.env.NEXT_PUBLIC_APP_URL}${path}`
@@ -106,8 +83,7 @@ export function appUrl(path = '/'): string {
   return `${protocol}://app.${ROOT_DOMAIN}${path}`
 }
 
-/** Absolute URL for a tenant subdomain, used for booking links only.
- *  e.g. https://k7m2qp9x.hikyaku.org/booking */
+/** Absolute tenant URL for booking links, e.g. https://k7m2qp9x.hikyaku.org/booking */
 export function tenantUrl(slug: string, path = '/dashboard'): string {
   const isLocal =
     PUBLIC_ROOT_DOMAIN.startsWith('localhost') ||

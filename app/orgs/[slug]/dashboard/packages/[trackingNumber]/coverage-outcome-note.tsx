@@ -10,20 +10,9 @@ import { getSkillsByIds, type Skill } from "@/lib/supabase/db"
 import type { CoverageSkillsDto } from "@/lib/api"
 
 /**
- * Why this package landed on the driver it did. Sits next to the tracking
- * timeline rather than inside it: the timeline is a fixed PENDING → DELIVERED
- * sequence and a coverage decision is not a status, it is a fact recorded once
- * at assignment time (see AddAssignmentCoverageOutcome1788829200000).
- *
- * Deliberately not styled as an alert even for a fallback: parent R13 says a
- * fallback is the designed behaviour for a partially-drawn map, not an error,
- * and a red callout here would train dispatchers to ignore it.
- *
- * `packageId`, when given, additionally checks the on-demand skills
- * diagnostic (`/dispatch/coverage?packageId=`, HIK-94) — the only place a
- * skills mismatch is reported, since `coverage_outcome` itself has no
- * skills-specific value. A mismatch there replaces the generic note rather
- * than sitting alongside it, so a dispatcher sees the specific reason first.
+ * Why the package went to its driver. Not shown as an alert: fallbacks are
+ * normal. With `packageId` it also checks skills; a missing skill replaces the
+ * normal note.
  */
 export function CoverageOutcomeNote({
     outcome,
@@ -64,16 +53,16 @@ export function CoverageOutcomeNote({
                 <div className="space-y-1">
                     <div className="flex items-center gap-2">
                         <h4 className="text-sm font-semibold">Coverage</h4>
-                        <Badge variant="outline">Unassigned: skill mismatch</Badge>
+                        <Badge variant="outline">Not assigned: missing skill</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">
                         {missingSkills.length > 0
-                            ? `No vehicle in this warehouse holds ${missingSkills.map((s) => `"${s.name}"`).join(", ")}, which this package requires.`
-                            : "No single vehicle in this warehouse holds every skill this package requires."}
+                            ? `No vehicle at this warehouse has ${missingSkills.map((s) => `"${s.name}"`).join(", ")}, which this package needs.`
+                            : "No vehicle at this warehouse has all the skills this package needs."}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                        Assign the skill to a vehicle at this warehouse, or add another vehicle that
-                        already holds it, then re-run assignment.
+                        Give the skill to a vehicle at this warehouse, or add a vehicle that has it.
+                        Then run assignment again.
                     </p>
                 </div>
             </div>
@@ -96,8 +85,7 @@ export function CoverageOutcomeNote({
                 <p className="text-sm text-muted-foreground">{description}</p>
                 {isFallbackOutcome(outcome) && (
                     <p className="text-sm text-muted-foreground">
-                        This is not an error — it is what happens when the map does not fully explain
-                        where a package should go yet.
+                        This is normal, not an error.
                     </p>
                 )}
             </div>

@@ -15,9 +15,7 @@ export default async function ServiceAreaDetailPage({
     params: Promise<{ slug: string; id: string }>
 }) {
     const { slug, id } = await params
-    // Same shape as the list page: looking at an area stays open to every org
-    // member, only the write entry points are gated, and the permission is
-    // resolved once here rather than by each control asking for itself.
+    // All members can view. Only changes need the permission.
     const [areaResult, canEdit] = await Promise.all([
         getServiceAreaDetail(id),
         hasOrgPermission(slug, SERVICE_AREAS_EDIT),
@@ -26,9 +24,7 @@ export default async function ServiceAreaDetailPage({
     const areasHref = `/orgs/${slug}/dashboard/service/areas`
 
     if (areaResult.status !== "ok") {
-        // A missing area and a failed read get different panels. Telling a
-        // dispatcher their territory is gone when the database is simply
-        // unreachable sends them off to redraw something that still exists.
+        // A missing area and a failed read show different messages.
         const isMissing = areaResult.status === "not-found"
 
         return (
@@ -49,7 +45,7 @@ export default async function ServiceAreaDetailPage({
                         <p className="text-sm text-muted-foreground">
                             {isMissing
                                 ? "It may have been deleted, or it may belong to another organisation."
-                                : "This is a problem reading it, not a deleted area. Reload the page, and contact support if it keeps happening."}
+                                : "Reload the page. If the problem continues, contact support."}
                         </p>
                     </div>
                 </div>
@@ -72,15 +68,11 @@ export default async function ServiceAreaDetailPage({
                         {area.name}
                     </h1>
                     <p className="text-muted-foreground">
-                        The territory this area covers, and the drivers who cover it.
+                        The area on the map, and its drivers.
                     </p>
                 </div>
 
-                {/*
-                    Redrawing the boundary lives on the existing edit route and
-                    stays there. That page is readable without the permission
-                    too, so this is a link either way and only the label changes.
-                */}
+                {/* Members without the permission can view the edit page too. */}
                 <Button
                     variant="outline"
                     render={<Link href={`${areasHref}/edit/${area.id}`} />}

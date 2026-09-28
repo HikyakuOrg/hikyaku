@@ -54,13 +54,8 @@ export function LoginForm({ className, redirectTo, ...props }: LoginFormProps) {
     }
   }
 
-  // Passwordless fallback. It reuses the email field above rather than swapping
-  // the form out, so the page never collapses to a bare pair of buttons.
-  //
-  // The Magic Link email template renders {{ .Token }}, not {{ .ConfirmationURL }},
-  // so this sends an 8-digit code and hands off to the shared OTP screen. No
-  // emailRedirectTo: nothing comes back through a link, so there is no code to
-  // exchange and no redirect allow-list entry to keep in sync.
+  // Passwordless sign-in with the email above. The email has an 8-digit code,
+  // not a link, so go to the OTP screen. No emailRedirectTo is needed.
   const handleEmailCode = async () => {
     if (!email) {
       setError('Enter your email address first.')

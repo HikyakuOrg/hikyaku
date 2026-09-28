@@ -23,7 +23,7 @@ export function DispatchSettingsForm({
     slug: string
     organisationId: string
     settings: DispatchSettings
-    /** Whether the signed-in user holds `organisation.edit`. UI gating only; RLS refuses the write regardless. */
+    /** Whether the user has `organisation.edit`. For the UI only; RLS enforces it. */
     canEdit: boolean
 }) {
     const router = useRouter()
@@ -45,7 +45,7 @@ export function DispatchSettingsForm({
             router.refresh()
         } catch (error) {
             console.error(error)
-            toast.error(describeWriteError(error, ORGANISATION_EDIT, "Failed to save the dispatch settings."))
+            toast.error(describeWriteError(error, ORGANISATION_EDIT, "Could not save the dispatch settings."))
         } finally {
             setIsSaving(false)
         }
@@ -56,8 +56,7 @@ export function DispatchSettingsForm({
             <CardHeader>
                 <CardTitle>Automatic assignment</CardTitle>
                 <CardDescription>
-                    How new packages are placed on your drivers&apos; shifts. A change applies from the next package
-                    placed; packages already on a shift are not moved.
+                    How new packages go on your drivers&apos; shifts. Changes apply to new packages only.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -71,23 +70,22 @@ export function DispatchSettingsForm({
                         }
                         disabled={disabled}
                     >
-                        Each new package is placed on a driver&apos;s shift as soon as it is created, and a new shift
-                        is opened when no van already out has room. When off, new packages stay pending until a
-                        dispatcher assigns them.
+                        Each new package goes on a driver&apos;s shift when it is created. If no shift has space, a
+                        new shift starts. When off, new packages wait until a dispatcher assigns them.
                     </SettingOption>
 
                     <SettingOption
                         testId="dispatch-settings-load-spread"
-                        title="Spread packages across vans"
+                        title="Spread packages across vehicles"
                         checked={draft.loadSpreadEnabled}
                         onCheckedChange={(checked) =>
                             setDraft((current) => ({ ...current, loadSpreadEnabled: checked }))
                         }
                         disabled={disabled}
                     >
-                        Prefer the van carrying fewer stops when the extra driving is small, instead of filling one van
-                        before starting the next. Routes get longer, so on a busy day this can open a shift that would
-                        not otherwise have been needed. Only affects automatic assignment.
+                        Use the vehicle with fewer stops when the extra driving is small, instead of filling one
+                        vehicle first. Routes get longer, so on busy days this can start an extra shift. Applies to
+                        automatic assignment only.
                     </SettingOption>
 
                     <SettingOption
@@ -99,12 +97,11 @@ export function DispatchSettingsForm({
                         }
                         disabled={disabled}
                     >
-                        Give each package to a driver whose service area covers the delivery address, opening a shift
-                        for one of them before sending it to a driver who does not work there, and warn dispatchers
-                        who assign a package outside its driver&apos;s area. Drivers with no service area cover
-                        everywhere. Turn this on once your{" "}
-                        <Link href={orgPath(slug, "/dashboard/service/areas")}>service areas</Link> are drawn and
-                        drivers are assigned to them.
+                        Give each package to a driver whose service area includes the address, even if this starts a
+                        new shift. Dispatchers get a warning when they assign a package outside the driver&apos;s area.
+                        Drivers with no service area cover everywhere. Turn this on after you draw your{" "}
+                        <Link href={orgPath(slug, "/dashboard/service/areas")}>service areas</Link> and add drivers
+                        to them.
                     </SettingOption>
                 </FieldGroup>
 
@@ -132,11 +129,7 @@ export function DispatchSettingsForm({
     )
 }
 
-/**
- * One setting as a choice card. The checkbox is named by the title alone and
- * described by the paragraph, rather than taking the whole card's text as its
- * accessible name.
- */
+/** One setting. The title labels the checkbox; the text describes it. */
 function SettingOption({
     testId,
     title,

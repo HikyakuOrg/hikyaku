@@ -9,17 +9,13 @@ import { ServiceAreasExplorer } from "./service-areas-explorer"
 
 export default async function ServiceAreasPage({ params }: { params: Promise<{ slug: string }> }) {
     const { slug } = await params
-    // Viewing the map and the list stays open to every org member; only the
-    // write entry points are gated. Resolved once here and handed down as a prop
-    // so no control has to ask for itself.
+    // All members can view. Only changes need the permission.
     const [areasResult, canEdit] = await Promise.all([
         getServiceAreas(),
         hasOrgPermission(slug, SERVICE_AREAS_EDIT),
     ])
 
-    // A failed read and an organisation that has drawn nothing are different
-    // things and get different panels. Showing the onboarding copy for a broken
-    // backend told the dispatcher their areas were gone.
+    // A failed read shows an error, not the empty state.
     const hasFailedRead = areasResult.status === "error"
     const areas = areasResult.status === "ok" ? areasResult.areas : []
 
@@ -29,7 +25,7 @@ export default async function ServiceAreasPage({ params }: { params: Promise<{ s
                 <div>
                     <h1 className="mb-2 text-3xl font-bold tracking-tight">Service Areas</h1>
                     <p className="text-muted-foreground">
-                        View your delivery coverage areas on the map, and every area you have drawn in the list below.
+                        Your delivery areas, on the map and in the list.
                     </p>
                 </div>
 
@@ -44,8 +40,7 @@ export default async function ServiceAreasPage({ params }: { params: Promise<{ s
                     <div className="space-y-2">
                         <h2 className="text-lg font-semibold">Service areas could not be loaded</h2>
                         <p className="text-sm text-muted-foreground">
-                            This is a problem reading them, not an empty organisation. Reload the page, and
-                            contact support if it keeps happening.
+                            Reload the page. If the problem continues, contact support.
                         </p>
                     </div>
                 </div>
@@ -57,7 +52,7 @@ export default async function ServiceAreasPage({ params }: { params: Promise<{ s
                     <div className="space-y-2">
                         <h2 className="text-lg font-semibold">No service areas yet</h2>
                         <p className="text-sm text-muted-foreground">
-                            Add a service area to start visualizing coverage on the map.
+                            Add a service area to see it on the map.
                         </p>
                     </div>
                 </div>

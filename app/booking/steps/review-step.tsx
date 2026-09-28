@@ -53,7 +53,7 @@ function AddressValue({ addr }: { addr: AddressesFormValues["sender"] | undefine
 
 function formatTimeWindow(from?: string, to?: string): string {
     if (!from && !to) return "—"
-    if (from && to) return `${from} – ${to}`
+    if (from && to) return `${from} to ${to}`
     return from ?? to ?? "—"
 }
 
@@ -99,7 +99,7 @@ export function ReviewStep({
                     Review
                 </h3>
                 <p className="text-muted-foreground mt-2 leading-7">
-                    Check your booking details before submitting.
+                    Check your booking before you submit.
                 </p>
             </div>
 
@@ -195,7 +195,7 @@ export function ReviewStep({
                     )}
                 </ReviewSection>
 
-                {/* Service Fees — itemised quote */}
+                {/* Service fees */}
                 {quote && (
                     <ReviewSection title="Service Fees">
                         {quote.lines.map((line) => (

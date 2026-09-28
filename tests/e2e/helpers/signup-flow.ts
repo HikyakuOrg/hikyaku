@@ -15,15 +15,15 @@ type SignupOptions = Partial<SignupCredentials> & {
 }
 
 /**
- * Drives a brand-new user through:
- *   1. Fill /auth/signup and submit.
- *   2. Wait for the Supabase confirmation email to arrive at Resend.
- *   3. Visit the /auth/confirm link.
- *   4. Log in via /auth/login.
- *   5. Resolve once the page lands on the auto-created personal org's dashboard.
+ * Sign up a new user:
+ *   1. Submit /auth/signup.
+ *   2. Wait for the confirmation email in Resend.
+ *   3. Open the /auth/confirm link.
+ *   4. Log in at /auth/login.
+ *   5. Wait for the personal org's dashboard.
  *
- * Caller MUST use a browser context with no shared storageState so the signup
- * starts logged-out (see playwright.config.ts `chrome-unauthed` project).
+ * Use a context with no storageState, so the user starts signed out (the
+ * `chrome-unauthed` project in playwright.config.ts).
  */
 export async function signUpAndConfirm(page: Page, options: SignupOptions = {}): Promise<SignupCredentials> {
     const credentials: SignupCredentials = {
@@ -41,8 +41,8 @@ export async function signUpAndConfirm(page: Page, options: SignupOptions = {}):
     await page.locator("#repeat-password").fill(credentials.password)
     await page.getByRole("button", { name: /^sign up$/i }).click()
 
-    // Wait for the inbound verification email — Resend inbound must be wired
-    // for RESEND_INBOUND_DOMAIN, and Supabase must send from RESEND_FROM_ADDRESS.
+    // Needs Resend inbound on RESEND_INBOUND_DOMAIN, and Supabase sending from
+    // RESEND_FROM_ADDRESS.
     const fromAddress = process.env.RESEND_FROM_ADDRESS ?? "auth@hikyaku.org"
     const { confirmUrl } = await waitForVerificationEmail({
         toAddress: credentials.email,
@@ -51,8 +51,8 @@ export async function signUpAndConfirm(page: Page, options: SignupOptions = {}):
         timeoutMs: options.verificationTimeoutMs ?? 60_000,
     })
 
-    // The signup form auto-signs-in. Clear that session so visiting the
-    // confirm link + logging in is a clean flow that any real user could perform.
+    // Signup signs the user in. Clear that session, so the confirm link and
+    // login run like they do for a real user.
     await page.context().clearCookies()
 
     await page.goto(confirmUrl)
@@ -60,11 +60,10 @@ export async function signUpAndConfirm(page: Page, options: SignupOptions = {}):
     await page.goto("/auth/login")
     await page.locator("#email").fill(credentials.email)
     await page.locator("#password").fill(credentials.password)
-    // Exact match: "Sign in with Google" also renders when Google sign-in is enabled.
+    // Exact match, because "Sign in with Google" can also show.
     await page.getByRole("button", { name: "Sign in", exact: true }).click()
 
-    // Fresh users already have a personal org (auto-created at signup, or
-    // defensively by the login redirect) — land straight on its dashboard.
+    // New users have a personal org, so login opens its dashboard.
     await expect(page).toHaveURL(/\/orgs\/[a-z0-9-]+\/dashboard\/?$/, { timeout: 15_000 })
 
     return credentials

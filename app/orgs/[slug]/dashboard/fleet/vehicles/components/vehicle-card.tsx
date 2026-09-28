@@ -112,11 +112,6 @@ export function VehicleCard({ vehicle, href, className }: VehicleCardProps) {
                     <div className="text-xs text-muted-foreground truncate">{vehicle.vehicle_identification_number}</div>
                 )}
             </CardContent>
-            {vehicle.is_deleted && (
-                <div className="bg-destructive/10 border-t border-destructive/20 py-2 px-4 text-center">
-                    <span className="text-[10px] font-bold uppercase text-destructive tracking-widest">Historical Record - Deleted</span>
-                </div>
-            )}
         </Card>
     )
 }

@@ -7,10 +7,8 @@ export interface CustomerAddressLike {
 }
 
 /**
- * Display lines for a customer's address: an optional unit/suite/business-name
- * line above the street, the street itself, then "suburb, STATE postcode".
- * Blank or whitespace-only fields are dropped rather than left as empty lines
- * or stray separators.
+ * Address lines for display: the unit (if any), the street, then
+ * "suburb, STATE postcode". Blank fields are left out.
  */
 export function formatAddressLines(address: CustomerAddressLike): string[] {
     const lines: string[] = []

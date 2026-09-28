@@ -2,10 +2,8 @@ import Link from 'next/link'
 import { AuthBrandPanel } from '@/components/auth-brand-panel'
 
 /**
- * Split shell shared by every /auth screen: form column on the left, brand
- * panel on the right that collapses away below `lg`. Pages under here render
- * only their form; the wordmark, centring and footer live in this layout.
- * (The `callback`/`confirm` route handlers have no UI, so they're unaffected.)
+ * The /auth layout: the form on the left and the brand panel on the right
+ * (hidden below `lg`). Pages render only their form.
  */
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (

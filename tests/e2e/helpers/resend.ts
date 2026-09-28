@@ -38,7 +38,7 @@ async function resendGet<T>(path: string, apiKey: string): Promise<T> {
 export async function waitForVerificationEmail(opts: WaitOptions): Promise<{ email: ResendEmail; confirmUrl: string }> {
     const apiKey = process.env.RESEND_API_KEY
     if (!apiKey) {
-        throw new Error("RESEND_API_KEY not set — required by tests/e2e/helpers/resend.ts")
+        throw new Error("RESEND_API_KEY is not set. tests/e2e/helpers/resend.ts needs it.")
     }
     const timeoutMs = opts.timeoutMs ?? 60_000
     const pollIntervalMs = opts.pollIntervalMs ?? 2_000

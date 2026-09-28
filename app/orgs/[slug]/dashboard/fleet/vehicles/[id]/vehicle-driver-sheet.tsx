@@ -66,9 +66,9 @@ export function VehicleDriverSheet({ vehicleId, onDriverAssigned }: VehicleDrive
             await assignVehicleToDriver(vehicleId, selectedIds[0])
             setOpen(false)
             onDriverAssigned()
-            toast.success("Driver assigned successfully", { position: "bottom-right" })
+            toast.success("Driver assigned.", { position: "bottom-right" })
         } catch (error) {
-            toast.error(getErrorMessage(error) || "Failed to assign driver")
+            toast.error(getErrorMessage(error) || "Could not assign the driver.")
         }
     }
 
