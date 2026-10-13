@@ -17,6 +17,7 @@ import { ListDriverDto } from "@/lib/api"
 import { Tables } from "@/lib/supabase/supabase"
 import { CoverageOutcomeNote } from "./coverage-outcome-note"
 import { PackageDetailsTabs } from "./package-details-tabs"
+import { OrderShippingCard } from "./order-shipping-card"
 import { PackageImages } from "./package-images"
 import PackageTimeline from "./package-timeline"
 import { Separator } from "@/components/ui/separator"
@@ -326,6 +327,8 @@ export default function PackageDetails() {
                             </div>
                         </div>
                     )}
+
+                    <OrderShippingCard pkg={packageData} />
 
                     <PackageDetailsTabs
                         deliveryStatus={packageStatusTimeline.at(-1)?.statusText ?? ''}

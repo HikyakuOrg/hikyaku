@@ -888,6 +888,12 @@ export type Database = {
           id: string
           optimisation_id: string | null
           organisation_id: string
+          shipping_currency: string | null
+          shipping_discounted_price_minor: number | null
+          shipping_price_minor: number | null
+          shipping_rate_path: string | null
+          shipping_service_id: string | null
+          shipping_service_name: string | null
           to_customer: string
           tracking_number: string
           warehouse_id: string | null
@@ -900,6 +906,12 @@ export type Database = {
           id?: string
           optimisation_id?: string | null
           organisation_id: string
+          shipping_currency?: string | null
+          shipping_discounted_price_minor?: number | null
+          shipping_price_minor?: number | null
+          shipping_rate_path?: string | null
+          shipping_service_id?: string | null
+          shipping_service_name?: string | null
           to_customer: string
           tracking_number: string
           warehouse_id?: string | null
@@ -912,6 +924,12 @@ export type Database = {
           id?: string
           optimisation_id?: string | null
           organisation_id?: string
+          shipping_currency?: string | null
+          shipping_discounted_price_minor?: number | null
+          shipping_price_minor?: number | null
+          shipping_rate_path?: string | null
+          shipping_service_id?: string | null
+          shipping_service_name?: string | null
           to_customer?: string
           tracking_number?: string
           warehouse_id?: string | null
