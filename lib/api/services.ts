@@ -22,7 +22,15 @@ export async function getServiceCatalog(slug: string): Promise<ServiceCatalog> {
             next: { revalidate: 60, tags: [`catalog:${slug}`] },
         })
         if (!res.ok) return { services: [] }
-        return res.json()
+        const catalog: ServiceCatalog = await res.json()
+        // An API deployed before currency options and descriptions omits them.
+        return {
+            services: catalog.services.map((service) => ({
+                ...service,
+                description: service.description ?? null,
+                currency_options: service.currency_options ?? [],
+            })),
+        }
     } catch {
         return { services: [] }
     }
