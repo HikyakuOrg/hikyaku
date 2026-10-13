@@ -1548,6 +1548,8 @@ export interface OrderEventDto {
   order: OrderInfoDto | OrderReferenceDto;
   /** Required on `order.fulfillment_updated`, ignored otherwise. Ids of groups the storefront re-routed, merged away or cancelled. A released group that is not in `fulfillment_groups` loses its package. An unlisted group that is not released (for example, fulfilled) keeps it. */
   released_group_ids?: string[];
+  /** On `order.paid`, the Hikyaku checkout rate the shopper chose, when the shop offers them. Stored on every package the order makes. Ignored on other events. */
+  shipping_rate?: OrderShippingRateDto | null;
   source: OrderEventSourceDto;
 }
 
@@ -1700,6 +1702,39 @@ export interface OrderReferenceDto {
   /** Human-facing order name/number, e.g. "#1001". */
   name?: string | null;
 }
+
+export interface OrderShippingRateDto {
+  /**
+   * ISO 4217, any case.
+   * @example "AUD"
+   */
+  currency: string;
+  /**
+   * Shipping charged after discounts, decimal.
+   * @example "10.00"
+   */
+  discounted_price: string;
+  /** `live`: priced by the carrier callback. `static`: a rate the connector wrote into the storefront. */
+  path: OrderShippingRateDtoPathEnum;
+  /**
+   * Shipping charged for the order before discounts, decimal, in `currency`.
+   * @example "12.50"
+   */
+  price: string;
+  /**
+   * Stripe product id of the catalog service.
+   * @example "prod_QhX1a2B3c4D5e6"
+   */
+  service_id: string;
+  /**
+   * The shipping line title the shopper saw.
+   * @example "Same-day delivery"
+   */
+  title: string;
+}
+
+/** `live`: priced by the carrier callback. `static`: a rate the connector wrote into the storefront. */
+export type OrderShippingRateDtoPathEnum = "live" | "static";
 
 export interface OrgIssuingStatusDto {
   /**
@@ -2230,6 +2265,8 @@ export interface ShippingRateSettingsResponseDto {
 }
 
 export interface ShippingRateSettingsViewDto {
+  /** The caller holds integrations.shipping_rates.write in this organisation, so PUT and DELETE will be allowed. */
+  can_edit: boolean;
   /** Dashboard page where a merchant adds a price in another currency. Null when the API has no dashboard URL configured. */
   dashboard_service_url: string | null;
   services: ShippingRateServiceDto[];
