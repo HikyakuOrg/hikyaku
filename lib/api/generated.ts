@@ -167,6 +167,19 @@ export type AssignmentOutcomeDtoReasonEnum =
   | "auto_assign_disabled"
   | "deadline_infeasible";
 
+export interface BandSettingDto {
+  /**
+   * Band size in the service unit: km for per_km, mi for per_mi, kg for per_kg, lb for per_lb.
+   * @example 5
+   */
+  band_width: number;
+  /**
+   * Largest distance or weight offered, same unit. Above it the shopper gets no Hikyaku rate.
+   * @example 30
+   */
+  max: number;
+}
+
 export interface BatchByDbIdsDto {
   ids: string[];
 }
@@ -235,6 +248,19 @@ export type CatalogAddonDtoPricingUnitEnum =
   | "per_lb"
   | "per_recipient";
 
+export interface CatalogCurrencyAmountDto {
+  /**
+   * Per-unit rate in this currency’s minor units.
+   * @example 1150
+   */
+  amount_minor: number;
+  /**
+   * Lower-case ISO 4217 code, Stripe-style.
+   * @example "eur"
+   */
+  currency: string;
+}
+
 export interface CatalogServiceDto {
   /** Add-ons belonging to this service, oldest first. Only these are accepted in `addonIds` when quoting or paying for it. */
   addons: CatalogAddonDto[];
@@ -248,6 +274,13 @@ export interface CatalogServiceDto {
    * @example "usd"
    */
   currency: string;
+  /** Amounts in currencies other than `currency`, from the price’s Stripe `currency_options`, sorted by currency. Lets a storefront in another currency use this service without FX conversion. The public booking page always charges `currency`. */
+  currency_options: CatalogCurrencyAmountDto[];
+  /**
+   * Stripe product description, shown to shoppers with the rate. Null when unset.
+   * @example "Delivered by our own drivers, same day."
+   */
+  description: string | null;
   /**
    * Stripe product id — the stable public handle for this item. Editing a price mints a new Stripe price but leaves this unchanged.
    * @example "prod_QhX1a2B3c4D5e6"
@@ -673,6 +706,13 @@ export interface CreateServiceDto {
   amountMajor: number;
   /** ISO currency code; defaults to the account default. */
   currency?: string;
+  /** Amounts in currencies other than the main one (Stripe `currency_options`). On update, the list replaces the stored set; send `[]` to remove them all. */
+  currencyOptions?: CurrencyAmountDto[];
+  /**
+   * Shown to shoppers with the rate, e.g. at storefront checkout. Stored as the Stripe product description. Send an empty string to clear it on update.
+   * @maxLength 500
+   */
+  description?: string;
   name: string;
   pricingUnit: CreateServiceDtoPricingUnitEnum;
 }
@@ -751,6 +791,19 @@ export interface CreateUserResultDto {
   user_phone_number: string;
   /** Role name, echoed from the request. */
   user_role: string;
+}
+
+export interface CurrencyAmountDto {
+  /**
+   * Per-unit rate in this currency’s major units.
+   * @example 11.5
+   */
+  amountMajor: number;
+  /**
+   * ISO 4217 code, any case. Not the main currency.
+   * @example "eur"
+   */
+  currency: string;
 }
 
 export interface CustomerAddressDto {
@@ -1094,6 +1147,92 @@ export interface HealthDto {
   status: string;
 }
 
+export interface IntegrationLocationDto {
+  /** Street address as the connector last sent it. */
+  address: LocationAddressDto | null;
+  /** @example "AU" */
+  country_code: string | null;
+  /** @example "gid://shopify/Location/123" */
+  external_location_id: string;
+  external_location_name: string | null;
+  /** @format uuid */
+  id: string;
+  /** `warehouse`: ship from `warehouse_id`. `not_delivered`: Hikyaku does not deliver these items. `unmapped`: not decided; orders need attention. */
+  mode: IntegrationLocationDtoModeEnum;
+  /** @example "shopify" */
+  platform: string;
+  /** @example "store.myshopify.com" */
+  shop_domain: string;
+  /**
+   * When a full sync (`mark_missing_stale`) last omitted this location. NULL while the storefront reports it.
+   * @format date-time
+   */
+  stale_at: string | null;
+  /** @format date-time */
+  updated_at: string;
+  /**
+   * User who last changed the row. NULL for a database change, such as a warehouse delete.
+   * @format uuid
+   */
+  updated_by: string | null;
+  /**
+   * Set only when `mode` is `warehouse`. Deleting the warehouse sets `mode` to `unmapped`.
+   * @format uuid
+   */
+  warehouse_id: string | null;
+}
+
+/** `warehouse`: ship from `warehouse_id`. `not_delivered`: Hikyaku does not deliver these items. `unmapped`: not decided; orders need attention. */
+export type IntegrationLocationDtoModeEnum =
+  | "warehouse"
+  | "not_delivered"
+  | "unmapped";
+
+export interface IntegrationLocationInputDto {
+  /** The location's street address. A carrier rate request names its origin only by address, so this is how checkout finds the location. Omit to keep the stored address; null clears it. */
+  address?: LocationAddressDto | null;
+  /**
+   * ISO 3166-1 alpha-2, stored upper case. Omit or send null to keep the stored value.
+   * @example "AU"
+   */
+  country_code?: string | null;
+  /**
+   * The location's storefront id.
+   * @example "gid://shopify/Location/123"
+   */
+  external_location_id: string;
+  /**
+   * Display name. Omit or send null to keep the stored name.
+   * @example "Melbourne warehouse"
+   */
+  external_location_name?: string | null;
+  /** `warehouse`: ship from `warehouse_id`. `not_delivered`: Hikyaku does not deliver these items. `unmapped`: not decided; orders need attention. Omit to keep the stored mode and warehouse (a new location starts `unmapped`). */
+  mode?: IntegrationLocationInputDtoModeEnum;
+  /**
+   * Required when `mode` is `warehouse`, and only then. Must belong to the organisation in `X-Organisation-Slug`.
+   * @format uuid
+   */
+  warehouse_id?: string | null;
+}
+
+/** `warehouse`: ship from `warehouse_id`. `not_delivered`: Hikyaku does not deliver these items. `unmapped`: not decided; orders need attention. Omit to keep the stored mode and warehouse (a new location starts `unmapped`). */
+export type IntegrationLocationInputDtoModeEnum =
+  | "warehouse"
+  | "not_delivered"
+  | "unmapped";
+
+export interface IntegrationLocationListDto {
+  data: IntegrationLocationDto[];
+}
+
+export type IntegrationsControllerListOrdersParamsStatusEnum =
+  | "pending"
+  | "processing"
+  | "processed"
+  | "skipped"
+  | "needs_attention"
+  | "failed";
+
 export interface InvitationOrganisationDto {
   /** @format uuid */
   id: string;
@@ -1305,6 +1444,43 @@ export interface LatestOptimisationRunDto {
   status: string;
 }
 
+export interface LocationAddressDto {
+  /** @example "1 Main St" */
+  address1?: string | null;
+  address2?: string | null;
+  /** @example "Melbourne" */
+  city?: string | null;
+  /**
+   * ISO 3166-1 alpha-2.
+   * @example "AU"
+   */
+  country_code?: string | null;
+  /** @example "VIC" */
+  province_code?: string | null;
+  /** @example "3000" */
+  zip?: string | null;
+}
+
+export interface MemberOrganisationDto {
+  /** @format uuid */
+  id: string;
+  /**
+   * NULL for an unnamed personal organisation.
+   * @example "Acme Logistics"
+   */
+  name: string | null;
+  /** @example "company" */
+  orgType: MemberOrganisationDtoOrgTypeEnum;
+  /**
+   * Send this as `X-Organisation-Slug` on tenant-scoped calls.
+   * @example "acme-logistics"
+   */
+  slug: string;
+}
+
+/** @example "company" */
+export type MemberOrganisationDtoOrgTypeEnum = "personal" | "company";
+
 export interface ModelYearResultDto {
   /** Confidence in the year, from 0 to 1. */
   confidence: number;
@@ -1361,10 +1537,17 @@ export interface OrderEventCustomerDto {
 }
 
 export interface OrderEventDto {
-  customer: OrderEventCustomerDto;
-  delivery: OrderDeliveryDto;
+  /** Required, except on `order.fulfillment_updated`. */
+  customer?: OrderEventCustomerDto;
+  /** Required, except on `order.fulfillment_updated`. */
+  delivery?: OrderDeliveryDto;
   event: OrderEventInfoDto;
-  order: OrderInfoDto;
+  /** Items per storefront location. Each `shipping` or `local` group becomes one package, sent from the warehouse its location maps to (PUT /api/v1/integrations/locations). An unmapped location puts the event in `needs_attention`. Omit or send [] to ship the order as one package from the nearest warehouse. On `order.paid`, each `line_item_id` must match an `order.line_items[].id`, else 400. Required on `order.fulfillment_updated`: every group still to deliver, possibly none. */
+  fulfillment_groups?: OrderFulfillmentGroupDto[];
+  /** The full order for `order.paid`. Only `id` and optional `name` for `order.fulfillment_updated`. */
+  order: OrderInfoDto | OrderReferenceDto;
+  /** Required on `order.fulfillment_updated`, ignored otherwise. Ids of groups the storefront re-routed, merged away or cancelled. A released group that is not in `fulfillment_groups` loses its package. An unlisted group that is not released (for example, fulfilled) keeps it. */
+  released_group_ids?: string[];
   source: OrderEventSourceDto;
 }
 
@@ -1376,10 +1559,55 @@ export interface OrderEventInfoDto {
   /** @format date-time */
   occurred_at: string;
   /**
-   * Event type, e.g. "order.paid". An open string, not a closed enum, so a connector can introduce a new event type without a hikyaku-api change.
+   * "order.paid" creates packages. "order.fulfillment_updated" re-routes them. Other types are recorded and skipped.
    * @example "order.paid"
    */
   type: string;
+}
+
+export interface OrderEventRecordDto {
+  /** Processing attempts so far. */
+  attempts: number;
+  /** @format date-time */
+  createdAt: string;
+  /** @format uuid */
+  customerId: string | null;
+  /** Reason for `skipped`, `needs_attention` or `failed`, or for a pending retry. */
+  error: string | null;
+  /** @example "order.paid" */
+  eventType: string;
+  /** The order's storefront id. */
+  externalOrderId: string;
+  /** @format uuid */
+  id: string;
+  /** Human-facing order number, e.g. "#1001". */
+  orderName: string | null;
+  /**
+   * The first of `packageIds`, for older clients.
+   * @format uuid
+   */
+  packageId: string | null;
+  /** Packages linked to this event: one for a whole order, or one per delivered fulfillment group. Empty if none. */
+  packageIds: string[];
+  /** @example "shopify" */
+  platform: string;
+  /** @format date-time */
+  processedAt: string | null;
+  /** `pending`, `processing`: in progress. `processed`: see `packageIds` and `customerId`. `skipped`: nothing to deliver. `needs_attention`: fix the cause in `error`, then retry; groups that succeeded are already in `packageIds`. `failed`: retries exhausted; fix the cause, then retry. */
+  status: OrderEventRecordDtoStatusEnum;
+}
+
+/** `pending`, `processing`: in progress. `processed`: see `packageIds` and `customerId`. `skipped`: nothing to deliver. `needs_attention`: fix the cause in `error`, then retry; groups that succeeded are already in `packageIds`. `failed`: retries exhausted; fix the cause, then retry. */
+export type OrderEventRecordDtoStatusEnum =
+  | "pending"
+  | "processing"
+  | "processed"
+  | "skipped"
+  | "needs_attention"
+  | "failed";
+
+export interface OrderEventRecordListDto {
+  data: OrderEventRecordDto[];
 }
 
 export interface OrderEventSourceDto {
@@ -1392,6 +1620,39 @@ export interface OrderEventSourceDto {
   platform: string;
   /** The storefront's own domain, when the platform has one. */
   shop_domain?: string | null;
+}
+
+export interface OrderFulfillmentGroupDto {
+  delivery_method: OrderFulfillmentGroupDtoDeliveryMethodEnum;
+  /**
+   * The location's storefront id, as sent to PUT /api/v1/integrations/locations.
+   * @example "gid://shopify/Location/123"
+   */
+  external_location_id: string;
+  external_location_name: string | null;
+  /**
+   * The storefront's id for the group (fulfillment order, shipment or similar).
+   * @example "gid://shopify/FulfillmentOrder/1"
+   */
+  id: string;
+  line_items: OrderFulfillmentGroupLineItemDto[];
+  total_weight_grams: number | null;
+}
+
+export type OrderFulfillmentGroupDtoDeliveryMethodEnum =
+  | "shipping"
+  | "local"
+  | "pickup"
+  | "none";
+
+export interface OrderFulfillmentGroupLineItemDto {
+  /** The `id` of an entry in `order.line_items`. */
+  line_item_id: string;
+  /**
+   * Units of the line item in this group. Less than the line item quantity when a line is split across locations.
+   * @min 1
+   */
+  quantity: number;
 }
 
 export interface OrderInfoDto {
@@ -1431,6 +1692,13 @@ export interface OrderLineItemDto {
   sku: string | null;
   title: string;
   variant_title: string | null;
+}
+
+export interface OrderReferenceDto {
+  /** The `order.id` sent in the order.paid event. */
+  id: string;
+  /** Human-facing order name/number, e.g. "#1001". */
+  name?: string | null;
 }
 
 export interface OrgIssuingStatusDto {
@@ -1570,6 +1838,25 @@ export interface ProposedDrivingLimitsDto {
   /** Proposed cap on elapsed departure-to-return time, seconds. */
   maxWorkingSeconds: number | null;
 }
+
+export interface PutShippingRateSettingsDto {
+  /** Required for each distance and weight service when `path` is `static` and rates are enabled. Entries for other services are dropped. */
+  band_settings?: Record<string, BandSettingDto>;
+  enabled: boolean;
+  path?: PutShippingRateSettingsDtoPathEnum | null;
+  /** @example "shopify" */
+  platform: string;
+  service_ids: string[];
+  /**
+   * ISO 4217, any case. Required to enable.
+   * @example "AUD"
+   */
+  shop_currency?: string | null;
+  /** @example "store.myshopify.com" */
+  shop_domain: string;
+}
+
+export type PutShippingRateSettingsDtoPathEnum = "live" | "static";
 
 export interface QuoteBookingDto {
   /** Selected add-on UUIDs. */
@@ -1873,6 +2160,89 @@ export type ShiftVersionDtoStatusEnum =
   | "completed"
   | "cancelled";
 
+export interface ShippingRateErrorDto {
+  code: ShippingRateErrorDtoCodeEnum;
+  /** @example "Same-day has no price in AUD." */
+  message: string;
+  /** The services the error is about. */
+  service_ids?: string[];
+  /** @example 422 */
+  statusCode: number;
+}
+
+export type ShippingRateErrorDtoCodeEnum =
+  | "stripe_not_connected"
+  | "no_services"
+  | "service_missing_currency"
+  | "unknown_service"
+  | "band_settings_invalid";
+
+export interface ShippingRateServiceDto {
+  /**
+   * Per-unit rate in `currency` as a decimal string, e.g. "1.50". Null when the price has no amount in that currency; such a service cannot be enabled.
+   * @example "1.50"
+   */
+  amount: string | null;
+  /**
+   * Upper-case ISO 4217 currency `amount` is in.
+   * @example "AUD"
+   */
+  currency: string;
+  description: string | null;
+  /** Stripe product id. */
+  id: string;
+  name: string;
+  unit: ShippingRateServiceDtoUnitEnum;
+}
+
+export type ShippingRateServiceDtoUnitEnum =
+  | "per_delivery"
+  | "per_km"
+  | "per_mi"
+  | "per_kg"
+  | "per_lb"
+  | "per_recipient";
+
+export interface ShippingRateSettingsDto {
+  /** Static path band sizes by service id. */
+  band_settings: Record<string, BandSettingDto>;
+  /** Rates are offered at checkout. */
+  enabled: boolean;
+  /** `live`: the storefront asks per checkout. `static`: rates are written into the storefront. */
+  path: ShippingRateSettingsDtoPathEnum | null;
+  /**
+   * Stripe product ids of the catalog services offered, in display order.
+   * @example ["prod_QhX1a2B3c4D5e6"]
+   */
+  service_ids: string[];
+  /**
+   * Upper-case ISO 4217 currency of the shop.
+   * @example "AUD"
+   */
+  shop_currency: string | null;
+}
+
+/** `live`: the storefront asks per checkout. `static`: rates are written into the storefront. */
+export type ShippingRateSettingsDtoPathEnum = "live" | "static";
+
+export interface ShippingRateSettingsResponseDto {
+  data: ShippingRateSettingsDto;
+}
+
+export interface ShippingRateSettingsViewDto {
+  /** Dashboard page where a merchant adds a price in another currency. Null when the API has no dashboard URL configured. */
+  dashboard_service_url: string | null;
+  services: ShippingRateServiceDto[];
+  /** Stored settings, or the defaults (disabled, no services) when none are stored. */
+  settings: ShippingRateSettingsDto;
+  /** The organisation has a Stripe account connected. */
+  stripe_connected: boolean;
+}
+
+export interface ShippingRateSettingsViewResponseDto {
+  data: ShippingRateSettingsViewDto;
+}
+
 export interface TrialStatusDto {
   /**
    * Whole days remaining, floored — so the final day reads 0, not 1. Null when `state` is `none`, and 0 rather than negative once expired.
@@ -1937,6 +2307,13 @@ export type UpdateAddonDtoPricingUnitEnum =
 export interface UpdateServiceDto {
   /** Per-unit rate in major units (e.g. dollars). */
   amountMajor?: number;
+  /** Amounts in currencies other than the main one (Stripe `currency_options`). On update, the list replaces the stored set; send `[]` to remove them all. */
+  currencyOptions?: CurrencyAmountDto[];
+  /**
+   * Shown to shoppers with the rate, e.g. at storefront checkout. Stored as the Stripe product description. Send an empty string to clear it on update.
+   * @maxLength 500
+   */
+  description?: string;
   name?: string;
   pricingUnit?: UpdateServiceDtoPricingUnitEnum;
 }
@@ -1995,6 +2372,26 @@ export interface UpsertCustomerDto {
   phone: string;
 }
 
+export interface UpsertIntegrationLocationsDto {
+  /** Up to 1000 locations, no duplicates. */
+  locations: IntegrationLocationInputDto[];
+  /**
+   * Set `true` when `locations` is the shop's full list. Stored locations missing from it get `stale_at` and keep their mapping.
+   * @default false
+   */
+  mark_missing_stale?: boolean;
+  /**
+   * Lowercase connector slug, as on POST /api/v1/integrations/orders.
+   * @example "shopify"
+   */
+  platform: string;
+  /**
+   * Storefront domain. Case-insensitive; stored lower case.
+   * @example "store.myshopify.com"
+   */
+  shop_domain: string;
+}
+
 export interface UserBatchFailureDto {
   /** Human-readable cause, e.g. "Cannot deactivate your own account". For display only — do not branch on the text. */
   reason: string;
@@ -2048,6 +2445,47 @@ export interface VinDecodeResultDto {
   valid: boolean;
   /** The VIN that was decoded, as submitted. */
   vin: string;
+}
+
+export interface WarehouseDto {
+  /** Street address line. */
+  address: string;
+  /** @example "West Melbourne" */
+  city: string;
+  /**
+   * Country name as entered, not an ISO code.
+   * @example "Australia"
+   */
+  country: string;
+  /** @format uuid */
+  id: string;
+  /**
+   * @min -90
+   * @max 90
+   * @example -37.8063
+   */
+  lat: number;
+  /**
+   * @min -180
+   * @max 180
+   * @example 144.9407
+   */
+  lon: number;
+  /** @example "West Melbourne Depot" */
+  name: string;
+  /** @example "3003" */
+  postcode: string;
+  /** @example "VIC" */
+  state: string;
+  /**
+   * IANA time zone of the warehouse.
+   * @example "Australia/Melbourne"
+   */
+  timezone: string;
+}
+
+export interface WarehouseListDto {
+  data: WarehouseDto[];
 }
 
 export interface WmiResultDto {

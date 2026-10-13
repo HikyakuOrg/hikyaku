@@ -20,3 +20,31 @@ export const catalogItemSchema = z.object({
 })
 
 export type CatalogItemFormValues = z.infer<typeof catalogItemSchema>
+
+// A service also has a description (shown with the rate at storefront checkout)
+// and amounts in other currencies (Stripe `currency_options`).
+export const serviceSchema = catalogItemSchema.extend({
+    description: z.string().max(500, "Keep the description under 500 characters"),
+    currencyOptions: z
+        .array(
+            z.object({
+                currency: z.string().regex(/^[a-z]{3}$/, "Pick a currency"),
+                amount: z.number().min(0.01, "Amount must be greater than 0"),
+            }),
+        )
+        .superRefine((options, ctx) => {
+            const seen = new Set<string>()
+            options.forEach((option, index) => {
+                if (seen.has(option.currency)) {
+                    ctx.addIssue({
+                        code: "custom",
+                        message: "This currency is already listed",
+                        path: [index, "currency"],
+                    })
+                }
+                seen.add(option.currency)
+            })
+        }),
+})
+
+export type ServiceFormValues = z.infer<typeof serviceSchema>
